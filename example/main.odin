@@ -203,17 +203,17 @@ k2_draw_rect_outline :: proc (r: px.Rect, thickness: f32, color: px.Color) {
 }
 
 k2_draw_sub_texture :: proc (tex: px.Texture_Handle, src, dst: px.Rect, tint: px.Color) {
-	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)u64(tex), width = 0, height = 0}
+	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)tex, width = 0, height = 0}
 	k2.draw_texture_fit(k2_tex, to_k2_rect(src), to_k2_rect(dst),
 		origin = {}, rotation = 0, tint = tint)
 }
 
 k2_draw_text :: proc (font: px.Font_Handle, text: string, pos: [2]f32, color: px.Color) {
-	k2.draw_text(text, pos, 10, color, cast(k2.Font)u64(font))
+	k2.draw_text(text, pos, 10, color, cast(k2.Font)font)
 }
 
 k2_measure_text :: proc (font: px.Font_Handle, text: string) -> [2]f32 {
-	return k2.measure_text(text, 10, cast(k2.Font)u64(font))
+	return k2.measure_text(text, 10, cast(k2.Font)font)
 }
 
 k2_text_height :: proc (font: px.Font_Handle) -> f32 {

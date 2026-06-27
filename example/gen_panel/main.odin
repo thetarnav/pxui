@@ -12,15 +12,29 @@ import "core:image"
 import "core:image/tga"
 import "core:os"
 import "core:path/filepath"
+import la "core:math/linalg"
 
 W :: 24
 H :: 24
 INSET :: 4
 
-C_BORDER   :: [4]u8{ 90,  60,  30, 255}
-C_BORDER_2 :: [4]u8{120,  90,  60, 255}
-C_FILL     :: [4]u8{200, 170, 110, 255}
-C_ACCENT   :: [4]u8{255, 230, 180, 255}
+Color :: [4]u8
+
+color_lerp :: proc "contextless" (a, b: Color, t: f32) -> Color {
+	return {
+		u8(clamp(la.lerp(f32(a.r), f32(b.r), t), 0.0, 255.0)),
+		u8(clamp(la.lerp(f32(a.g), f32(b.g), t), 0.0, 255.0)),
+		u8(clamp(la.lerp(f32(a.b), f32(b.b), t), 0.0, 255.0)),
+		u8(clamp(la.lerp(f32(a.a), f32(b.a), t), 0.0, 255.0)),
+	}
+}
+
+WHITE  :: Color{255, 255, 255, 255}
+BLACK  :: Color{  0,   0,   0, 255}
+RED    :: Color{255,   0,   0, 255}
+GREEN  :: Color{  0, 255,   0, 255}
+BLUE   :: Color{  0,   0, 255, 255}
+PURPLE :: Color{255,   0, 255, 255}
 
 main :: proc () {
 	buf: bytes.Buffer
@@ -28,15 +42,19 @@ main :: proc () {
 
 	for y in 0..<H {
 		for x in 0..<W {
-			c: [4]u8
+            xp := f32(x) / W
+            yp := f32(y) / H
+            c: Color
 			switch {
-			case x < INSET && y < INSET:                 c = C_ACCENT
-			case x >= W - INSET && y < INSET:            c = C_BORDER_2
-			case x < INSET && y >= H - INSET:            c = C_BORDER
-			case x >= W - INSET && y >= H - INSET:       c = C_ACCENT
-			case x < INSET || x >= W - INSET || y < INSET || y >= H - INSET:
-				c = C_BORDER
-			case:                                        c = C_FILL
+			case x < INSET && y < INSET:           c = RED    // LT corner
+			case x >= W - INSET && y < INSET:      c = PURPLE // RT corner
+			case x < INSET && y >= H - INSET:      c = BLUE   // LB corner
+			case x >= W - INSET && y >= H - INSET: c = GREEN  // RB corner
+			case x < INSET:                        c = color_lerp(RED,    BLUE,   yp) // L border
+			case x >= W - INSET:                   c = color_lerp(PURPLE, GREEN,  yp) // R border
+			case y < INSET:                        c = color_lerp(RED,    PURPLE, xp) // T border
+			case y >= H - INSET:                   c = color_lerp(BLUE,   GREEN,  xp) // B border
+            case:                                  c = color_lerp(BLACK,  WHITE, yp/2 + xp/2) // fill
 			}
 			bytes.buffer_write(&buf, c[:])
 		}
