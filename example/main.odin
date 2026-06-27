@@ -60,7 +60,8 @@ init :: proc () {
 }
 
 step :: proc () -> bool {
-	if !k2.update() { return false }
+
+	k2.update() or_return
 	defer k2.reset_frame_allocator()
 	defer free_all(context.temp_allocator)
 
@@ -71,14 +72,14 @@ step :: proc () -> bool {
 	mouse.y /= PIXEL_SCALE
 
 	// Convert k2 mouse to px input and store in the context directly.
-	ui.mouse = mouse
-	ui.mouse_pressed = k2.mouse_button_went_down(.Left)
+	ui.mouse          = mouse
+	ui.mouse_pressed  = k2.mouse_button_went_down(.Left)
 	ui.mouse_released = k2.mouse_button_went_up(.Left)
 	ui.mouse_held     = k2.mouse_button_is_held(.Left)
 	ui.mouse_wheel    = k2.get_mouse_wheel_delta()
-	ui.screen_w = f32(UI_W)
-	ui.screen_h = f32(UI_H)
-	ui.pixel_scale = PIXEL_SCALE
+	ui.screen_w       = f32(UI_W)
+	ui.screen_h       = f32(UI_H)
+	ui.pixel_scale    = PIXEL_SCALE
 
 	px.begin_frame(&ui, mouse, PIXEL_SCALE)
 	draw_ui()
@@ -104,6 +105,7 @@ main :: proc () {
 }
 
 draw_ui :: proc () {
+
 	// Outer panel fills the screen.
 	if px.panel("root", id = 0) {
 		// Cut a 24px header at the top.

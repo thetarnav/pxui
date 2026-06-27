@@ -27,8 +27,8 @@ widget_begin :: proc (
 	w.flags = flags
 	w.label = label
 	w.last_touched = ctx.frame_index
-	if surface != nil { w.panel_surface = surface.? }
-	if size != nil { w.semantic_size = size.? }
+	if v, ok := surface.?; ok do w.panel_surface = v
+	if v, ok := size.?; ok do w.semantic_size = v
 
 	parent := ctx.parent_stack[len(ctx.parent_stack) - 1]
 	w.parent = parent
@@ -45,7 +45,7 @@ widget_begin :: proc (
 
 // Tear down a widget. Stores its state for next frame's id lookup.
 widget_end :: proc (r: Widget_Result) {
-	if !r.active { return }
+	if !r.active do return
 	ctx := the_context
 	w := r.widget
 	ctx.by_id[w.id] = w
@@ -64,14 +64,13 @@ widget :: proc (
 ) -> bool {
 	r := widget_begin(label, flags, id, size)
 	if r.active {
-		ctx := the_context
-		append(&ctx.parent_stack, r.widget)
+		append(&the_context.parent_stack, r.widget)
 	}
 	return r.active
 }
 
 widget_pop :: proc (active: bool) {
-	if !active { return }
-	ctx := the_context
-	pop(&ctx.parent_stack)
+	if active {
+        pop(&the_context.parent_stack)
+    }
 }
