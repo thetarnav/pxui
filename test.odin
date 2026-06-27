@@ -99,6 +99,7 @@ test_rect_cut_clamp :: proc (t: ^testing.T) {
 test_widget_ids_are_stable :: proc (t: ^testing.T) {
 	ctx := make_ctx()
 	defer free(ctx)
+	defer destroy_context(ctx)
 	ctx.screen_w = 320
 	ctx.screen_h = 200
 
@@ -130,6 +131,7 @@ test_widget_ids_are_stable :: proc (t: ^testing.T) {
 test_panel_produces_fill_and_border :: proc (t: ^testing.T) {
 	ctx := make_ctx()
 	defer free(ctx)
+	defer destroy_context(ctx)
 	ctx.screen_w = 320
 	ctx.screen_h = 200
 	ctx.default_panel = Panel_Surface{
@@ -160,6 +162,7 @@ test_panel_produces_fill_and_border :: proc (t: ^testing.T) {
 test_button_emits_click :: proc (t: ^testing.T) {
 	ctx := make_ctx()
 	defer free(ctx)
+	defer destroy_context(ctx)
 	ctx.screen_w = 320
 	ctx.screen_h = 200
 
@@ -187,6 +190,7 @@ test_button_emits_click :: proc (t: ^testing.T) {
 test_scroll_view_sets_scissor :: proc (t: ^testing.T) {
 	ctx := make_ctx()
 	defer free(ctx)
+	defer destroy_context(ctx)
 	ctx.screen_w = 320
 	ctx.screen_h = 200
 
@@ -207,6 +211,7 @@ test_scroll_view_sets_scissor :: proc (t: ^testing.T) {
 test_checkbox_toggles :: proc (t: ^testing.T) {
 	ctx := make_ctx()
 	defer free(ctx)
+	defer destroy_context(ctx)
 	ctx.screen_w = 320
 	ctx.screen_h = 200
 
@@ -234,6 +239,7 @@ test_no_memory_leak :: proc (t: ^testing.T) {
 	{
 		ctx := make_ctx()
 		defer free(ctx)
+		defer destroy_context(ctx)
 		ctx.screen_w = 320
 		ctx.screen_h = 200
 

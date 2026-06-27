@@ -1,7 +1,5 @@
 package pixui
 
-import "core:fmt"
-
 // A clickable button with text. `surface` is the 9-slice style; defaults
 // to the context's `default_button` if nil. Returns its rect and whether
 // it was clicked this frame.
@@ -27,7 +25,6 @@ button :: proc (
 	// Click detection: standard IMGUI semantics — a click happens when
 	// the user releases the mouse while the button is still hovered AND
 	// the same widget was the one that captured the press.
-	fmt.eprintln("[button] w.id=", w.id, "active_id=", the_context.active_id, "hovered_id=", the_context.hovered_id, "released=", the_context.mouse_released)
 	if the_context.active_id == w.id &&
 	   the_context.hovered_id == w.id &&
 	   the_context.mouse_released {

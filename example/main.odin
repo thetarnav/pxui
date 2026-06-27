@@ -46,7 +46,7 @@ init :: proc () {
 		nine_slice = px.Nine_Slice{
 			src = {{0, 0}, {24, 24}},
 			l=4, t=4, r=4, b=4,
-			texture = px.Texture_Handle(transmute(u64)panel_tex.handle),
+			texture = transmute(px.Texture_Handle)panel_tex.handle,
 		},
 	}
 	ui.default_button = px.Panel_Surface{
@@ -166,7 +166,7 @@ dispatch_draw_cmds :: proc (ctx: ^px.Context) {
 		case px.DCmd_Rect_Outline:
 			k2.draw_rect_outline(to_k2_rect(c.r), c.thickness, c.color)
 		case px.DCmd_Sub_Texture:
-			tex := k2.Texture{handle = transmute(k2.Texture_Handle)u64(c.tex), width = 0, height = 0}
+			tex := k2.Texture{handle = transmute(k2.Texture_Handle)c.tex, width = 0, height = 0}
 			k2.draw_texture_fit(tex, to_k2_rect(c.src), to_k2_rect(c.dst),
 				origin = {}, rotation = 0, tint = c.tint)
 		case px.DCmd_Text:
@@ -197,7 +197,7 @@ to_k2_rect :: proc (r: px.Rect) -> k2.Rect {
 k2_load_texture_png :: proc (png_bytes: []u8) -> px.Texture_Handle {
 	t := k2.load_texture_from_bytes(png_bytes)
 	k2.set_texture_filter(t, .Point)
-	return px.Texture_Handle(transmute(u64)t.handle)
+	return transmute(px.Texture_Handle)t.handle
 }
 
 //-------//
@@ -212,7 +212,7 @@ k2_load_texture_png :: proc (png_bytes: []u8) -> px.Texture_Handle {
 draw_bitmap_text :: proc (f: ^px.Font, text: string, pos: [2]f32, tint: px.Color) {
 	if f == nil || len(f.pages) == 0 { return }
 	page_tex := f.pages[0]
-	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)u64(page_tex), width = 0, height = 0}
+	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)page_tex, width = 0, height = 0}
 
 	pen := pos
 	for r in text {
