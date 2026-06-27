@@ -68,7 +68,8 @@ main :: proc () {
 		pixels   = buf,
 	}
 
-	here := filepath.dir(#file)
+	// Output goes to example/assets/, sibling of this gen_panel/ dir.
+	here := filepath.dir(filepath.dir(#file))
 	parts := []string{here, "assets", "panel.tga"}
 	out_path, join_err := filepath.join(parts)
 	if join_err != nil {

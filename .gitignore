@@ -7,4 +7,5 @@ example/panel
 example/*.png
 example/*.xml
 example/assets/
+example/gen_panel/assets/
 build/
