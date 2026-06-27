@@ -1,0 +1,3 @@
+[submodule "karl2d"]
+	path = karl2d
+	url = git@github.com:thetarnav/karl2d.git
