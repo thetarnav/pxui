@@ -217,16 +217,12 @@ test_checkbox_toggles :: proc (t: ^testing.T) {
 	testing.expect(t, !changed, "fresh checkbox should not be changed")
 	end_frame(ctx)
 
-	// Frame 2: simulate a click. Manually set active_id (we can't easily
-	// inject a press/release in a single frame via the public API).
+	// Frame 2: simulate a click. Set the context state directly with the
+	// known id (begin_frame clears by_id, so we can't look it up here).
 	begin_frame(ctx, {0, 0}, 1)
-	w, ok := ctx.by_id[u64(7)]
-	testing.expect(t, ok, "checkbox should exist in hash after first frame")
-	if ok {
-		ctx.hovered_id     = w.id
-		ctx.active_id      = w.id
-		ctx.mouse_released = true
-	}
+	ctx.hovered_id     = u64(7)
+	ctx.active_id      = u64(7)
+	ctx.mouse_released = true
 	_, checked, changed = checkbox("Toggle", id = u64(7))
 	testing.expect(t, checked, "checkbox should be true after click")
 	testing.expect(t, changed, "checkbox should report changed")
