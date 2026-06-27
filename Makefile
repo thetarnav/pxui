@@ -6,7 +6,7 @@ all: gen run
 
 # Generate the procedurally-made 9-slice panel asset.
 gen:
-	$(ODIN) run example/gen_panel.odin -file
+	$(ODIN) run example/gen_panel
 
 # Build and run the kitchen-sink example.
 run: gen

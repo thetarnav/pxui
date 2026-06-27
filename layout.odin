@@ -41,36 +41,36 @@ rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32
 	out: Rect
 	if axis == .X {
 		if edge == .Min {
-			out = {parent.x, parent.y, {pixels, parent.size.y}}
+			out = {parent, {pixels, parent.size.y}}
 			parent.x += pixels + margin
 		} else {
-			out = {parent.x + parent.size.x - pixels, parent.y, {pixels, parent.size.y}}
+			out = {parent.pos + {parent.size.x - pixels, 0}, {pixels, parent.size.y}}
 			parent.size.x -= pixels + margin
 		}
 		parent.size.x -= margin
 	} else {
 		if edge == .Min {
-			out = {parent.x, parent.y, {parent.size.x, pixels}}
+			out = {parent, {parent.size.x, pixels}}
 			parent.y += pixels + margin
 		} else {
-			out = {parent.x, parent.y + parent.size.y - pixels, {parent.size.x, pixels}}
+			out = {parent.pos + {parent.size.x - pixels, 0}, {parent.size.x, pixels}}
 			parent.size.y -= pixels + margin
 		}
 		parent.size.y -= margin
 	}
 	// If the cut consumed everything, the remainder rect can become empty.
-	if parent.size.x < 0 { parent.size.x = 0 }
-	if parent.size.y < 0 { parent.size.y = 0 }
+	if parent.size.x < 0 {parent.size.x = 0}
+	if parent.size.y < 0 {parent.size.y = 0}
 	return out
 }
 
 // Side-band queries — return a rect on the named side without shrinking the
 // input. Useful for drawing 9-slice borders or hover rings around a child.
-get_left   :: proc (r: Rect, amt: f32) -> Rect { return {r.x, r.y, {amt, r.size.y}} }
-get_right  :: proc (r: Rect, amt: f32) -> Rect { return {r.x + r.size.x - amt, r.y, {amt, r.size.y}} }
-get_top    :: proc (r: Rect, amt: f32) -> Rect { return {r.x, r.y, {r.size.x, amt}} }
-get_bottom :: proc (r: Rect, amt: f32) -> Rect { return {r.x, r.y + r.size.y - amt, {r.size.x, amt}} }
+get_left   :: proc (r: Rect, amt: f32) -> Rect {return {r, {amt, r.size.y}}}
+get_right  :: proc (r: Rect, amt: f32) -> Rect {return {r.pos + {r.size.x - amt, 0}, {amt, r.size.y}}}
+get_top    :: proc (r: Rect, amt: f32) -> Rect {return {r, {r.size.x, amt}}}
+get_bottom :: proc (r: Rect, amt: f32) -> Rect {return {r.pos + {r.size.x - amt, 0}, {r.size.x, amt}}}
 
 // Inset/extend a rect uniformly.
-contract :: proc (r: Rect, amt: f32) -> Rect { return {r.x + amt, r.y + amt, {max(0, r.size.x - amt*2), max(0, r.size.y - amt*2)}} }
-expand   :: proc (r: Rect, amt: f32) -> Rect { return {r.x - amt, r.y - amt, {r.size.x + amt*2, r.size.y + amt*2}} }
+contract :: proc (r: Rect, amt: f32) -> Rect {return {r.pos + amt, {max(0, r.size.x - amt*2), max(0, r.size.y - amt*2)}}}
+expand   :: proc (r: Rect, amt: f32) -> Rect {return {r.pos - amt, {r.size.x + amt*2, r.size.y + amt*2}}}

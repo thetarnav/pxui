@@ -6,10 +6,10 @@ package pixui
 
 Vec2  :: [2]f32
 Color :: [4]u8
-Rect  :: struct {x, y: f32, size: Vec2}
+Rect  :: struct {using pos: Vec2, size: Vec2}
 
 rect_offset :: proc (r: Rect, v: Vec2) -> Rect {
-    return {r.x + v.x, r.y + v.y, r.size}
+    return {r.pos + v, r.size}
 }
 rect_translate :: proc (r: ^Rect, v: Vec2) {
     r.x += v.x

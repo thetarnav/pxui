@@ -6,7 +6,6 @@
 package example
 
 import "core:fmt"
-import "core:mem"
 import k2 "../karl2d"
 import px "../"
 
@@ -49,8 +48,8 @@ init :: proc () {
 
 	ui.default_panel = px.Panel_Surface{
 		nine_slice = px.Nine_Slice{
-			src     = {0, 0, {24, 24}},
-			l = 4, t = 4, r = 4, b = 4,
+			src = {{0, 0}, {24, 24}},
+			l=4, t=4, r=4, b=4,
 			texture = px.Texture_Handle(transmute(u64)panel_tex.handle),
 		},
 	}
@@ -114,11 +113,10 @@ draw_ui :: proc () {
 	}
 
 	// Build a centered window manually using rectcut on the root rect.
-	root_rect := px.Rect{20, 20, {280, 160}}
+	root_rect := px.Rect{20, {280, 160}}
 
 	r := root_rect
 	title_h :: 16
-	header  := px.rect_cut(&r, .Y, .Min, px.Size_Pixels{f32(title_h)})
 	body    := r
 
 	if px.panel("window", id = 1) {
@@ -176,7 +174,7 @@ dispatch_draw_cmds :: proc (ctx: ^px.Context) {
 			k2.draw_texture_fit(tex, to_k2_rect(c.src), to_k2_rect(c.dst),
 				origin = {}, rotation = 0, tint = c.tint)
 		case px.DCmd_Text:
-			font_handle := transmute(k2.Font)u64(c.font)
+			font_handle := cast(k2.Font)u64(c.font)
 			k2.draw_text(c.text, c.pos, 10, c.color, font_handle)
 		case px.DCmd_Scissor:
 			if r, ok := c.rect.(px.Rect); ok {
@@ -211,11 +209,11 @@ k2_draw_sub_texture :: proc (tex: px.Texture_Handle, src, dst: px.Rect, tint: px
 }
 
 k2_draw_text :: proc (font: px.Font_Handle, text: string, pos: [2]f32, color: px.Color) {
-	k2.draw_text(text, pos, 10, color, transmute(k2.Font)u64(font))
+	k2.draw_text(text, pos, 10, color, cast(k2.Font)u64(font))
 }
 
 k2_measure_text :: proc (font: px.Font_Handle, text: string) -> [2]f32 {
-	return k2.measure_text(text, 10, transmute(k2.Font)u64(font))
+	return k2.measure_text(text, 10, cast(k2.Font)u64(font))
 }
 
 k2_text_height :: proc (font: px.Font_Handle) -> f32 {

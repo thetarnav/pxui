@@ -46,7 +46,7 @@ rec_resolve_ids :: proc (ctx: ^Context, parent: ^Widget) {
 @(private)
 autolayout :: proc (ctx: ^Context) {
 	root := ctx.parent_stack[0]
-	root.rect = {0, 0, root.semantic_size}
+	root.rect = {0, root.semantic_size}
 	rec_autolayout(root)
 }
 
@@ -54,7 +54,7 @@ rec_autolayout :: proc (w: ^Widget) {
 	for child := w.first_child; child != nil; child = child.next {
 		if child.semantic_size.x == 0 { child.semantic_size.x = w.rect.size.x }
 		if child.semantic_size.y == 0 { child.semantic_size.y = w.rect.size.y }
-		child.rect = {w.rect.x, w.rect.y, child.semantic_size}
+		child.rect = {w.rect, child.semantic_size}
 		if child.first_child != nil {
 			rec_autolayout(child)
 		}
@@ -162,13 +162,13 @@ emit :: proc (b: ^Backend_Draw_Ctx, z: int, cmd: Draw_Cmd) {
 
 emit_scaled_rect :: proc (b: ^Backend_Draw_Ctx, z: int, r: Rect, color: Color) {
 	ps := b.ctx.pixel_scale
-	scaled := Rect{r.x * ps, r.y * ps, {r.size.x * ps, r.size.y * ps}}
+	scaled := Rect{r.pos * ps, r.size * ps}
 	emit(b, z, DCmd_Rect{scaled, color})
 }
 
 emit_scaled_rect_outline :: proc (b: ^Backend_Draw_Ctx, z: int, r: Rect, t: f32, color: Color) {
 	ps := b.ctx.pixel_scale
-	scaled := Rect{r.x * ps, r.y * ps, {r.size.x * ps, r.size.y * ps}}
+	scaled := Rect{r.pos * ps, r.size * ps}
 	emit(b, z, DCmd_Rect_Outline{scaled, t * ps, color})
 }
 
@@ -188,25 +188,23 @@ draw_nine_slice :: proc (b: ^Backend_Draw_Ctx, ns: Nine_Slice, dst: Rect, z: int
 	cx0, cy0 := ns.src.x,         ns.src.y
 	cx1, cy1 := ns.src.x + L,     ns.src.y + T
 	cx2, cy2 := ns.src.x + sw - R, ns.src.y + sh - B
-	cx3, cy3 := ns.src.x + sw,    ns.src.y + sh
 
 	dx0, dy0 := dst.x,             dst.y
 	dx1, dy1 := dst.x + L,         dst.y + T
 	dx2, dy2 := dst.x + dw - R,    dst.y + dh - B
-	dx3, dy3 := dst.x + dw,        dst.y + dh
 
-	emit_sub(b, z, ns, {cx0, cy0, {L, T}},                       {dx0, dy0, {L, T}})
-	emit_sub(b, z, ns, {cx1, cy0, {cx2 - cx1, T}},               {dx1, dy0, {dx2 - dx1, T}})
-	emit_sub(b, z, ns, {cx2, cy0, {R, T}},                       {dx2, dy0, {R, T}})
-	emit_sub(b, z, ns, {cx0, cy1, {L, cy2 - cy1}},               {dx0, dy1, {L, dy2 - dy1}})
-	emit_sub(b, z, ns, {cx1, cy1, {cx2 - cx1, cy2 - cy1}},       {dx1, dy1, {dx2 - dx1, dy2 - dy1}})
-	emit_sub(b, z, ns, {cx2, cy1, {R, cy2 - cy1}},               {dx2, dy1, {R, dy2 - dy1}})
-	emit_sub(b, z, ns, {cx0, cy2, {L, B}},                       {dx0, dy2, {L, B}})
-	emit_sub(b, z, ns, {cx1, cy2, {cx2 - cx1, B}},               {dx1, dy2, {dx2 - dx1, B}})
-	emit_sub(b, z, ns, {cx2, cy2, {R, B}},                       {dx2, dy2, {R, B}})
+	emit_sub(b, z, ns, {{cx0, cy0}, {L, T}},                 {{dx0, dy0}, {L, T}})
+	emit_sub(b, z, ns, {{cx1, cy0}, {cx2 - cx1, T}},         {{dx1, dy0}, {dx2 - dx1, T}})
+	emit_sub(b, z, ns, {{cx2, cy0}, {R, T}},                 {{dx2, dy0}, {R, T}})
+	emit_sub(b, z, ns, {{cx0, cy1}, {L, cy2 - cy1}},         {{dx0, dy1}, {L, dy2 - dy1}})
+	emit_sub(b, z, ns, {{cx1, cy1}, {cx2 - cx1, cy2 - cy1}}, {{dx1, dy1}, {dx2 - dx1, dy2 - dy1}})
+	emit_sub(b, z, ns, {{cx2, cy1}, {R, cy2 - cy1}},         {{dx2, dy1}, {R, dy2 - dy1}})
+	emit_sub(b, z, ns, {{cx0, cy2}, {L, B}},                 {{dx0, dy2}, {L, B}})
+	emit_sub(b, z, ns, {{cx1, cy2}, {cx2 - cx1, B}},         {{dx1, dy2}, {dx2 - dx1, B}})
+	emit_sub(b, z, ns, {{cx2, cy2}, {R, B}},                 {{dx2, dy2}, {R, B}})
 }
 
 emit_sub :: proc (b: ^Backend_Draw_Ctx, z: int, ns: Nine_Slice, src, dst: Rect) {
 	ps := b.ctx.pixel_scale
-	emit(b, z, DCmd_Sub_Texture{ns.texture, src, Rect{dst.x * ps, dst.y * ps, {dst.size.x * ps, dst.size.y * ps}}, {255, 255, 255, 255}})
+	emit(b, z, DCmd_Sub_Texture{ns.texture, src, Rect{dst.pos * ps, dst.size * ps}, {255, 255, 255, 255}})
 }

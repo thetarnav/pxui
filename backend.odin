@@ -33,9 +33,9 @@ Backend :: struct {
 
 // A 9-slice source. The insets are in source pixels.
 Nine_Slice :: struct {
-	src:       Rect,   // full source rect
+	src:        Rect,   // full source rect
 	l, t, r, b: f32,   // insets in source pixels
-	texture:   Texture_Handle,
+	texture:    Texture_Handle,
 }
 
 // A panel/button/widget surface. For v0 this is a texture 9-slice plus an
