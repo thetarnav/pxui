@@ -184,7 +184,7 @@ dispatch_draw_cmds :: proc (ctx: ^px.Context) {
 }
 
 to_k2_rect :: proc (r: px.Rect) -> k2.Rect {
-	return k2.Rect{r.x, r.y, r.size.x, r.size.y}
+	return k2.Rect{**r.pos, **r.size}
 }
 
 //-------//

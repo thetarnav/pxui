@@ -1,9 +1,5 @@
 package pixui
 
-//-------//
-// LABEL //
-//-------//
-
 // Plain text label. Does not create a widget — just emits a text draw
 // command at the current parent rect's top-left. The caller is expected to
 // position the parent (e.g. with `rect_cut`) before calling.

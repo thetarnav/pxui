@@ -7,11 +7,11 @@ package pixui
 import "core:mem"
 
 // One per draw command type. The union below uses these as variants.
-DCmd_Rect         :: struct{r: Rect, color: Color}
-DCmd_Rect_Outline :: struct{r: Rect, thickness: f32, color: Color}
-DCmd_Sub_Texture  :: struct{tex: Texture_Handle, src, dst: Rect, tint: Color}
-DCmd_Text         :: struct{font: Font_Handle, text: string, pos: [2]f32, color: Color}
-DCmd_Scissor      :: struct{rect: Maybe(Rect)}
+DCmd_Rect         :: struct {r: Rect, color: Color}
+DCmd_Rect_Outline :: struct {r: Rect, thickness: f32, color: Color}
+DCmd_Sub_Texture  :: struct {tex: Texture_Handle, src, dst: Rect, tint: Color}
+DCmd_Text         :: struct {font: Font_Handle, text: string, pos: [2]f32, color: Color}
+DCmd_Scissor      :: struct {rect: Maybe(Rect)}
 
 // A draw command emitted by the end-of-frame autolayout + draw pass. We sort
 // by `z` and walk the list in `end_frame`, calling the backend proc.
@@ -87,12 +87,12 @@ Context :: struct {
 // Initialise a context. The context must outlive all its widgets.
 init_context :: proc (ctx: ^Context, allocator: mem.Allocator, backend: Backend) {
 	ctx^ = Context{}
-	ctx.allocator = allocator
-	ctx.backend = backend
-	ctx.by_id = make(map[u64]^Widget, allocator)
+	ctx.allocator      = allocator
+	ctx.backend        = backend
+	ctx.by_id          = make(map[u64]^Widget, allocator)
 	ctx.widget_storage = make([dynamic]Widget, allocator)
-	ctx.parent_stack = make([dynamic]^Widget, allocator)
-	ctx.draw_cmds = make([dynamic]Draw_Command, allocator)
+	ctx.parent_stack   = make([dynamic]^Widget, allocator)
+	ctx.draw_cmds      = make([dynamic]Draw_Command, allocator)
 }
 
 // Release all resources held by a context. Call after the last frame.
@@ -125,41 +125,9 @@ begin_frame :: proc (ctx: ^Context, mouse: Vec2, pixel_scale: f32) {
 
 // End the frame: resolve IDs, run the autolayout pass, hit-test, emit draw.
 end_frame :: proc (ctx: ^Context) {
-	defer { the_context = nil }
+	defer the_context = nil
 
 	resolve_ids(ctx)
 	hit_test(ctx)
 	emit_draw(ctx)
-}
-
-//-------//
-// DRAW TEXT //
-//-------//
-
-// Emit a text draw command. The position is in *UI pixels* — the backend
-// dispatcher scales by `ctx.pixel_scale` before handing off to the
-// renderer. The font defaults to `ctx.default_font`.
-//
-// Called by widget helpers (`label`, `button`, `panel`, `slider`,
-// `checkbox`) immediately after `widget_begin`, so the text lands in the
-// correct z-order relative to the widget's background and children.
-draw_text :: proc (
-	text:  string,
-	pos:   [2]f32,
-	color: Color = {255, 255, 255, 255},
-	font:  Maybe(^Font) = nil,
-) {
-	ctx := the_context
-	f := font.? if font != nil else ctx.default_font
-	if f == nil { return }
-	ps := ctx.pixel_scale
-	append(&ctx.draw_cmds, Draw_Command{
-		z = 0,
-		cmd = DCmd_Text{
-			font  = f.handle,
-			text  = text,
-			pos   = {pos.x * ps, pos.y * ps},
-			color = color,
-		},
-	})
 }

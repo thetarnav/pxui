@@ -1,9 +1,5 @@
 package pixui
 
-//-------//
-// DRAW //
-//-------//
-
 // Internal per-frame pipeline. These are called by `end_frame` in order.
 // (1) `allocate_root` creates the implicit root widget. (2) `resolve_ids`
 // assigns each widget its React-style id from the structural position. (3)
@@ -104,7 +100,6 @@ Backend_Draw_Ctx :: struct {
 
 rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
 	ctx := b.ctx
-	ps := ctx.pixel_scale
 
 	scissored := .Clip in w.flags
 	if scissored {
@@ -181,4 +176,31 @@ draw_nine_slice :: proc (b: ^Backend_Draw_Ctx, ns: Nine_Slice, dst: Rect, z: int
 emit_sub :: proc (b: ^Backend_Draw_Ctx, z: int, ns: Nine_Slice, src, dst: Rect) {
 	ps := b.ctx.pixel_scale
 	emit(b, z, DCmd_Sub_Texture{ns.texture, src, Rect{dst.pos * ps, dst.size * ps}, {255, 255, 255, 255}})
+}
+
+// Emit a text draw command. The position is in *UI pixels* — the backend
+// dispatcher scales by `ctx.pixel_scale` before handing off to the
+// renderer. The font defaults to `ctx.default_font`.
+//
+// Called by widget helpers (`label`, `button`, `panel`, `slider`,
+// `checkbox`) immediately after `widget_begin`, so the text lands in the
+// correct z-order relative to the widget's background and children.
+draw_text :: proc (
+	text:  string,
+	pos:   [2]f32,
+	color: Color = {255, 255, 255, 255},
+	font:  Maybe(^Font) = nil,
+) {
+	f := font.? if font != nil else the_context.default_font
+	if f == nil do return
+	ps := the_context.pixel_scale
+	append(&the_context.draw_cmds, Draw_Command{
+		z = 0,
+		cmd = DCmd_Text{
+			font  = f.handle,
+			text  = text,
+			pos   = {pos.x * ps, pos.y * ps},
+			color = color,
+		},
+	})
 }

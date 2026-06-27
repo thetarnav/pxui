@@ -18,7 +18,7 @@ panel :: proc (
 	if use_surface == nil { use_surface = ctx.default_panel }
 	r := widget_begin(flags, id=id, surface=use_surface)
 	if r.active {
-		draw_text(text, r.rect.pos, {240, 220, 180, 255})
+		label(text, r.rect.pos, {240, 220, 180, 255})
 		append(&ctx.parent_stack, r.widget)
 	}
 	return r.active

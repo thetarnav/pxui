@@ -24,8 +24,8 @@ Size :: union {
 	Size_Remaining,
 }
 
-Axis :: enum { X, Y }
-Edge :: enum { Min, Max } // .Min = left/top, .Max = right/bottom
+Axis :: enum {X, Y}
+Edge :: enum {Min, Max} // .Min = left/top, .Max = right/bottom
 
 rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32 = 0) -> Rect {
 	pixels: f32
@@ -59,8 +59,8 @@ rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32
 		parent.size.y -= margin
 	}
 	// If the cut consumed everything, the remainder rect can become empty.
-	if parent.size.x < 0 {parent.size.x = 0}
-	if parent.size.y < 0 {parent.size.y = 0}
+	if parent.size.x < 0 do parent.size.x = 0
+	if parent.size.y < 0 do parent.size.y = 0
 	return out
 }
 

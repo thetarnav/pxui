@@ -38,12 +38,11 @@ load_font_from_bytes :: proc (
 	backend:   ^Backend,
 	allocator: mem.Allocator,
 ) -> ^Font {
-	doc, err := xml.parse(xml_bytes, xml.Options{flags = {.Ignore_Unsupported}})
+	doc, err := xml.parse(xml_bytes, xml.Options{flags = {.Ignore_Unsupported}}, allocator=context.temp_allocator)
 	if err != nil {
 		fmt.eprintfln("pixui: failed to parse font xml: %v", err)
 		return nil
 	}
-	defer xml.destroy(doc)
 
 	// The parser stores the entire tree in doc.elements[]. Element 0 is the
 	// root. We expect element 0 to be the <font> tag.
@@ -51,11 +50,16 @@ load_font_from_bytes :: proc (
 		fmt.eprintln("pixui: font xml has no elements")
 		return nil
 	}
-	font_el_id, ok := xml.find_child_by_ident(doc, 0, "font")
-	if !ok {
-		fmt.eprintln("pixui: font xml has no <font> root")
-		return nil
-	}
+
+    font_el_id: xml.Element_ID
+    if doc.elements[0].ident == "font" {
+        font_el_id = 0
+    } else if el_id, found :=xml.find_child_by_ident(doc, 0, "font"); found {
+        font_el_id = el_id
+    } else {
+        fmt.eprintln("pixui: font xml has no <font> root")
+        return nil
+    }
 
 	font := new(Font, allocator)
 	font.glyphs = make(map[u32]Font_Glyph, allocator)
