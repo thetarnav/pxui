@@ -27,7 +27,8 @@ Size :: union {
 Axis :: enum {X, Y}
 Edge :: enum {Min, Max} // .Min = left/top, .Max = right/bottom
 
-rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32 = 0) -> Rect {
+rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32 = 0) -> (out: Rect) {
+
 	pixels: f32
 	switch s in size {
 	case Size_Pixels:            pixels = s.v
@@ -38,29 +39,27 @@ rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32
 	// Clamp so the cut never overshoots the parent.
 	pixels = min(pixels, parent.size[axis])
 
-	out: Rect
-	if axis == .X {
-		if edge == .Min {
-			out = {parent, {pixels, parent.size.y}}
-			parent.x += pixels + margin
-		} else {
-			out = {parent.pos + {parent.size.x - pixels, 0}, {pixels, parent.size.y}}
-			parent.size.x -= pixels + margin
-		}
+    switch (struct {Axis, Edge}{axis, edge}) {
+    case {.X, .Min}:
+        out = {parent, {pixels, parent.size.y}}
+        parent.x += pixels + margin
 		parent.size.x -= margin
-	} else {
-		if edge == .Min {
-			out = {parent, {parent.size.x, pixels}}
-			parent.y += pixels + margin
-		} else {
-			out = {parent.pos + {parent.size.x - pixels, 0}, {parent.size.x, pixels}}
-			parent.size.y -= pixels + margin
-		}
+    case {.X, .Max}:
+        out = {parent.pos + {parent.size.x - pixels, 0}, {pixels, parent.size.y}}
+        parent.size.x -= pixels + margin * 2
+    case {.Y, .Min}:
+        out = {parent, {parent.size.x, pixels}}
+        parent.y += pixels + margin
 		parent.size.y -= margin
-	}
+    case {.Y, .Max}:
+        out = {parent.pos + {parent.size.x - pixels, 0}, {parent.size.x, pixels}}
+        parent.size.y -= pixels + margin * 2
+    }
+
 	// If the cut consumed everything, the remainder rect can become empty.
 	if parent.size.x < 0 do parent.size.x = 0
 	if parent.size.y < 0 do parent.size.y = 0
+
 	return out
 }
 
