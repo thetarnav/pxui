@@ -6,6 +6,7 @@
 package example
 
 import "core:fmt"
+import "core:mem"
 import k2 "../karl2d"
 import px "../"
 
@@ -20,19 +21,12 @@ init :: proc () {
 	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
 		options = {window_mode = .Windowed_Resizable})
 
-	// Build the karl2d-backed pixui backend.
-	backend := px.Backend{
-		draw_rect_filled  = k2_draw_rect,
-		draw_rect_outline = k2_draw_rect_outline,
-		draw_sub_texture  = k2_draw_sub_texture,
-		draw_text         = k2_draw_text,
-		measure_text      = k2_measure_text,
-		text_height       = k2_text_height,
-		set_scissor       = k2_set_scissor,
-		screen_size       = k2_screen_size,
-		load_texture_png  = k2_load_texture_png,
+	// The Loader only does asset upload (font atlases). All rendering goes
+	// through dispatch_draw_cmds below.
+	loader := px.Loader{
+		load_texture_png = k2_load_texture_png,
 	}
-	px.init_context(&ui, context.allocator, backend)
+	px.init_context(&ui, context.allocator, loader)
 
 	// Load a font (BMFont XML + PNG pair, embedded at compile time).
 	font = px.load_font_from_bytes(
@@ -60,8 +54,7 @@ init :: proc () {
 }
 
 step :: proc () -> bool {
-
-	k2.update() or_return
+	if !k2.update() { return false }
 	defer k2.reset_frame_allocator()
 	defer free_all(context.temp_allocator)
 
@@ -71,7 +64,6 @@ step :: proc () -> bool {
 	mouse.x /= PIXEL_SCALE
 	mouse.y /= PIXEL_SCALE
 
-	// Convert k2 mouse to px input and store in the context directly.
 	ui.mouse          = mouse
 	ui.mouse_pressed  = k2.mouse_button_went_down(.Left)
 	ui.mouse_released = k2.mouse_button_went_up(.Left)
@@ -159,6 +151,10 @@ draw_ui :: proc () {
 	}
 }
 
+//-------//
+// DISPATCH //
+//-------//
+
 dispatch_draw_cmds :: proc (ctx: ^px.Context) {
 	for cmd in ctx.draw_cmds {
 		switch c in cmd.cmd {
@@ -188,48 +184,8 @@ to_k2_rect :: proc (r: px.Rect) -> k2.Rect {
 }
 
 //-------//
-// BACKEND //
+// LOADER //
 //-------//
-
-k2_draw_rect :: proc (r: px.Rect, color: px.Color) {
-	k2.draw_rect(to_k2_rect(r), color)
-}
-
-k2_draw_rect_outline :: proc (r: px.Rect, thickness: f32, color: px.Color) {
-	k2.draw_rect_outline(to_k2_rect(r), thickness, color)
-}
-
-k2_draw_sub_texture :: proc (tex: px.Texture_Handle, src, dst: px.Rect, tint: px.Color) {
-	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)tex, width = 0, height = 0}
-	k2.draw_texture_fit(k2_tex, to_k2_rect(src), to_k2_rect(dst),
-		origin = {}, rotation = 0, tint = tint)
-}
-
-k2_draw_text :: proc (font: px.Font_Handle, text: string, pos: [2]f32, color: px.Color) {
-	k2.draw_text(text, pos, 10, color, cast(k2.Font)font)
-}
-
-k2_measure_text :: proc (font: px.Font_Handle, text: string) -> [2]f32 {
-	return k2.measure_text(text, 10, cast(k2.Font)font)
-}
-
-k2_text_height :: proc (font: px.Font_Handle) -> f32 {
-	_ = font
-	return 10
-}
-
-k2_set_scissor :: proc (maybe_rect: Maybe(px.Rect)) {
-	if r, ok := maybe_rect.(px.Rect); ok {
-		k2.set_scissor_rect(to_k2_rect(r))
-	} else {
-		k2.set_scissor_rect(nil)
-	}
-}
-
-k2_screen_size :: proc () -> [2]f32 {
-	s := k2.get_screen_size()
-	return {s.x, s.y}
-}
 
 k2_load_texture_png :: proc (png_bytes: []u8) -> px.Texture_Handle {
 	t := k2.load_texture_from_bytes(png_bytes)

@@ -74,7 +74,7 @@ Context :: struct {
 	mouse_held:    bool,
 	mouse_wheel:   f32,
 
-	backend:        Backend,
+	backend:        Loader,
 	default_font:   ^Font,
 	default_panel:  Panel_Surface,
 	default_button: Panel_Surface,
@@ -85,14 +85,14 @@ Context :: struct {
 @(private) the_context: ^Context
 
 // Initialise a context. The context must outlive all its widgets.
-init_context :: proc (ctx: ^Context, allocator: mem.Allocator, backend: Backend) {
+init_context :: proc (ctx: ^Context, allocator: mem.Allocator, loader: Loader) {
 	ctx^ = Context{}
-	ctx.allocator      = allocator
-	ctx.backend        = backend
-	ctx.by_id          = make(map[u64]^Widget, allocator)
+	ctx.allocator = allocator
+	ctx.backend = loader
+	ctx.by_id = make(map[u64]^Widget, allocator)
 	ctx.widget_storage = make([dynamic]Widget, allocator)
-	ctx.parent_stack   = make([dynamic]^Widget, allocator)
-	ctx.draw_cmds      = make([dynamic]Draw_Command, allocator)
+	ctx.parent_stack = make([dynamic]^Widget, allocator)
+	ctx.draw_cmds = make([dynamic]Draw_Command, allocator)
 }
 
 // Release all resources held by a context. Call after the last frame.

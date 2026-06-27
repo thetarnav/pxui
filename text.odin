@@ -35,7 +35,7 @@ DEFAULT_FONT_SIZE :: f32(10)
 load_font_from_bytes :: proc (
 	xml_bytes: []u8,
 	png_bytes: []u8, // single-page fonts only for v0
-	backend:   ^Backend,
+	loader:    ^Loader,
 	allocator: mem.Allocator,
 ) -> ^Font {
 	doc, err := xml.parse(xml_bytes, xml.Options{flags = {.Ignore_Unsupported}}, allocator=context.temp_allocator)
@@ -68,7 +68,7 @@ load_font_from_bytes :: proc (
 
 	// Single-page fonts only for v0.
 	font.pages = make([]Texture_Handle, 1, allocator)
-	font.pages[0] = backend_load_texture(backend, png_bytes)
+	font.pages[0] = loader.load_texture_png(png_bytes)
 	font.handle = Font_Handle(font.pages[0])
 	return font
 }
@@ -166,8 +166,8 @@ atoi :: proc (s: string) -> int {
 }
 
 // Each backend implements texture loading in its own way. The example wires
-// this via the `Backend.load_texture_png` proc pointer.
+// this via the `Loader.load_texture_png` proc pointer.
 @(private)
-backend_load_texture :: proc (backend: ^Backend, png: []u8) -> Texture_Handle {
-	return backend.load_texture_png(png)
+backend_load_texture :: proc (loader: ^Loader, png: []u8) -> Texture_Handle {
+	return loader.load_texture_png(png)
 }

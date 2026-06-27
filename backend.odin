@@ -10,21 +10,19 @@ Texture_Handle :: distinct u64
 Font_Handle    :: distinct u64
 
 //-------//
-// BACKEND //
+// LOADER //
 //-------//
 
-// A bag of proc pointers that pixui uses for all rendering and state queries.
-// Fill it in once at startup. The example wraps karl2d procs.
-Backend :: struct {
-	draw_rect_filled:  proc (r: Rect, color: Color),
-	draw_rect_outline: proc (r: Rect, thickness: f32, color: Color),
-	draw_sub_texture:  proc (tex: Texture_Handle, src, dst: Rect, tint: Color),
-	draw_text:         proc (font: Font_Handle, text: string, pos: [2]f32, color: Color),
-	measure_text:      proc (font: Font_Handle, text: string) -> [2]f32,
-	text_height:       proc (font: Font_Handle) -> f32,
-	set_scissor:       proc (maybe_rect: Maybe(Rect)),
-	screen_size:       proc () -> [2]f32,
-	load_texture_png:  proc (png_bytes: []u8) -> Texture_Handle,
+// The only callback pixui needs during UI building: turn a PNG byte slice
+// (e.g. a BMFont atlas) into a backend-specific texture handle. The example
+// wraps karl2d's `load_texture_from_bytes` here.
+//
+// All *rendering* goes through the `Draw_Command` list (see state.odin) —
+// the user's example dispatches those to its own renderer. The Loader is
+// only for asset upload (currently fonts; panel/button textures are
+// uploaded by the example and passed in as `px.Texture_Handle`).
+Loader :: struct {
+	load_texture_png: proc (png_bytes: []u8) -> Texture_Handle,
 }
 
 //-------//
