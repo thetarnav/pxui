@@ -16,9 +16,9 @@ allocate_root :: proc (ctx: ^Context) {
 	root := alloc_widget(ctx)
 	root.id = 0
 	root.flags = {}
-	root.label = "<root>"
 	root.semantic_size = {ctx.screen_w / max(ctx.pixel_scale, 0.0001),
 	                      ctx.screen_h / max(ctx.pixel_scale, 0.0001)}
+	root.rect = {{0, 0}, root.semantic_size}
 	append(&ctx.parent_stack, root)
 	ctx.by_id[root.id] = root
 }
@@ -39,24 +39,6 @@ rec_resolve_ids :: proc (ctx: ^Context, parent: ^Widget) {
 	for child := parent.first_child; child != nil; child = child.next {
 		if child.first_child != nil {
 			rec_resolve_ids(ctx, child)
-		}
-	}
-}
-
-@(private)
-autolayout :: proc (ctx: ^Context) {
-	root := ctx.parent_stack[0]
-	root.rect = {0, root.semantic_size}
-	rec_autolayout(root)
-}
-
-rec_autolayout :: proc (w: ^Widget) {
-	for child := w.first_child; child != nil; child = child.next {
-		if child.semantic_size.x == 0 { child.semantic_size.x = w.rect.size.x }
-		if child.semantic_size.y == 0 { child.semantic_size.y = w.rect.size.y }
-		child.rect = {w.rect, child.semantic_size}
-		if child.first_child != nil {
-			rec_autolayout(child)
 		}
 	}
 }
@@ -142,9 +124,8 @@ rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
 		}
 	}
 
-	if .Draw_Text in w.flags && w.label != "" {
-		emit_text(b, b.z_base + 3, w, ps)
-	}
+	// Text is no longer drawn here — widget helpers call `draw_text`
+	// directly at widget creation, so text lands in the right z-order slot.
 
 	child_ctx := Backend_Draw_Ctx{ctx, b.z_base + 100}
 	for child := w.first_child; child != nil; child = child.next {
@@ -170,13 +151,6 @@ emit_scaled_rect_outline :: proc (b: ^Backend_Draw_Ctx, z: int, r: Rect, t: f32,
 	ps := b.ctx.pixel_scale
 	scaled := Rect{r.pos * ps, r.size * ps}
 	emit(b, z, DCmd_Rect_Outline{scaled, t * ps, color})
-}
-
-emit_text :: proc (b: ^Backend_Draw_Ctx, z: int, w: ^Widget, ps: f32) {
-	font := b.ctx.default_font
-	if font == nil { return }
-	pos := [2]f32{w.rect.x * ps, (w.rect.y + (w.rect.size.y - f32(font.line_height)) * 0.5) * ps}
-	emit(b, z, DCmd_Text{font.handle, w.label, pos, {255, 255, 255, 255}})
 }
 
 draw_nine_slice :: proc (b: ^Backend_Draw_Ctx, ns: Nine_Slice, dst: Rect, z: int) {

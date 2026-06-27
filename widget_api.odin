@@ -12,20 +12,19 @@ Widget_Result :: struct {
 	active: bool,
 }
 
-// Allocate a widget, attach it to the top of the parent stack, and return
-// its result. Manual use; most callers should use the per-widget helpers
-// (panel, button, …) which add the deferred end call.
+// Allocate a widget, attach it to the top of the parent stack, compute its
+// rect from the parent's rect + semantic_size, and return its result.
+// Manual use; most callers should use the per-widget helpers (panel,
+// button, …) which add the deferred end call.
 widget_begin :: proc (
-	label:    string,
 	flags:    Flags = {},
 	id:       Maybe(u64) = nil,
-	size:     Maybe([2]f32) = nil,
+	size:     Maybe(Vec2) = nil,
 	surface:  Maybe(Panel_Surface) = nil,
 ) -> Widget_Result {
 	ctx := the_context
 	w := alloc_widget(ctx)
 	w.flags = flags
-	w.label = label
 	w.last_touched = ctx.frame_index
 	if v, ok := surface.?; ok do w.panel_surface = v
 	if v, ok := size.?; ok do w.semantic_size = v
@@ -39,6 +38,14 @@ widget_begin :: proc (
 		w.prev = parent.last_child
 	}
 	parent.last_child = w
+
+	// v0 layout: child's rect = parent rect (optionally clamped by size).
+	if size != nil {
+		s := size.?
+		w.rect = {parent.rect.pos, {min(s.x, parent.rect.size.x), min(s.y, parent.rect.size.y)}}
+	} else {
+		w.rect = parent.rect
+	}
 
 	return Widget_Result{w, w.rect, true}
 }
@@ -57,12 +64,11 @@ widget_end :: proc (r: Widget_Result) {
 // the `@(deferred_out)` attribute.
 @(deferred_out=widget_pop)
 widget :: proc (
-	label: string,
 	flags: Flags = {},
 	id:    Maybe(u64) = nil,
-	size:  Maybe([2]f32) = nil,
+	size:  Maybe(Vec2) = nil,
 ) -> bool {
-	r := widget_begin(label, flags, id, size)
+	r := widget_begin(flags, id, size)
 	if r.active {
 		append(&the_context.parent_stack, r.widget)
 	}

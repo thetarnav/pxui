@@ -35,7 +35,6 @@ Flag :: enum u32 {
 	Clickable,       // takes part in hit-testing and click handling
 	Draggable,       // can be drag-moved when the mouse is held inside
 	Toggleable,      // holds a persistent bool (checkbox)
-	Draw_Text,       // draws its label as text inside its rect
 	Draw_Background, // draws a 9-slice or fill before children
 	Draw_Border,     // draws a 1px outline around its rect
 	Clip,            // sets a scissor to its rect before drawing children
@@ -75,9 +74,8 @@ Widget :: struct {
 	last_touched: u64,
 
 	flags: Flags,
-	label: string, // display string
 
-	// Optional fixed size. Zero means "computed by layout".
+	// Optional fixed size. Zero means "fill parent".
 	semantic_size: Vec2,
 
 	// Computed every frame during `end_frame`'s autolayout pass.

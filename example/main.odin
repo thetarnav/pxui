@@ -105,32 +105,25 @@ main :: proc () {
 }
 
 draw_ui :: proc () {
-
-	// Outer panel fills the screen.
-	if px.panel("root", id = 0) {
-		// Cut a 24px header at the top.
-		remain := px.widget_begin("root").rect
-		_ = remain
-		// Use panel's children for the title bar.
-	}
-
-	// Build a centered window manually using rectcut on the root rect.
-	root_rect := px.Rect{20, {280, 160}}
+	// Build a centered window using rectcut on the root rect.
+	root_rect: px.Rect = {{20, 20}, {280, 160}}
 
 	r := root_rect
-	title_h :: 16
-	body    := r
+	_ = px.rect_cut(&r, .Y, .Min, px.Size_Pixels{20}) // title bar cut
+	body := r
 
-	if px.panel("window", id = 1) {
-		// Title bar — plain label.
-		px.label("Pixui Kitchen Sink")
-
+	if px.panel("Pixui Kitchen Sink", surface = px.Panel_Surface{
+		fill_color   = {40, 30, 22, 255},
+		border_color = {120, 90, 60, 255},
+	}, id = 1) {
 		// Body row: two columns of buttons + a slider stack.
 		row := body
 		col_a := px.rect_cut(&row, .X, .Min, px.Size_Percent_Of_Parent{0.5}, margin = 4)
 		col_b := row
 
-		if px.panel("col_a", surface = nil, id = 2) {
+		if px.panel("buttons", surface = px.Panel_Surface{
+			fill_color = {30, 22, 16, 200},
+		}, id = 2) {
 			ca := col_a
 			for i in 0..<3 {
 				ca_row := ca
@@ -141,13 +134,13 @@ draw_ui :: proc () {
 			}
 		}
 
-		if px.panel("col_b", id = 3) {
+		if px.panel("sliders", id = 3) {
 			cb := col_b
 			_ = px.rect_cut(&cb, .Y, .Min, px.Size_Pixels{12})
 			_ = px.rect_cut(&cb, .Y, .Min, px.Size_Pixels{14})
 			_ = px.rect_cut(&cb, .Y, .Min, px.Size_Pixels{14})
 
-			px.label("Sliders", id = 4)
+			px.label("Sliders", cb.pos)
 			_, checked, _ := px.checkbox("Enable", id = 5)
 			_ = checked
 			_, v, ch := px.slider("Volume", 0, 100, id = 6)
@@ -157,9 +150,11 @@ draw_ui :: proc () {
 	}
 
 	// Scroll view with a list of labels.
-	if px.scroll_view("scroll", {120, 80 * 4}, id = 8) {
+	if px.scroll_view({120, 80 * 4}, id = 8) {
+		// Position labels vertically inside the scroll view's rect.
 		for i in 0..<10 {
-			px.label(fmt.tprintf("Item %d", i), id = u64(i + 200))
+			y := f32(i) * 12
+			px.label(fmt.tprintf("Item %d", i), {0, y})
 		}
 	}
 }
