@@ -118,9 +118,8 @@ walk_font_xml :: proc (
 @(private)
 read_char_elements :: proc (doc: ^xml.Document, chars_id: xml.Element_ID, font: ^Font) {
 	for v in doc.elements[chars_id].value {
-		child_id, is_id := v.(xml.Element_ID)
-		if !is_id { continue }
-		if doc.elements[child_id].ident != "char" { continue }
+		child_id := v.(xml.Element_ID) or_continue
+		if doc.elements[child_id].ident != "char" do continue
 
 		g: Font_Glyph
 		codepoint: u32 = 0
