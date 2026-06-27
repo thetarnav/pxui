@@ -21,22 +21,9 @@ allocate_root :: proc (ctx: ^Context) {
 
 @(private)
 resolve_ids :: proc (ctx: ^Context) {
-	rec_resolve_ids(ctx, ctx.parent_stack[0])
-}
-
-rec_resolve_ids :: proc (ctx: ^Context, parent: ^Widget) {
-	idx := 0
-	for child := parent.first_child; child != nil; child = child.next {
-		base := hash_combine(parent.id, u64(idx))
-		child.id = base
-		ctx.by_id[child.id] = child
-		idx += 1
-	}
-	for child := parent.first_child; child != nil; child = child.next {
-		if child.first_child != nil {
-			rec_resolve_ids(ctx, child)
-		}
-	}
+	// Widgets register their ids eagerly in widget_begin. This pass only
+	// needs to handle the case where a widget's parent id changed since
+	// the child was created (no such case in v0, but keep the hook).
 }
 
 @(private)
@@ -106,16 +93,24 @@ rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
 		emit(b, b.z_base, DCmd_Scissor{w.rect})
 	}
 
-	if w.panel_surface != nil {
-		ps_ := w.panel_surface.?
-		if ps_.fill_color.a != 0 {
-			emit_scaled_rect(b, b.z_base, w.rect, ps_.fill_color)
-		}
-		if ns, ok := ps_.nine_slice.(Nine_Slice); ok {
-			draw_nine_slice(b, ns, w.rect, b.z_base + 1)
-		}
-		if ps_.border_color.a != 0 {
-			emit_scaled_rect_outline(b, b.z_base + 2, w.rect, 1, ps_.border_color)
+	// Panel surface: emit fill, optional 9-slice, optional border. The
+	// "no surface" case is a zero Panel_Surface (alpha 0 on both fill and
+	// border, no nine_slice) which produces no commands.
+	{
+		ps := w.panel_surface
+		surface_set := ps.fill_color.a != 0 || ps.border_color.a != 0
+		_, has_ns := ps.nine_slice.(Nine_Slice)
+		surface_set = surface_set || has_ns
+		if surface_set {
+			if ps.fill_color.a != 0 {
+				emit_scaled_rect(b, b.z_base, w.rect, ps.fill_color)
+			}
+			if ns, ok := ps.nine_slice.(Nine_Slice); ok {
+				draw_nine_slice(b, ns, w.rect, b.z_base + 1)
+			}
+			if ps.border_color.a != 0 {
+				emit_scaled_rect_outline(b, b.z_base + 2, w.rect, 1, ps.border_color)
+			}
 		}
 	}
 

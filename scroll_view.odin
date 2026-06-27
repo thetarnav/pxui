@@ -7,7 +7,6 @@ package pixui
 // A scroll view — sets a scissor around its rect and lets the caller place
 // content of `content_size` inside. Returns `active` for `if scroll_view(...)
 // { ... }`. Mouse wheel adjusts the vertical scroll offset.
-@(deferred_out=widget_pop)
 scroll_view :: proc (
 	content_size: [2]f32,
 	id:           Maybe(u64) = nil,
@@ -25,5 +24,6 @@ scroll_view :: proc (
 	)
 	w.rect.pos.y -= w.scroll_off.y
 	append(&ctx.parent_stack, w)
+	defer pop(&ctx.parent_stack)
 	return true
 }

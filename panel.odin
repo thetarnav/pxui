@@ -6,7 +6,6 @@ package pixui
 
 // A panel — a 9-slice background with text. Pushes onto the parent stack
 // so children attach to it. Returns `active` for `if panel(...) { ... }`.
-@(deferred_out=widget_pop)
 panel :: proc (
 	text:    string,
 	flags:   Flags = {.Draw_Background, .Draw_Border},
@@ -20,6 +19,7 @@ panel :: proc (
 	if r.active {
 		label(text, r.rect.pos, {240, 220, 180, 255})
 		append(&ctx.parent_stack, r.widget)
+		defer pop(&ctx.parent_stack) // pop at end of *this* scope
 	}
 	return r.active
 }

@@ -43,14 +43,14 @@ rect_cut :: proc (parent: ^Rect, axis: Axis, edge: Edge, size: Size, margin: f32
     case {.X, .Min}:
         out = {parent, {pixels, parent.size.y}}
         parent.x += pixels + margin
-		parent.size.x -= margin
+		parent.size.x -= pixels + margin * 2
     case {.X, .Max}:
         out = {parent.pos + {parent.size.x - pixels, 0}, {pixels, parent.size.y}}
         parent.size.x -= pixels + margin * 2
     case {.Y, .Min}:
         out = {parent, {parent.size.x, pixels}}
         parent.y += pixels + margin
-		parent.size.y -= margin
+		parent.size.y -= pixels + margin * 2
     case {.Y, .Max}:
         out = {parent.pos + {parent.size.x - pixels, 0}, {parent.size.x, pixels}}
         parent.size.y -= pixels + margin * 2

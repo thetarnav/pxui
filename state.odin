@@ -1,10 +1,10 @@
 package pixui
 
+import "core:mem"
+
 //-------//
 // STATE //
 //-------//
-
-import "core:mem"
 
 // One per draw command type. The union below uses these as variants.
 DCmd_Rect         :: struct {r: Rect, color: Color}
@@ -93,6 +93,11 @@ init_context :: proc (ctx: ^Context, allocator: mem.Allocator, loader: Loader) {
 	ctx.widget_storage = make([dynamic]Widget, allocator)
 	ctx.parent_stack = make([dynamic]^Widget, allocator)
 	ctx.draw_cmds = make([dynamic]Draw_Command, allocator)
+	// Reserve so widget_storage never reallocates mid-frame (the tree
+	// holds `^Widget` pointers into it).
+	reserve(&ctx.widget_storage, 1024)
+	reserve(&ctx.parent_stack, 32)
+	reserve(&ctx.draw_cmds, 1024)
 }
 
 // Release all resources held by a context. Call after the last frame.

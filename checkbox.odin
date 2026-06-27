@@ -25,8 +25,8 @@ checkbox :: proc (
 	draw_rect_outline(box, 1, {180, 150, 110, 255})
 	draw_text(text, {r.rect.x + 12, r.rect.y + (r.rect.size.y - 10) * 0.5}, {240, 220, 180, 255})
 
-	// Click toggles.
-	if w.active && ctx.mouse_released {
+	// Click toggles — same IMGUI semantics as the button.
+	if ctx.active_id == w.id && ctx.hovered_id == w.id && ctx.mouse_released {
 		checked = !checked
 		changed = true
 		w.value = checked

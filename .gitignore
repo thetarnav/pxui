@@ -2,7 +2,6 @@ ols.json
 *.bin
 *.exe
 *.pdb
-pixui_kitchen_sink
 example/panel
 example/*.png
 example/*.xml
