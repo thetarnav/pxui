@@ -23,23 +23,6 @@ main :: proc () {
 
 	ui = px.init_context(context.allocator)
 
-	for &tex, px_handle in textures {
-		atlas := px.get_atlas(px_handle)
-		bytes := slice.reinterpret([]byte, atlas.pixels)
-		tex = k2.load_texture_from_bytes_raw(bytes, **atlas.size, .RGBA_8_Norm)
-	}
-
-	ui.default_panel = px.Panel_Surface{
-		nine_slice = px.Nine_Slice{
-			src = {{0, 0}, {24, 24}},
-			l=4, t=4, r=4, b=4,
-		},
-	}
-	ui.default_button = px.Panel_Surface{
-		fill_color   = {70, 50, 30, 255},
-		border_color = {200, 170, 110, 255},
-	}
-
 	for k2.update() {
 		defer k2.reset_frame_allocator()
 		defer free_all(context.temp_allocator)
