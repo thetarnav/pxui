@@ -1,107 +1,78 @@
 // Pixui example — a small kitchen-sink UI rendered with karl2d.
-//
-// Demonstrates: panel, button, label, checkbox, slider, scroll_view, 9-slice
-// panels, BMFont text, and the rectcut layout primitive.
 
 package example
 
+import "core:slice"
 import "core:fmt"
-import k2 "../karl2d"
+import k2 "shared:karl2d"
 import px "../"
 
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
-ui: px.Context
-font: ^px.Font
-panel_tex: k2.Texture
-font_handles: map[px.Font_Handle]^px.Font
+Rect :: px.Rect
 
-init :: proc () {
+ui: ^px.Context
+
+textures: [px.Texture_Handle]k2.Texture
+
+main :: proc () {
+
 	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
 		options = {window_mode = .Windowed_Resizable})
 
-	// The Loader only does asset upload (font atlases). All rendering goes
-	// through dispatch_draw_cmds below.
-	loader := px.Loader{
-		load_texture_png = k2_load_texture_png,
+	ui = px.init_context(context.allocator)
+
+	for &tex, px_handle in textures {
+		atlas := px.get_atlas(px_handle)
+		bytes := slice.reinterpret([]byte, atlas.pixels)
+		tex = k2.load_texture_from_bytes_raw(bytes, **atlas.size, .RGBA_8_Norm)
 	}
-	px.init_context(&ui, context.allocator, loader)
-
-	// Load a font (BMFont XML + PNG pair, embedded at compile time).
-	font = px.load_font_from_bytes(
-		#load("../fonts/minogram_6x10.xml"),
-		#load("../fonts/minogram_6x10.png"),
-		&ui.backend, context.allocator,
-	)
-	ui.default_font = font
-	font_handles = make(map[px.Font_Handle]^px.Font, context.allocator)
-	font_handles[font.handle] = font
-
-	// Load the procedurally-generated panel texture.
-	panel_tex = k2.load_texture_from_bytes(#load("assets/panel.tga"))
-	k2.set_texture_filter(panel_tex, .Point)
 
 	ui.default_panel = px.Panel_Surface{
 		nine_slice = px.Nine_Slice{
 			src = {{0, 0}, {24, 24}},
 			l=4, t=4, r=4, b=4,
-			texture = transmute(px.Texture_Handle)panel_tex.handle,
 		},
 	}
 	ui.default_button = px.Panel_Surface{
 		fill_color   = {70, 50, 30, 255},
 		border_color = {200, 170, 110, 255},
 	}
-}
 
-step :: proc () -> bool {
-	if !k2.update() { return false }
-	defer k2.reset_frame_allocator()
-	defer free_all(context.temp_allocator)
+	for k2.update() {
+		defer k2.reset_frame_allocator()
+		defer free_all(context.temp_allocator)
 
-	k2.clear({30, 30, 40, 255})
+		k2.clear({30, 30, 40, 255})
 
-	mouse := k2.get_mouse_position()
-	mouse.x /= PIXEL_SCALE
-	mouse.y /= PIXEL_SCALE
+		mouse := k2.get_mouse_position() / PIXEL_SCALE
 
-	ui.mouse          = mouse
-	ui.mouse_pressed  = k2.mouse_button_went_down(.Left)
-	ui.mouse_released = k2.mouse_button_went_up(.Left)
-	ui.mouse_held     = k2.mouse_button_is_held(.Left)
-	ui.mouse_wheel    = k2.get_mouse_wheel_delta()
-	ui.screen_w       = f32(UI_W)
-	ui.screen_h       = f32(UI_H)
-	ui.pixel_scale    = PIXEL_SCALE
+		ui.mouse          = mouse
+		ui.mouse_pressed  = k2.mouse_button_went_down(.Left)
+		ui.mouse_released = k2.mouse_button_went_up(.Left)
+		ui.mouse_held     = k2.mouse_button_is_held(.Left)
+		ui.mouse_wheel    = k2.get_mouse_wheel_delta()
+		ui.screen_w       = f32(UI_W)
+		ui.screen_h       = f32(UI_H)
+		ui.pixel_scale    = PIXEL_SCALE
 
-	px.begin_frame(&ui, mouse, PIXEL_SCALE)
-	draw_ui()
-	px.end_frame(&ui)
+		px.begin_frame(mouse, PIXEL_SCALE)
+		draw_ui()
+		px.end_frame()
 
-	dispatch_draw_cmds(&ui)
+		dispatch_draw_cmds()
 
-	k2.present()
-	return true
-}
+		k2.present()
+	}
 
-shutdown :: proc () {
-	delete(font_handles)
-	px.destroy_font(font, context.allocator)
-	px.destroy_context(&ui)
-	k2.destroy_texture(panel_tex)
+	px.destroy_context()
 	k2.shutdown()
-}
-
-main :: proc () {
-	init()
-	for step() {}
-	shutdown()
 }
 
 draw_ui :: proc () {
 	// Build a centered window using rectcut on the root rect.
-	root_rect: px.Rect = {{20, 20}, {280, 160}}
+	root_rect: Rect = {{20, 20}, {280, 160}}
 
 	r := root_rect
 	_ = px.rect_cut(&r, .Y, .Min, px.Size_Pixels{20}) // title bar cut
@@ -158,27 +129,19 @@ draw_ui :: proc () {
 // DISPATCH //
 //-------//
 
-dispatch_draw_cmds :: proc (ctx: ^px.Context) {
-	for cmd in ctx.draw_cmds {
-		switch c in cmd.cmd {
+dispatch_draw_cmds :: proc () {
+	for cmd in ui.draw_cmds {
+		switch c in cmd {
 		case px.DCmd_Rect:
-			k2.draw_rect(to_k2_rect(c.r), c.color)
+			k2.draw_rect(k2_rect(c.r), c.color)
 		case px.DCmd_Rect_Outline:
-			k2.draw_rect_outline(to_k2_rect(c.r), c.thickness, c.color)
+			k2.draw_rect_outline(k2_rect(c.r), c.thickness, c.color)
 		case px.DCmd_Sub_Texture:
-			tex := k2.Texture{handle = transmute(k2.Texture_Handle)c.tex, width = 0, height = 0}
-			k2.draw_texture_fit(tex, to_k2_rect(c.src), to_k2_rect(c.dst),
-				origin = {}, rotation = 0, tint = c.tint)
-		case px.DCmd_Text:
-			// Bitmap font: blit each glyph as a sub-texture from the
-			// atlas. We bypass k2.draw_text because k2 only knows about
-			// TTF fonts loaded via its own system.
-			if f, ok := font_handles[c.font]; ok {
-				draw_bitmap_text(f, c.text, c.pos, c.color)
-			}
+			k2.draw_texture_fit(textures[c.tex], k2_rect(c.src), k2_rect(c.dst),
+			                    origin = {}, rotation = 0, tint = c.tint)
 		case px.DCmd_Scissor:
-			if r, ok := c.rect.(px.Rect); ok {
-				k2.set_scissor_rect(to_k2_rect(r))
+			if r, ok := c.rect.(Rect); ok {
+				k2.set_scissor_rect(k2_rect(r))
 			} else {
 				k2.set_scissor_rect(nil)
 			}
@@ -186,72 +149,7 @@ dispatch_draw_cmds :: proc (ctx: ^px.Context) {
 	}
 }
 
-to_k2_rect :: proc (r: px.Rect) -> k2.Rect {
+k2_rect :: proc (r: Rect) -> k2.Rect {
 	return k2.Rect{**r.pos, **r.size}
 }
 
-//-------//
-// LOADER //
-//-------//
-
-k2_load_texture_png :: proc (png_bytes: []u8) -> px.Texture_Handle {
-	t := k2.load_texture_from_bytes(png_bytes)
-	k2.set_texture_filter(t, .Point)
-	return transmute(px.Texture_Handle)t.handle
-}
-
-//-------//
-// BITMAP TEXT //
-//-------//
-
-// Render one line of text starting at `pos` (in *screen* pixels) by blitting
-// each glyph from the font's atlas via k2.draw_texture_fit. Advances the
-// pen by each glyph's `advance`; newlines drop the pen to the next line.
-// The `pos` passed in is already scaled by pixel_scale (pixui does that
-// at draw-text emission time).
-draw_bitmap_text :: proc (f: ^px.Font, text: string, pos: [2]f32, tint: px.Color) {
-	if f == nil || len(f.pages) == 0 { return }
-	page_tex := f.pages[0]
-	k2_tex := k2.Texture{handle = transmute(k2.Texture_Handle)page_tex, width = 0, height = 0}
-
-	pen := pos
-	for r in text {
-		if r == '\n' {
-			pen.x = pos.x
-			pen.y += f32(f.line_height)
-			continue
-		}
-		if r == '\t' {
-			// Treat tab as 4 spaces.
-			pen.x += 4 * average_advance(f)
-			continue
-		}
-		g, ok := f.glyphs[u32(r)]
-		if !ok {
-			// Unknown codepoint: advance by one em so we don't stall.
-			pen.x += average_advance(f)
-			continue
-		}
-		src := k2.Rect{
-			f32(g.src_x), f32(g.src_y),
-			f32(g.src_w), f32(g.src_h),
-		}
-		dst := k2.Rect{
-			pen.x + f32(g.x_off),
-			pen.y + f32(g.y_off),
-			f32(g.src_w), f32(g.src_h),
-		}
-		k2.draw_texture_fit(k2_tex, src, dst,
-			origin = {}, rotation = 0, tint = tint)
-		pen.x += f32(g.advance)
-	}
-}
-
-average_advance :: proc (f: ^px.Font) -> f32 {
-	// Use the first glyph's advance as a reasonable default. Good enough
-	// for the spaces-and-tabs-and-unknown fallback case.
-	for _, g in f.glyphs {
-		return f32(g.advance)
-	}
-	return 6
-}

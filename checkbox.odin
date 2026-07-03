@@ -1,9 +1,5 @@
 package pixui
 
-//-------//
-// CHECKBOX //
-//-------//
-
 // A toggleable checkbox with text. Stores a `bool` value in the widget's
 // `Value`. Returns the rect, the current checked state, and whether it
 // changed this frame.
@@ -12,7 +8,7 @@ checkbox :: proc (
 	flags: Flags = {.Clickable, .Draw_Background, .Draw_Border, .Toggleable},
 	id:    Maybe(u64) = nil,
 ) -> (rect: Rect, checked: bool, changed: bool) {
-	ctx := the_context
+
 	r := widget_begin(flags, id=id)
 	w := r.widget
 
@@ -39,14 +35,14 @@ checkbox :: proc (
 // Top-level rect helpers (so checkbox can draw its box without depending
 // on the backend module). These just append draw commands.
 draw_rect        :: proc (r: Rect, color: Color) {
-	ps := the_context.pixel_scale
-	append(&the_context.draw_cmds, Draw_Command{0, DCmd_Rect{
+	ps := ctx.pixel_scale
+	append(&ctx.draw_cmds, DCmd_Rect{
 		Rect{r.pos * ps, r.size * ps}, color,
-	}})
+	})
 }
 draw_rect_outline :: proc (r: Rect, thickness: f32, color: Color) {
-	ps := the_context.pixel_scale
-	append(&the_context.draw_cmds, Draw_Command{0, DCmd_Rect_Outline{
-		Rect{r.pos * ps, r.size * ps}, thickness * ps, color,
-	}})
+	ps := ctx.pixel_scale
+	append(&ctx.draw_cmds, DCmd_Rect_Outline{
+		{r.pos * ps, r.size * ps}, thickness * ps, color,
+	})
 }

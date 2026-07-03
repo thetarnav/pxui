@@ -13,7 +13,7 @@ slider :: proc (
 	flags: Flags = {.Clickable, .Draw_Background, .Draw_Border},
 	id:    Maybe(u64) = nil,
 ) -> (rect: Rect, value: f32, changed: bool) {
-	ctx := the_context
+	
 	r := widget_begin(flags, id=id)
 	w := r.widget
 

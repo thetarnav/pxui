@@ -44,7 +44,8 @@ Value :: union {f32, int, bool, string}
 // A single node in the immediate-mode tree. The tree is rebuilt every frame;
 // cross-frame state is found via the `id` -> `^Widget` hash table.
 Widget :: struct {
-	id: u64,
+	id:          u64,
+	explicit_id: Maybe(u64),
 
 	// Tree links — rewritten every frame.
 	parent:      ^Widget,
@@ -53,19 +54,9 @@ Widget :: struct {
 	prev:        ^Widget,
 	next:        ^Widget,
 
-	// Hash-table links — for cross-frame lookup.
-	hash_next: ^Widget,
-	hash_prev: ^Widget,
-
 	// Set to the current frame index every time the widget is touched. Lets
 	// `end_frame` prune widgets that were not rebuilt this frame.
 	last_touched: u64,
-
-	// If the user passed an explicit `id` to the widget helper, it lives
-	// here. `resolve_ids` uses this as the canonical id when set;
-	// otherwise the id is derived from the structural position
-	// (hash_combine(parent.id, child_index)).
-	explicit_id: Maybe(u64),
 
 	flags: Flags,
 
@@ -93,7 +84,7 @@ Widget :: struct {
 
 // Allocate a widget slot from the context's arena. The slot is owned by the
 // context and lives until the context is destroyed.
-alloc_widget :: proc (ctx: ^Context) -> ^Widget {
+alloc_widget :: proc () -> ^Widget {
 	w: Widget
 	append(&ctx.widget_storage, w)
 	return &ctx.widget_storage[len(ctx.widget_storage) - 1]
@@ -117,8 +108,7 @@ widget_begin :: proc (
 	size:     Maybe(Vec2) = nil,
 	surface:  Maybe(Panel_Surface) = nil,
 ) -> Widget_Result {
-	ctx := the_context
-	w := alloc_widget(ctx)
+	w := alloc_widget()
 	w.flags = flags
 	w.last_touched = ctx.frame_index
 	if v, ok := surface.?; ok do w.panel_surface = v
@@ -168,7 +158,7 @@ sibling_index :: proc (w: ^Widget) -> int {
 // Tear down a widget. Stores its state for next frame's id lookup.
 widget_end :: proc (r: Widget_Result) {
 	if !r.active do return
-	ctx := the_context
+
 	w := r.widget
 	ctx.by_id[w.id] = w
 }
@@ -185,13 +175,13 @@ widget :: proc (
 ) -> bool {
 	r := widget_begin(flags, id, size)
 	if r.active {
-		append(&the_context.parent_stack, r.widget)
+		append(&ctx.parent_stack, r.widget)
 	}
 	return r.active
 }
 
 widget_pop :: proc (active: bool) {
 	if active {
-        pop(&the_context.parent_stack)
+        pop(&ctx.parent_stack)
     }
 }

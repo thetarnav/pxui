@@ -8,8 +8,8 @@ package pixui
 // draw commands to the backend in z-order.
 
 @(private)
-allocate_root :: proc (ctx: ^Context) {
-	root := alloc_widget(ctx)
+allocate_root :: proc () {
+	root := alloc_widget()
 	root.id = 0
 	root.flags = {}
 	root.semantic_size = {ctx.screen_w / max(ctx.pixel_scale, 0.0001),
@@ -20,14 +20,14 @@ allocate_root :: proc (ctx: ^Context) {
 }
 
 @(private)
-resolve_ids :: proc (ctx: ^Context) {
+resolve_ids :: proc () {
 	// Widgets register their ids eagerly in widget_begin. This pass only
 	// needs to handle the case where a widget's parent id changed since
 	// the child was created (no such case in v0, but keep the hook).
 }
 
 @(private)
-hit_test :: proc (ctx: ^Context) {
+hit_test :: proc () {
 	mouse := ctx.mouse
 
 	for &w in ctx.widget_storage {
@@ -37,14 +37,14 @@ hit_test :: proc (ctx: ^Context) {
 	ctx.hovered_id = 0
 
 	root := ctx.parent_stack[0]
-	rec_hit_test(ctx, root, mouse)
+	rec_hit_test(root, mouse)
 }
 
-rec_hit_test :: proc (ctx: ^Context, w: ^Widget, mouse: [2]f32) {
+rec_hit_test :: proc (w: ^Widget, mouse: [2]f32) {
 	// Children first, so a child steals hover from its parent.
 	for child := w.last_child; child != nil; child = child.prev {
 		if child.first_child != nil {
-			rec_hit_test(ctx, child, mouse)
+			rec_hit_test(child, mouse)
 		}
 		if .Clickable in child.flags && rect_contains(child.rect, mouse) {
 			child.hot = true
@@ -74,19 +74,17 @@ rec_hit_test :: proc (ctx: ^Context, w: ^Widget, mouse: [2]f32) {
 }
 
 @(private)
-emit_draw :: proc (ctx: ^Context) {
-	bctx := Backend_Draw_Ctx{ctx, 0}
+emit_draw :: proc () {
+	bctx := Backend_Draw_Ctx{0}
 	root := ctx.parent_stack[0]
 	rec_emit_draw(&bctx, root)
 }
 
 Backend_Draw_Ctx :: struct {
-	ctx:    ^Context,
 	z_base: int,
 }
 
 rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
-	ctx := b.ctx
 
 	scissored := .Clip in w.flags
 	if scissored {
@@ -117,7 +115,7 @@ rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
 	// Text is no longer drawn here — widget helpers call `draw_text`
 	// directly at widget creation, so text lands in the right z-order slot.
 
-	child_ctx := Backend_Draw_Ctx{ctx, b.z_base + 100}
+	child_ctx := Backend_Draw_Ctx{b.z_base + 100}
 	for child := w.first_child; child != nil; child = child.next {
 		rec_emit_draw(&child_ctx, child)
 	}
@@ -128,17 +126,17 @@ rec_emit_draw :: proc (b: ^Backend_Draw_Ctx, w: ^Widget) {
 }
 
 emit :: proc (b: ^Backend_Draw_Ctx, z: int, cmd: Draw_Cmd) {
-	append(&b.ctx.draw_cmds, Draw_Command{z, cmd})
+	append(&ctx.draw_cmds, cmd)
 }
 
 emit_scaled_rect :: proc (b: ^Backend_Draw_Ctx, z: int, r: Rect, color: Color) {
-	ps := b.ctx.pixel_scale
+	ps := ctx.pixel_scale
 	scaled := Rect{r.pos * ps, r.size * ps}
 	emit(b, z, DCmd_Rect{scaled, color})
 }
 
 emit_scaled_rect_outline :: proc (b: ^Backend_Draw_Ctx, z: int, r: Rect, t: f32, color: Color) {
-	ps := b.ctx.pixel_scale
+	ps := ctx.pixel_scale
 	scaled := Rect{r.pos * ps, r.size * ps}
 	emit(b, z, DCmd_Rect_Outline{scaled, t * ps, color})
 }
@@ -169,33 +167,6 @@ draw_nine_slice :: proc (b: ^Backend_Draw_Ctx, ns: Nine_Slice, dst: Rect, z: int
 }
 
 emit_sub :: proc (b: ^Backend_Draw_Ctx, z: int, ns: Nine_Slice, src, dst: Rect) {
-	ps := b.ctx.pixel_scale
-	emit(b, z, DCmd_Sub_Texture{ns.texture, src, Rect{dst.pos * ps, dst.size * ps}, {255, 255, 255, 255}})
-}
-
-// Emit a text draw command. The position is in *UI pixels* — the backend
-// dispatcher scales by `ctx.pixel_scale` before handing off to the
-// renderer. The font defaults to `ctx.default_font`.
-//
-// Called by widget helpers (`label`, `button`, `panel`, `slider`,
-// `checkbox`) immediately after `widget_begin`, so the text lands in the
-// correct z-order relative to the widget's background and children.
-draw_text :: proc (
-	text:  string,
-	pos:   [2]f32,
-	color: Color = {255, 255, 255, 255},
-	font:  Maybe(^Font) = nil,
-) {
-	f := font.? if font != nil else the_context.default_font
-	if f == nil do return
-	ps := the_context.pixel_scale
-	append(&the_context.draw_cmds, Draw_Command{
-		z = 0,
-		cmd = DCmd_Text{
-			font  = f.handle,
-			text  = text,
-			pos   = {pos.x * ps, pos.y * ps},
-			color = color,
-		},
-	})
+	ps := ctx.pixel_scale
+	emit(b, z, DCmd_Sub_Texture{.Panel, src, Rect{dst.pos * ps, dst.size * ps}, {255, 255, 255, 255}})
 }

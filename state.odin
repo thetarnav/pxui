@@ -1,16 +1,22 @@
 package pixui
 
 import "core:mem"
+RGBA :: [4]u8
 
-//-------//
-// STATE //
-//-------//
+Atlas :: struct {
+	pixels: []RGBA,
+	size:   [2]int,
+}
+
+Texture_Handle :: enum {
+	Font,
+	Panel,
+}
 
 // One per draw command type. The union below uses these as variants.
 DCmd_Rect         :: struct {r: Rect, color: Color}
 DCmd_Rect_Outline :: struct {r: Rect, thickness: f32, color: Color}
 DCmd_Sub_Texture  :: struct {tex: Texture_Handle, src, dst: Rect, tint: Color}
-DCmd_Text         :: struct {font: Font_Handle, text: string, pos: [2]f32, color: Color}
 DCmd_Scissor      :: struct {rect: Maybe(Rect)}
 
 // A draw command emitted by the end-of-frame autolayout + draw pass. We sort
@@ -19,13 +25,7 @@ Draw_Cmd :: union {
 	DCmd_Rect,
 	DCmd_Rect_Outline,
 	DCmd_Sub_Texture,
-	DCmd_Text,
 	DCmd_Scissor,
-}
-
-Draw_Command :: struct {
-	z:   int,      // draw order: lower draws first
-	cmd: Draw_Cmd,
 }
 
 // A widget's per-frame input/result bag. Built by `end_frame` and consumed by
@@ -65,7 +65,7 @@ Context :: struct {
 	active_id:  u64,
 
 	// Emitted by end_frame, drawn in order.
-	draw_cmds: [dynamic]Draw_Command,
+	draw_cmds: [dynamic]Draw_Cmd,
 
 	// Per-frame input.
 	mouse: Vec2,
@@ -74,34 +74,25 @@ Context :: struct {
 	mouse_held:    bool,
 	mouse_wheel:   f32,
 
-	backend:        Loader,
-	default_font:   ^Font,
 	default_panel:  Panel_Surface,
 	default_button: Panel_Surface,
 }
 
-// The currently-active context, set by `begin_frame`. Widget helpers read
-// from this so their signatures can stay tiny.
-@(private) the_context: ^Context
+ctx: Context
 
 // Initialise a context. The context must outlive all its widgets.
-init_context :: proc (ctx: ^Context, allocator: mem.Allocator, loader: Loader) {
-	ctx^ = Context{}
-	ctx.allocator = allocator
-	ctx.backend = loader
-	ctx.by_id = make(map[u64]^Widget, allocator)
-	ctx.widget_storage = make([dynamic]Widget, allocator)
-	ctx.parent_stack = make([dynamic]^Widget, allocator)
-	ctx.draw_cmds = make([dynamic]Draw_Command, allocator)
-	// Reserve so widget_storage never reallocates mid-frame (the tree
-	// holds `^Widget` pointers into it).
-	reserve(&ctx.widget_storage, 1024)
-	reserve(&ctx.parent_stack, 32)
-	reserve(&ctx.draw_cmds, 1024)
+init_context :: proc (allocator: mem.Allocator) -> ^Context {
+	ctx = {}
+	ctx.allocator      = allocator
+	ctx.by_id          = make(map[u64]^Widget, allocator)
+	ctx.widget_storage = make([dynamic]Widget, 0, 1024, allocator)
+	ctx.parent_stack   = make([dynamic]^Widget, 0, 32, allocator)
+	ctx.draw_cmds      = make([dynamic]Draw_Cmd, 0, 1024, allocator)
+	return &ctx
 }
 
 // Release all resources held by a context. Call after the last frame.
-destroy_context :: proc (ctx: ^Context) {
+destroy_context :: proc () {
 	delete(ctx.by_id)
 	delete(ctx.widget_storage)
 	delete(ctx.parent_stack)
@@ -110,8 +101,8 @@ destroy_context :: proc (ctx: ^Context) {
 
 // Begin a new frame. The mouse position is used for hit-testing in
 // `end_frame`. Call before any widget code.
-begin_frame :: proc (ctx: ^Context, mouse: Vec2, pixel_scale: f32) {
-	the_context = ctx
+begin_frame :: proc (mouse: Vec2, pixel_scale: f32) {
+
 	ctx.frame_index += 1
 	ctx.pixel_scale = pixel_scale
 	ctx.mouse = mouse
@@ -125,14 +116,19 @@ begin_frame :: proc (ctx: ^Context, mouse: Vec2, pixel_scale: f32) {
 	clear(&ctx.draw_cmds)
 
 	// Create the implicit root widget. The first user widget attaches here.
-	allocate_root(ctx)
+	allocate_root()
 }
 
-// End the frame: resolve IDs, run the autolayout pass, hit-test, emit draw.
-end_frame :: proc (ctx: ^Context) {
-	defer the_context = nil
+end_frame :: proc () {
+	resolve_ids()
+	hit_test()
+	emit_draw()
+}
 
-	resolve_ids(ctx)
-	hit_test(ctx)
-	emit_draw(ctx)
+get_atlas :: proc (handle: Texture_Handle) -> Atlas {
+	switch handle {
+	case .Font:  return get_font_atlas()
+	case .Panel: return get_panel_atlas()
+	case: unreachable()
+	}
 }

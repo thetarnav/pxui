@@ -1,9 +1,5 @@
 package pixui
 
-//-------//
-// LAYOUT //
-//-------//
-
 // Martin Cohen's "rectcut" primitive. Take a parent rect, cut `size` off the
 // `side` on the given axis, return the cut piece and shrink the parent in
 // place. Compose: rows, columns, sidebars, toolbars, centered items.

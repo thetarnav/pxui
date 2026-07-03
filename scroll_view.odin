@@ -13,8 +13,8 @@ scroll_view :: proc (
 ) -> bool {
 	flags: Flags = {.Clip, .Scroll_Y}
 	r := widget_begin(flags, id=id, size=content_size)
-	if !r.active { return false }
-	ctx := the_context
+	if !r.active do return false
+
 	w := r.widget
 	// Apply scroll offset to the widget's rect, so children are drawn
 	// shifted up. Clamp to keep some content visible.
