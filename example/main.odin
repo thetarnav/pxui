@@ -10,7 +10,7 @@ UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
 Vec2 :: [2]f32
-Rect :: px.Rect
+Rect   :: struct {using pos: Vec2, size: Vec2}
 
 main :: proc () {
 
@@ -43,29 +43,38 @@ draw_ui :: proc () {
 		px.element_push(struct {})
 		defer px.element_pop()
 
+		px.margin(2)
+		px.padding(10)
+
 		{
-			state, el_id, init := px.element_push(struct {count: int})
+			state, el, init := px.element_push(struct {count: int})
 			defer px.element_pop()
 
+			px.padding(2, 1)
+
 			state.count += 1
-			fmt.println("Count A", state.count, el_id, init)
+			// fmt.println("Count A", state.count, el, init)
 		}
 
 		{
-			state, el_id, init := px.element_push(struct {count: int})
+			state, el, init := px.element_push(struct {count: int})
 			defer px.element_pop()
 
+			px.padding(3, 2)
+
 			state.count -= 1
-			fmt.println("Count B", state.count, el_id, init)
+			// fmt.println("Count B", state.count, el, init)
 		}
 	}
 
 	{
-		state, el_id, init := px.element_push(struct {count: int})
+		state, el, init := px.element_push(struct {count: int})
 		defer px.element_pop()
 
+		px.padding(2, 1)
+
 		state.count += 1
-		fmt.println("Count C", state.count, el_id, init)
+		// fmt.println("Count C", state.count, el, init)
 	}
 }
 
