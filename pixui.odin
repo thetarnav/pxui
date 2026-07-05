@@ -73,10 +73,10 @@ element_hash :: proc (T: typeid, user_id: u64) -> u64 {
 }
 
 @private
-_element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state: rawptr, element: ^Element, init: bool) {
-
-	hash := element_hash(T, user_id)
-
+_element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
+                      (state: rawptr, element: ^Element, init: bool)
+{
+	hash   := element_hash(T, user_id)
 	parent := element_get_assert(ctx.element_curr)
 
 	search: {
@@ -106,7 +106,6 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state:
 		})
 		// TODO: how to handle errors?
 		assert(add_err == nil)
-
 		element = element_get_assert(handle)
 
 		if sibling, has_siblings := element_get(parent.child_last); has_siblings {
@@ -128,11 +127,11 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state:
 	return
 }
 
-element_push :: #force_inline proc ($T: typeid, id: u64 = 0) -> (state: ^T, element: ^Element, init: bool) {
+element_push :: #force_inline proc ($T: typeid, id: u64 = 0) ->
+                                   (state: ^T, element: ^Element, init: bool) {
 	ptr: rawptr
 	ptr, element, init = _element_push(T, size_of(T), align_of(T), id)
-	state = (^T)(ptr)
-	return
+	return (^T)(ptr), element, init
 }
 
 element_pop :: proc () {
