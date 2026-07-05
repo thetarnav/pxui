@@ -227,7 +227,7 @@ margin_set :: proc (v: Insets) {
 	element_curr().margin = v
 }
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
-margin_axis       :: proc (v, h: int)       {margin(h, v, h, v)}
+margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
 margin_vec        :: proc (v: [2]int)       {margin(v.x, v.y, v.x, v.y)}
 margin_all        :: proc (v: int)          {margin(v, v, v, v)}
 margin :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
@@ -236,7 +236,7 @@ padding_set :: proc (v: Insets) {
 	element_curr().padding = v
 }
 padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
-padding_axis       :: proc (v, h: int)       {padding(h, v, h, v)}
+padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
 padding_vec        :: proc (v: [2]int)       {padding(v.x, v.y, v.x, v.y)}
 padding_all        :: proc (v: int)          {padding(v, v, v, v)}
 padding :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}

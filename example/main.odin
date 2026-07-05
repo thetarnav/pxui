@@ -44,7 +44,7 @@ draw_ui :: proc () {
 		defer px.element_pop()
 
 		px.margin(2)
-		px.padding(10)
+		px.padding(3)
 
 		{
 			state, el, init := px.element_push(struct {count: int})
@@ -71,7 +71,8 @@ draw_ui :: proc () {
 		state, el, init := px.element_push(struct {count: int})
 		defer px.element_pop()
 
-		px.padding(2, 1)
+		px.margin(4)
+		px.padding(4, 2)
 
 		state.count += 1
 		// fmt.println("Count C", state.count, el, init)
