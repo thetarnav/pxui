@@ -18,7 +18,7 @@ ctx: struct {
 }
 
 Element :: struct {
-	hash:          u64,            // type + user id
+	hash:        u64,            // type + user id
 	data_ptr:    rawptr,         // ptr to user component state
 
 	handle:      Element_Handle, // self
@@ -31,8 +31,7 @@ Element :: struct {
 
 	margin:      Insets,
 	padding:     Insets,
-
-	rect:       Rect,
+	rect:        Rect,
 }
 
 Element_Handle :: struct {idx, gen: u32}
