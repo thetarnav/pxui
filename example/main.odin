@@ -46,9 +46,10 @@ draw_ui :: proc () {
 		return &state.count
 	}
 
+	px.v_stack()
+
 	{
-		px.element_push(struct {})
-		defer px.element_pop()
+		px.h_stack()
 
 		px.margin(2)
 		px.padding(3)
@@ -56,7 +57,7 @@ draw_ui :: proc () {
 		{
 			count := counter()
 			px.padding(2, 1)
-			px.margin_bot(1)
+			px.margin_right(1)
 			count^ += 1
 		}
 

@@ -130,9 +130,6 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 	el.rect.pos  = parent.rect.pos
 	el.rect.pos += {parent.padding.l, parent.padding.t}
 	el.rect.pos += {el.margin.l, el.margin.t}
-	if sibling, has_prev_sib := element_get(el.prev); has_prev_sib {
-		el.rect.pos.y += sibling.rect.size.y + sibling.margin.b + sibling.margin.t
-	}
 
 	return
 }
@@ -151,9 +148,10 @@ element_pop :: proc () {
 	ctx.element_curr = el.parent
 
 	// Update parent rect by own size
-	parent.rect.size.y += el.margin.t + el.rect.size.y + el.margin.b
-	parent.rect.size.x  = max(parent.rect.size.x,
-	                          el.rect.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
+	parent.rect.size.x = max(parent.rect.size.x,
+	                         el.rect.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
+	parent.rect.size.y = max(parent.rect.size.y,
+	                         el.rect.size.y + el.margin.t + el.margin.b + parent.padding.t + parent.padding.b)
 }
 
 element_curr :: proc () -> ^Element {
@@ -210,3 +208,66 @@ padding_bot        :: padding_b
 padding_left       :: padding_l
 padding_right      :: padding_r
 padding_top        :: padding_t
+
+
+V_Stack :: struct {}
+v_stack_begin :: proc (id: u64 = 0) {
+	element_push(V_Stack, id)
+}
+v_stack_end :: proc (id: u64 = 0) {
+	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash)
+
+	el := element_curr()
+
+	if prev, has_children := element_get(el.child_first); has_children {
+		child_id := prev.next
+		for child in element_get(child_id) {
+
+			// Position each child below previous
+			child.rect.pos.y = prev.rect.pos.y + prev.rect.size.y + prev.margin.b + child.margin.t
+			// Increase element rect
+			el.rect.size.y = max(el.rect.size.y,
+			                     child.rect.pos.y + child.rect.size.y + child.margin.b + el.padding.b - el.rect.pos.y)
+
+			child_id, prev = child.next, child
+		}
+	}
+
+	element_pop()
+}
+@(deferred_in=v_stack_end)
+v_stack :: proc (id: u64 = 0) -> bool {
+	v_stack_begin(id)
+	return true
+}
+
+H_Stack :: struct {}
+h_stack_begin :: proc (id: u64 = 0) {
+	element_push(H_Stack, id)
+}
+h_stack_end :: proc (id: u64 = 0) {
+	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash)
+
+	el := element_curr()
+
+	if prev, has_children := element_get(el.child_first); has_children {
+		child_id := prev.next
+		for child in element_get(child_id) {
+
+			// Position each child after previous
+			child.rect.pos.x = prev.rect.pos.x + prev.rect.size.x + prev.margin.r + child.margin.l
+			// Increase element rect
+			el.rect.size.x = max(el.rect.size.x,
+			                     child.rect.pos.x + child.rect.size.x + child.margin.r + el.padding.r - el.rect.pos.x)
+
+			child_id, prev = child.next, child
+		}
+	}
+
+	element_pop()
+}
+@(deferred_in=h_stack_end)
+h_stack :: proc (id: u64 = 0) -> bool {
+	h_stack_begin(id)
+	return true
+}
