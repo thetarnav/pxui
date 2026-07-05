@@ -1,5 +1,6 @@
 package pixui
 
+import "core:io"
 import "core:strings"
 import "base:runtime"
 import "core:mem"
@@ -173,59 +174,7 @@ frame_end :: proc () {
 		}
 	}
 
-	root := element_get_assert(ctx.element_root)
-	screen := root.rect.size + root.rect.pos
-
-	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
-	display(ctx.element_root, pixels, screen.x)
-
-	root.rect = {}
-
-	sb: strings.Builder
-	for p, i in pixels {
-		x := i % screen.x
-		if x == 0 {
-			strings.write_rune(&sb, '\n')
-		}
-		if p != 0 {
-			strings.write_rune(&sb, '0' + rune(p))
-		} else {
-			strings.write_rune(&sb, ' ')
-		}
-	}
-	fmt.println(strings.to_string(sb))
-
-	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
-
-		el := element_get(h) or_return
-		rect := el.rect
-
-		for xi in 0..<rect.size.x {
-			pos := rect.pos + {xi, 0}
-			if rect.size.y > 0 {
-				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
-			}
-			pos.y += rect.size.y - 1
-			if rect.size.y > 1 {
-				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
-			}
-		}
-		for yi in 0..<rect.size.y {
-			pos := rect.pos + {0, yi}
-			if rect.size.x > 0 {
-				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
-			}
-			pos.x += rect.size.x - 1
-			if rect.size.x > 1 {
-				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
-			}
-		}
-
-		display(el.child_first, pixels, screen_w)
-		display(el.next, pixels, screen_w)
-
-		return true
-	}
+	debug_tree_print()
 }
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
