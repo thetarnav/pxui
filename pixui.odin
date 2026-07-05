@@ -32,7 +32,7 @@ Element :: struct {
 	margin:      Insets,
 	padding:     Insets,
 
-	_rect:       Rect,
+	rect:       Rect,
 }
 
 Element_Handle :: struct {idx, gen: u32}
@@ -74,7 +74,7 @@ element_hash :: proc (T: typeid, user_id: u64) -> u64 {
 
 @private
 _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
-                      (state: rawptr, element: ^Element, init: bool)
+                      (state: rawptr, el: ^Element, init: bool)
 {
 	hash   := element_hash(T, user_id)
 	parent := element_get_assert(ctx.element_curr)
@@ -87,7 +87,7 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 			// TODO: this search could probably be optimized
 			if child.hash == hash && !child._found {
 				// Found matching child
-				element = child
+				el = child
 				break search
 			}
 			child_id = child.next
@@ -106,11 +106,11 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 		})
 		// TODO: how to handle errors?
 		assert(add_err == nil)
-		element = element_get_assert(handle)
+		el = element_get_assert(handle)
 
 		if sibling, has_siblings := element_get(parent.child_last); has_siblings {
 			sibling.next = handle
-			element.prev = sibling.handle
+			el.prev = sibling.handle
 		} else {
 			parent.child_first = handle
 		}
@@ -119,10 +119,20 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 		init = true
 	}
 
-	ctx.element_curr = element.handle
-	element._found = true
-	state = element.data_ptr
+	ctx.element_curr = el.handle
+	el._found        = true
+	state            = el.data_ptr
 	assert(T_size == 0 || state != nil)
+
+	// Update element rect
+	el.rect.size.x = el.padding.l + el.padding.r
+	el.rect.size.y = el.padding.t + el.padding.b
+	el.rect.pos  = parent.rect.pos
+	el.rect.pos += {parent.padding.l, parent.padding.t}
+	el.rect.pos += {el.margin.l, el.margin.t}
+	if sibling, has_prev_sib := element_get(el.prev); has_prev_sib {
+		el.rect.pos.y += sibling.rect.size.y + sibling.margin.b + sibling.margin.t
+	}
 
 	return
 }
@@ -136,9 +146,14 @@ element_push :: #force_inline proc ($T: typeid, id: u64 = 0) ->
 
 element_pop :: proc () {
 	// switch current element to parent
-	el := element_get_assert(ctx.element_curr)
-	assert(el.parent != {})
+	el     := element_get_assert(ctx.element_curr)
+	parent := element_get_assert(el.parent)
 	ctx.element_curr = el.parent
+
+	// Update parent rect by own size
+	parent.rect.size.y += el.margin.t + el.rect.size.y + el.margin.b
+	parent.rect.size.x  = max(parent.rect.size.x,
+	                          el.rect.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
 }
 
 element_curr :: proc () -> ^Element {
@@ -159,14 +174,14 @@ frame_end :: proc () {
 		}
 	}
 
-	screen: Rect
-	measure(ctx.element_root, &screen, {}, 0)
-
-	screen_w := screen.size.x + screen.pos.x
-	screen_h := screen.size.y + screen.pos.y
+	root := element_get_assert(ctx.element_root)
+	screen_w := root.rect.size.x + root.rect.pos.x
+	screen_h := root.rect.size.y + root.rect.pos.y
 
 	pixels := make([]u8, screen_w * screen_h, allocator=context.temp_allocator)
 	display(ctx.element_root, pixels, screen_w)
+
+	root.rect = {}
 
 	sb: strings.Builder
 	for p, i in pixels {
@@ -182,70 +197,69 @@ frame_end :: proc () {
 	}
 	fmt.print(strings.to_string(sb))
 
-	measure :: proc (h: Element_Handle, parent_rect: ^Rect, parent_padding: Insets, child_off: int) -> (ok: bool) {
-
-		el := element_get(h) or_return
-
-		rect := &el._rect
-		rect^ = {}
-
-		rect.pos  += parent_rect.pos
-		rect.pos  += {parent_padding.l, parent_padding.t}
-		rect.pos  += {0, child_off}
-		rect.pos  += {el.margin.l, el.margin.t}
-		rect.size += {el.padding.l + el.padding.r, el.padding.t + el.padding.b}
-
-		measure(el.child_first, rect, el.padding, 0)
-
-		parent_rect.size += rect.size
-		parent_rect.size.y += el.margin.t + el.margin.b
-		parent_rect.size.x = max(parent_rect.size.x, rect.size.x + el.margin.l + el.margin.r + parent_padding.l + parent_padding.r)
-
-		measure(el.next, parent_rect, parent_padding, rect.size.y + el.margin.b + el.margin.t)
-
-		return true
-	}
-
 	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
 
 		el := element_get(h) or_return
-		rect := el._rect
+		rect := el.rect
 
 		for xi in 0..<rect.size.x {
 			pos := rect.pos + {xi, 0}
-			pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			if rect.size.y > 0 {
+				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			}
 			pos.y += rect.size.y - 1
-			pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			if rect.size.y > 1 {
+				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			}
 		}
 		for yi in 0..<rect.size.y {
 			pos := rect.pos + {0, yi}
-			pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			if rect.size.x > 0 {
+				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			}
 			pos.x += rect.size.x - 1
-			pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			if rect.size.x > 1 {
+				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			}
 		}
 
 		display(el.child_first, pixels, screen_w)
-
 		display(el.next, pixels, screen_w)
 
 		return true
 	}
 }
 
-margin_set :: proc (v: Insets) {
-	element_curr().margin = v
-}
+margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
 margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
 margin_vec        :: proc (v: [2]int)       {margin(v.x, v.y, v.x, v.y)}
 margin_all        :: proc (v: int)          {margin(v, v, v, v)}
-margin :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_t          :: proc (v: int)          {element_curr().margin.t = v}
+margin_b          :: proc (v: int)          {element_curr().margin.b = v}
+margin_l          :: proc (v: int)          {element_curr().margin.l = v}
+margin_r          :: proc (v: int)          {element_curr().margin.r = v}
+margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_dirs       :: margin_directions
+margin_bottom     :: margin_b
+margin_bot        :: margin_b
+margin_left       :: margin_l
+margin_right      :: margin_r
+margin_top        :: margin_t
 
-padding_set :: proc (v: Insets) {
-	element_curr().padding = v
-}
+padding_set        :: proc (v: Insets)       {element_curr().padding = v}
 padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
 padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
 padding_vec        :: proc (v: [2]int)       {padding(v.x, v.y, v.x, v.y)}
 padding_all        :: proc (v: int)          {padding(v, v, v, v)}
-padding :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_t          :: proc (v: int)          {element_curr().padding.t = v}
+padding_b          :: proc (v: int)          {element_curr().padding.b = v}
+padding_l          :: proc (v: int)          {element_curr().padding.l = v}
+padding_r          :: proc (v: int)          {element_curr().padding.r = v}
+padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_dirs       :: padding_directions
+padding_bottom     :: padding_b
+padding_bot        :: padding_b
+padding_left       :: padding_l
+padding_right      :: padding_r
+padding_top        :: padding_t
