@@ -174,17 +174,16 @@ frame_end :: proc () {
 	}
 
 	root := element_get_assert(ctx.element_root)
-	screen_w := root.rect.size.x + root.rect.pos.x
-	screen_h := root.rect.size.y + root.rect.pos.y
+	screen := root.rect.size + root.rect.pos
 
-	pixels := make([]u8, screen_w * screen_h, allocator=context.temp_allocator)
-	display(ctx.element_root, pixels, screen_w)
+	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
+	display(ctx.element_root, pixels, screen.x)
 
 	root.rect = {}
 
 	sb: strings.Builder
 	for p, i in pixels {
-		x := i % screen_w
+		x := i % screen.x
 		if x == 0 {
 			strings.write_rune(&sb, '\n')
 		}
