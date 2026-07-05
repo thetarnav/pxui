@@ -18,7 +18,7 @@ ctx: struct {
 }
 
 Element :: struct {
-	id:          u64,            // type + user id
+	hash:          u64,            // type + user id
 	data_ptr:    rawptr,         // ptr to user component state
 
 	handle:      Element_Handle, // self
@@ -66,18 +66,23 @@ element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> 
 	return el
 }
 
+@(require_results)
+element_hash :: proc (T: typeid, user_id: u64) -> u64 {
+	type_id := transmute(u64)T
+	return hash_combine(type_id, user_id) if user_id > 0 else type_id
+}
+
 @private
 _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state: rawptr, element: ^Element, init: bool) {
 
-	type_id := transmute(u64)T
-	id := hash_combine(type_id, user_id) if user_id > 0 else type_id
+	hash := element_hash(T, user_id)
 
 	parent := element_get_assert(ctx.element_curr)
 
 	child_id := parent.child_first
 	for child in element_get(child_id) {
 		// TODO: this search could probably be optimized
-		if child.id == id && !child._found {
+		if child.hash == hash && !child._found {
 			// found matching child
 			element          = child
 			ctx.element_curr = element.handle
@@ -96,7 +101,7 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state:
 
 	handle, add_err := hm.add(&ctx.elements, Element{
 		parent   = parent.handle,
-		id       = id,
+		hash       = hash,
 		data_ptr = state,
 		_found   = true,
 	})
@@ -127,9 +132,10 @@ element_push :: #force_inline proc ($T: typeid, id: u64 = 0) -> (state: ^T, elem
 }
 
 element_pop :: proc () {
-	el_curr := element_get_assert(ctx.element_curr)
-	assert(el_curr.parent != {})
-	ctx.element_curr = el_curr.parent
+	// switch current element to parent
+	el := element_get_assert(ctx.element_curr)
+	assert(el.parent != {})
+	ctx.element_curr = el.parent
 }
 
 element_curr :: proc () -> ^Element {
