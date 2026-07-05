@@ -1,11 +1,10 @@
 package pixui
 
-import "core:io"
-import "core:strings"
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
 import hm "core:container/handle_map"
+
 
 Vec    :: [2]int
 Rect   :: struct {using pos: Vec, size: Vec}
@@ -32,10 +31,11 @@ Element :: struct {
 
 	margin:      Insets,
 	padding:     Insets,
-	rect:        Rect,
+	rect:        Rect,           // world rect, calculated from children, margin, padding etc.
 }
 
-Element_Handle :: struct {idx, gen: u32}
+Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
+
 
 init :: proc (allocator := context.allocator) -> (err: mem.Allocator_Error) {
 
