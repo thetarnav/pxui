@@ -31,7 +31,7 @@ Element :: struct {
 
 	margin:      Insets,
 	padding:     Insets,
-	rect:        Rect,           // world rect, calculated from children, margin, padding etc.
+	using rect:  Rect,           // world rect, calculated from children, margin, padding etc.
 }
 
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
@@ -125,11 +125,11 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 	assert(T_size == 0 || state != nil)
 
 	// Update element rect
-	el.rect.size.x = el.padding.l + el.padding.r
-	el.rect.size.y = el.padding.t + el.padding.b
-	el.rect.pos  = parent.rect.pos
-	el.rect.pos += {parent.padding.l, parent.padding.t}
-	el.rect.pos += {el.margin.l, el.margin.t}
+	el.size.x = el.padding.l + el.padding.r
+	el.size.y = el.padding.t + el.padding.b
+	el.pos  = parent.pos
+	el.pos += {parent.padding.l, parent.padding.t}
+	el.pos += {el.margin.l, el.margin.t}
 
 	return
 }
@@ -148,10 +148,10 @@ element_pop :: proc () {
 	ctx.element_curr = el.parent
 
 	// Update parent rect by own size
-	parent.rect.size.x = max(parent.rect.size.x,
-	                         el.rect.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
-	parent.rect.size.y = max(parent.rect.size.y,
-	                         el.rect.size.y + el.margin.t + el.margin.b + parent.padding.t + parent.padding.b)
+	parent.size.x = max(parent.size.x,
+	                    el.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
+	parent.size.y = max(parent.size.y,
+	                    el.size.y + el.margin.t + el.margin.b + parent.padding.t + parent.padding.b)
 }
 
 element_curr :: proc () -> ^Element {
@@ -173,6 +173,9 @@ frame_end :: proc () {
 	}
 
 	debug_tree_print()
+
+	root := element_get_assert(ctx.element_root)
+	root.rect = {}
 }
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
@@ -224,10 +227,10 @@ v_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child below previous
-			child.rect.pos.y = prev.rect.pos.y + prev.rect.size.y + prev.margin.b + child.margin.t
+			child.pos.y = prev.pos.y + prev.size.y + prev.margin.b + child.margin.t
 			// Increase element rect
-			el.rect.size.y = max(el.rect.size.y,
-			                     child.rect.pos.y + child.rect.size.y + child.margin.b + el.padding.b - el.rect.pos.y)
+			el.size.y = max(el.size.y,
+			                child.pos.y + child.size.y + child.margin.b + el.padding.b - el.pos.y)
 
 			child_id, prev = child.next, child
 		}
@@ -255,10 +258,10 @@ h_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child after previous
-			child.rect.pos.x = prev.rect.pos.x + prev.rect.size.x + prev.margin.r + child.margin.l
+			child.pos.x = prev.pos.x + prev.size.x + prev.margin.r + child.margin.l
 			// Increase element rect
-			el.rect.size.x = max(el.rect.size.x,
-			                     child.rect.pos.x + child.rect.size.x + child.margin.r + el.padding.r - el.rect.pos.x)
+			el.size.x = max(el.size.x,
+			                child.pos.x + child.size.x + child.margin.r + el.padding.r - el.pos.x)
 
 			child_id, prev = child.next, child
 		}

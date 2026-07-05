@@ -6,12 +6,10 @@ import "core:strings"
 debug_tree_display :: proc (allocator := context.allocator) -> string {
 
 	root := element_get_assert(ctx.element_root)
-	screen := root.rect.size + root.rect.pos
+	screen := root.size + root.pos
 
 	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
 	display(ctx.element_root, pixels, screen.x)
-
-	root.rect = {}
 
 	sb := strings.builder_make(allocator)
 	for p, i in pixels {
@@ -31,25 +29,24 @@ debug_tree_display :: proc (allocator := context.allocator) -> string {
 	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
 
 		el := element_get(h) or_return
-		rect := el.rect
 
-		for xi in 0..<rect.size.x {
-			pos := rect.pos + {xi, 0}
-			if rect.size.y > 0 {
+		for xi in 0..<el.size.x {
+			pos := el.pos + {xi, 0}
+			if el.size.y > 0 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
-			pos.y += rect.size.y - 1
-			if rect.size.y > 1 {
+			pos.y += el.size.y - 1
+			if el.size.y > 1 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
 		}
-		for yi in 0..<rect.size.y {
-			pos := rect.pos + {0, yi}
-			if rect.size.x > 0 {
+		for yi in 0..<el.size.y {
+			pos := el.pos + {0, yi}
+			if el.size.x > 0 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
-			pos.x += rect.size.x - 1
-			if rect.size.x > 1 {
+			pos.x += el.size.x - 1
+			if el.size.x > 1 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
 		}
