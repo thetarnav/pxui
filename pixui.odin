@@ -193,7 +193,7 @@ frame_end :: proc () {
 			strings.write_rune(&sb, ' ')
 		}
 	}
-	fmt.print(strings.to_string(sb))
+	fmt.println(strings.to_string(sb))
 
 	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
 

@@ -39,6 +39,13 @@ main :: proc () {
 
 draw_ui :: proc () {
 
+	@(deferred_none=px.element_pop)
+	counter :: proc (id: u64 = 0) -> ^int {
+		Counter :: struct {count: int}
+		state, _, _ := px.element_push(Counter)
+		return &state.count
+	}
+
 	{
 		px.element_push(struct {})
 		defer px.element_pop()
@@ -47,36 +54,24 @@ draw_ui :: proc () {
 		px.padding(3)
 
 		{
-			state, el, init := px.element_push(struct {count: int})
-			defer px.element_pop()
-
+			count := counter()
 			px.padding(2, 1)
 			px.margin_bot(1)
-
-			state.count += 1
-			// fmt.println("Count A", state.count, el, init)
+			count^ += 1
 		}
 
 		{
-			state, el, init := px.element_push(struct {count: int})
-			defer px.element_pop()
-
+			count := counter()
 			px.padding(3, 2)
-
-			state.count -= 1
-			// fmt.println("Count B", state.count, el, init)
+			count^ -= 1
 		}
 	}
 
 	{
-		state, el, init := px.element_push(struct {count: int})
-		defer px.element_pop()
-
+		count := counter()
 		px.margin(4, 0, 4, 5)
 		px.padding(6, 2)
-
-		state.count += 1
-		// fmt.println("Count C", state.count, el, init)
+		count^ += 1
 	}
 }
 
