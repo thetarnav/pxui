@@ -180,7 +180,7 @@ frame_end :: proc () {
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
 margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
-margin_vec        :: proc (v: [2]int)       {margin(v.x, v.y, v.x, v.y)}
+margin_vec        :: proc (v: Vec)          {margin(v.x, v.y, v.x, v.y)}
 margin_all        :: proc (v: int)          {margin(v, v, v, v)}
 margin_t          :: proc (v: int)          {element_curr().margin.t = v}
 margin_b          :: proc (v: int)          {element_curr().margin.b = v}
@@ -197,7 +197,7 @@ margin_top        :: margin_t
 padding_set        :: proc (v: Insets)       {element_curr().padding = v}
 padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
 padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
-padding_vec        :: proc (v: [2]int)       {padding(v.x, v.y, v.x, v.y)}
+padding_vec        :: proc (v: Vec)          {padding(v.x, v.y, v.x, v.y)}
 padding_all        :: proc (v: int)          {padding(v, v, v, v)}
 padding_t          :: proc (v: int)          {element_curr().padding.t = v}
 padding_b          :: proc (v: int)          {element_curr().padding.b = v}
