@@ -79,47 +79,51 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) -> (state:
 
 	parent := element_get_assert(ctx.element_curr)
 
-	child_id := parent.child_first
-	for child in element_get(child_id) {
-		// TODO: this search could probably be optimized
-		if child.hash == hash && !child._found {
-			// found matching child
-			element          = child
-			ctx.element_curr = element.handle
-			state            = element.data_ptr
-			child._found     = true
-			assert(T_size == 0 || state != nil)
-			return
+	search: {
+		// Search for matching child from previous frame
+
+		child_id := parent.child_first
+		for child in element_get(child_id) {
+			// TODO: this search could probably be optimized
+			if child.hash == hash && !child._found {
+				// Found matching child
+				element = child
+				break search
+			}
+			child_id = child.next
 		}
-		child_id = child.next
+
+		// Not found—alloc and append a new element
+
+		// TODO: use pool/arena for state to keep memory continious
+		bytes, alloc_err := runtime.mem_alloc(T_size, T_align, allocator=ctx.allocator)
+		assert(alloc_err == nil)
+
+		handle, add_err := hm.add(&ctx.elements, Element{
+			parent   = parent.handle,
+			hash     = hash,
+			data_ptr = raw_data(bytes),
+		})
+		// TODO: how to handle errors?
+		assert(add_err == nil)
+
+		element = element_get_assert(handle)
+
+		if sibling, has_siblings := element_get(parent.child_last); has_siblings {
+			sibling.next = handle
+			element.prev = sibling.handle
+		} else {
+			parent.child_first = handle
+		}
+		parent.child_last = handle
+
+		init = true
 	}
 
-	// TODO: use pool/arena for state to keep memory continious
-	bytes, alloc_err := runtime.mem_alloc(T_size, T_align, allocator=ctx.allocator)
-	assert(alloc_err == nil)
-	state = raw_data(bytes)
-
-	handle, add_err := hm.add(&ctx.elements, Element{
-		parent   = parent.handle,
-		hash       = hash,
-		data_ptr = state,
-		_found   = true,
-	})
-	// TODO: how to handle errors?
-	assert(add_err == nil)
-	ctx.element_curr = handle
-
-	element = element_get_assert(handle)
-
-	if sibling, ok := element_get(parent.child_last); ok {
-		sibling.next = handle
-		element.prev = sibling.handle
-	} else {
-		parent.child_first = handle
-	}
-	parent.child_last = handle
-
-	init = true
+	ctx.element_curr = element.handle
+	element._found = true
+	state = element.data_ptr
+	assert(T_size == 0 || state != nil)
 
 	return
 }
