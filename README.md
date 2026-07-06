@@ -2,7 +2,11 @@
 
 wip
 
+## License
 
-# Fonts
+- `pxui` Odin package — [MIT License](./LICENSE.txt)
 
-The fonts in `/fonts` dir are CC0 / Public Domain. By [frostyfreeze](https://frostyfreeze.itch.io/pixel-bitmap-fonts-png-xml).
+- [`example/`](./example/) — Public Domain
+
+- [Monogram font](https://datagoblin.itch.io/monogram) — by [Datagoblin](https://datagoblin.itch.io) — [CC0](https://creativecommons.org/publicdomain/zero/1.0)
+  - [`fonts/monogram.json`](./fonts/monogram.json)
