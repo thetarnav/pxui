@@ -1,4 +1,4 @@
-package pixui
+package pxui
 
 import la "core:math/linalg"
 

@@ -1,4 +1,4 @@
-package pixui
+package pxui
 
 import "base:runtime"
 import "core:mem"

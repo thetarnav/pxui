@@ -1,4 +1,4 @@
-package pixui
+package pxui
 
 // Mix two u64s into one. Used to combine parent_id and child_index into a
 // stable widget id. Bit-mixing function (Murmur-style finalizer) — avoids

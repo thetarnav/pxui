@@ -17,9 +17,9 @@ test:
 test-verbose:
 	odin test . -out:build/test -debug -define:ODIN_TEST_VERBOSE=true -define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true -define:ODIN_TEST_THREADS=1
 
-# Run a single test by name:  make test-one TEST_NAME=pixui.test_rect_cut_pixels
+# Run a single test by name:  make test-one TEST_NAME=pxui.test_rect_cut_pixels
 test-one:
 	odin test . -out:build/test -define:ODIN_TEST_NAMES=$(TEST_NAME) -define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true -define:ODIN_TEST_THREADS=1
 
 clean:
-	rm -f example/assets/panel.tga pixui_example
+	rm -f example/assets/panel.tga pxui_example

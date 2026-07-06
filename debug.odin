@@ -1,4 +1,4 @@
-package pixui
+package pxui
 
 import "core:os"
 import "core:strings"

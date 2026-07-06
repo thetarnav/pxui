@@ -1,4 +1,4 @@
-package pixui
+package pxui
 
 V_Stack :: struct {}
 v_stack_begin :: proc (id: u64 = 0) {
