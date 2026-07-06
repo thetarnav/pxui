@@ -70,9 +70,10 @@ draw_ui :: proc () {
 	px.v_stack()
 
 	{
-		px.h_stack()
-
+		px.panel()
 		px.margin(2)
+
+		px.h_stack()
 		px.padding(3)
 
 		{
@@ -90,8 +91,10 @@ draw_ui :: proc () {
 	}
 
 	{
-		count := counter()
+		px.panel()
 		px.margin(4, 0, 4, 5)
+
+		count := counter()
 		px.padding(6, 2)
 		count^ += 1
 	}

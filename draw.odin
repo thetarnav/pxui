@@ -4,7 +4,7 @@ Draw_Commands :: [dynamic]Draw_Texture
 
 Draw_Texture :: struct {
 	src:     Rectf,
-	dst:     Rect,
+	dst:     union {Rect, Rectf},
 	tint:    Color,
 	atlas:   ^Atlas,
 	element: Element_Handle,
@@ -30,16 +30,25 @@ Draw_Command :: struct {
 }
 
 get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
+
 	cmds := make([]Draw_Command, len(ctx.draw_commands), allocator)
+
 	for c, i in ctx.draw_commands {
 		el := element_get_assert(c.element)
+		dst: Rectf
+		switch d in c.dst {
+		case Rect:  dst = {Vec2f(el.pos + d.pos), Vec2f(d.size)}
+		case Rectf: dst = {Vec2f(el.pos) + d.pos * Vec2f(el.size), d.size * Vec2f(el.size)}
+		}
 		cmds[i] = {
 			src   = c.src,
 			atlas = c.atlas,
 			tint  = c.tint,
-			dst   = {Vec2f(el.pos + c.dst.pos), Vec2f(c.dst.size)},
+			dst   = dst,
 		}
 	}
+
 	clear(&ctx.draw_commands)
+
 	return cmds
 }

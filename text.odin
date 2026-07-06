@@ -43,9 +43,9 @@ text :: proc (str: string) {
 	cb :: proc (src, dstf: bmfont.Rect) {
 		using data := cast(^Data)context.user_ptr
 
-		// dstf := dstf
-		// dstf.pos  /= 2
-		// dstf.size /= 2
+		dstf := dstf
+		dstf.pos  /= 2
+		dstf.size /= 2
 
 		dst := Rect{Vec(dstf.pos), Vec(dstf.size)}
 

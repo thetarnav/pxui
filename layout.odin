@@ -28,9 +28,9 @@ v_stack_begin :: proc (id: u64 = 0) {
 	element_push(V_Stack, id)
 }
 v_stack_end :: proc (id: u64 = 0) {
-	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash)
 
 	el := element_curr()
+	assert(element_hash(typeid_of(V_Stack), id) == el.hash)
 
 	if prev, has_children := element_get(el.child_first); has_children {
 		child_id := prev.next
@@ -59,9 +59,9 @@ h_stack_begin :: proc (id: u64 = 0) {
 	element_push(H_Stack, id)
 }
 h_stack_end :: proc (id: u64 = 0) {
-	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash)
 
 	el := element_curr()
+	assert(element_hash(typeid_of(H_Stack), id) == el.hash)
 
 	if prev, has_children := element_get(el.child_first); has_children {
 		child_id := prev.next
