@@ -3,6 +3,7 @@
 package example
 
 import "core:fmt"
+import "core:slice"
 import k2 "shared:karl2d"
 import px "../"
 
@@ -19,15 +20,34 @@ main :: proc () {
 
 	px.init()
 
+	tex_map: map[^px.Atlas]k2.Texture
+
 	for k2.update() {
 		defer k2.reset_frame_allocator()
 		defer free_all(context.temp_allocator)
 
 		k2.clear({30, 30, 40, 255})
+		px.frame_begin()
 
 		mouse := k2.get_mouse_position() / PIXEL_SCALE
 
 		draw_ui()
+
+		for cmd in px.get_draw_commands(context.temp_allocator) {
+			tex, in_map := tex_map[cmd.atlas]
+			if !in_map {
+				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, cmd.atlas.pixels),
+				                                     **cmd.atlas.size, .RGBA_8_Norm)
+				tex_map[cmd.atlas] = tex
+			}
+			src, dst := cmd.src, cmd.dst
+			dst.pos  *= PIXEL_SCALE
+			dst.size *= PIXEL_SCALE
+			k2.draw_texture_fit(tex,
+			                    source = {**src.pos, **src.size},
+			                    dest   = {**dst.pos, **dst.size},
+			                    origin = {}, rotation = 0, tint = cmd.tint)
+		}
 
 		px.frame_end()
 		k2.present()
@@ -43,6 +63,7 @@ draw_ui :: proc () {
 	counter :: proc (id: u64 = 0) -> ^int {
 		Counter :: struct {count: int}
 		state, _, _ := px.element_push(Counter)
+		px.textf("Count: %v", state.count)
 		return &state.count
 	}
 

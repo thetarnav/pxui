@@ -1,5 +1,28 @@
 package pxui
 
+element_move_x :: proc (el: ^Element, x: int) {
+	element_move_by(el, {x - el.rect.pos.x, 0})
+}
+element_move_y :: proc (el: ^Element, y: int) {
+	element_move_by(el, {0, y - el.rect.pos.y})
+}
+element_move :: proc (el: ^Element, #no_broadcast pos: Vec) {
+	element_move_by(el, pos - el.rect.pos)
+}
+element_move_by :: proc (el: ^Element, by: Vec) {
+
+	el.rect.pos += by
+	_move_sibling(el.child_first, by)
+
+	_move_sibling :: proc (h: Element_Handle, by: Vec) -> (ok: bool) {
+		el := element_get(h) or_return
+		el.rect.pos += by
+		_move_sibling(el.child_first, by)
+		_move_sibling(el.next, by)
+		return true
+	}
+}
+
 V_Stack :: struct {}
 v_stack_begin :: proc (id: u64 = 0) {
 	element_push(V_Stack, id)
@@ -14,7 +37,7 @@ v_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child below previous
-			child.pos.y = prev.pos.y + prev.size.y + prev.margin.b + child.margin.t
+			element_move_y(child, prev.pos.y + prev.size.y + prev.margin.b + child.margin.t)
 			// Increase element rect
 			el.size.y = max(el.size.y,
 			                child.pos.y + child.size.y + child.margin.b + el.padding.b - el.pos.y)
@@ -45,7 +68,7 @@ h_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child after previous
-			child.pos.x = prev.pos.x + prev.size.x + prev.margin.r + child.margin.l
+			element_move_x(child, prev.pos.x + prev.size.x + prev.margin.r + child.margin.l)
 			// Increase element rect
 			el.size.x = max(el.size.x,
 			                child.pos.x + child.size.x + child.margin.r + el.padding.r - el.pos.x)

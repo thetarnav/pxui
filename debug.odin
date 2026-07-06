@@ -32,21 +32,25 @@ debug_tree_display :: proc (allocator := context.allocator) -> string {
 
 		for xi in 0..<el.size.x {
 			pos := el.pos + {xi, 0}
-			if el.size.y > 0 {
-				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
+			idx := pos.x + pos.y * screen_w
+			if idx < len(pixels) - 1 {
+				pixels[idx] = u8(el.handle.idx)
 			}
 			pos.y += el.size.y - 1
-			if el.size.y > 1 {
+			idx = pos.x + pos.y * screen_w
+			if idx < len(pixels) - 1 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
 		}
 		for yi in 0..<el.size.y {
 			pos := el.pos + {0, yi}
-			if el.size.x > 0 {
+			idx := pos.x + pos.y * screen_w
+			if idx < len(pixels) - 1 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
 			pos.x += el.size.x - 1
-			if el.size.x > 1 {
+			idx = pos.x + pos.y * screen_w
+			if idx < len(pixels) - 1 {
 				pixels[pos.x + pos.y * screen_w] = u8(el.handle.idx)
 			}
 		}

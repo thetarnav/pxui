@@ -7,15 +7,28 @@ import hm "core:container/handle_map"
 
 
 Vec    :: [2]int
+Vec2f  :: [2]f32
+RGBA   :: [4]u8
+Color  :: RGBA
 Rect   :: struct {using pos: Vec, size: Vec}
+Rectf  :: struct {using pos: Vec2f, size: Vec2f}
 Insets :: struct {l, t, r, b: int}
 
-ctx: struct {
+Atlas :: struct {
+	pixels: []RGBA,
+	size:   [2]int,
+}
+
+Context :: struct {
+	allocator:    mem.Allocator,
+
 	elements:     hm.Dynamic_Handle_Map(Element, Element_Handle), // TODO: implement own? why a xar is used—the point of handled is not to use pointers
 	element_curr: Element_Handle,
 	element_root: Element_Handle,
-	allocator:    mem.Allocator,
+
+	draw_commands: Draw_Commands,
 }
+ctx: Context
 
 Element :: struct {
 	hash:        u64,            // type + user id
@@ -32,10 +45,11 @@ Element :: struct {
 	margin:      Insets,
 	padding:     Insets,
 	using rect:  Rect,           // world rect, calculated from children, margin, padding etc.
+
+	draw:        Draw_Handle,
 }
 
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
-
 
 init :: proc (allocator := context.allocator) -> (err: mem.Allocator_Error) {
 
@@ -67,7 +81,7 @@ element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> 
 }
 
 @(require_results)
-element_hash :: proc (T: typeid, user_id: u64) -> u64 {
+element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 	type_id := transmute(u64)T
 	return hash_combine(type_id, user_id) if user_id > 0 else type_id
 }
@@ -158,8 +172,16 @@ element_curr :: proc () -> ^Element {
 	return element_get_assert(ctx.element_curr)
 }
 
-frame_end :: proc () {
+frame_begin :: proc () {
+	assert(ctx.element_curr == ctx.element_root)
 
+	root := element_get_assert(ctx.element_root)
+	root.rect = {}
+
+	clear(&ctx.draw_commands)
+}
+
+frame_end :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
 	it := hm.iterator_make(&ctx.elements)
@@ -173,9 +195,6 @@ frame_end :: proc () {
 	}
 
 	debug_tree_print()
-
-	root := element_get_assert(ctx.element_root)
-	root.rect = {}
 }
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
