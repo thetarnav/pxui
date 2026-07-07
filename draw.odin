@@ -89,26 +89,49 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		case Draw_Nine_Slice:
 			l, t := f32(v.insets.l), f32(v.insets.t)
 			r, b := f32(v.insets.r), f32(v.insets.b)
-			sw, sh := v.src.size.x, v.src.size.y
-			dw, dh := dst.size.x, dst.size.y
+			s  := v.src.size
+			ds := dst.size
 
-			cx0, cy0 := v.src.x,          v.src.y
-			cx1, cy1 := v.src.x + l,      v.src.y + t
-			cx2, cy2 := v.src.x + sw - r, v.src.y + sh - b
+			c0 := v.src.pos
+			c1 := v.src.pos + {l, t}
+			c2 := v.src.pos + s - {r, b}
 
-			dx0, dy0 := dst.x,            dst.y
-			dx1, dy1 := dst.x + l,        dst.y + t
-			dx2, dy2 := dst.x + dw - r,   dst.y + dh - b
+			d0 := dst.pos
+			d1 := dst.pos + {l, t}
+			d2 := dst.pos + ds - {r, b}
 
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx0, cy0}, {l, t}},                 dst={{dx0, dy0}, {l, t}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx1, cy0}, {cx2 - cx1, t}},         dst={{dx1, dy0}, {dx2 - dx1, t}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx2, cy0}, {r, t}},                 dst={{dx2, dy0}, {r, t}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx0, cy1}, {l, cy2 - cy1}},         dst={{dx0, dy1}, {l, dy2 - dy1}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx1, cy1}, {cx2 - cx1, cy2 - cy1}}, dst={{dx1, dy1}, {dx2 - dx1, dy2 - dy1}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx2, cy1}, {r, cy2 - cy1}},         dst={{dx2, dy1}, {r, dy2 - dy1}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx0, cy2}, {l, b}},                 dst={{dx0, dy2}, {l, b}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx1, cy2}, {cx2 - cx1, b}},         dst={{dx1, dy2}, {dx2 - dx1, b}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{cx2, cy2}, {r, b}},                 dst={{dx2, dy2}, {r, b}}})
+			// corners
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, {l, t}}, dst={{d0.x, d0.y}, {l, t}}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, {r, t}}, dst={{d2.x, d0.y}, {r, t}}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, {l, b}}, dst={{d0.x, d2.y}, {l, b}}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, {r, b}}, dst={{d2.x, d2.y}, {r, b}}})
+
+			// repeat edges
+			for x := f32(0); x < d2.x - d1.x; x += c2.x - c1.x {
+				size := min(c2.x - c1.x, d2.x - d1.x - x)
+				// top
+				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+				                           src={{c1.x,     c0.y}, {size, t}},
+				                           dst={{d1.x + x, d0.y}, {size, t}}})
+				// bottom
+				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+				                           src={{c1.x,     c2.y}, {size, b}},
+				                           dst={{d1.x + x, d2.y}, {size, b}}})
+			}
+			for y := f32(0); y < d2.y - d1.y; y += c2.y - c1.y {
+				size := min(c2.y - c1.y, d2.y - d1.y - y)
+				// top
+				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+				                           src={{c0.x, c1.y    }, {l, size}},
+				                           dst={{d0.x, d1.y + y}, {l, size}}})
+				// bottom
+				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+				                           src={{c2.x, c1.y    }, {b, size}},
+				                           dst={{d2.x, d1.y + y}, {b, size}}})
+			}
+
+			// repeat fill
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c1.x, c1.y}, {c2.x - c1.x, c2.y - c1.y}}, dst={{d1.x, d1.y}, {d2.x - d1.x, d2.y - d1.y}}})
 		}
 
 	}
