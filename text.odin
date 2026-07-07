@@ -52,10 +52,13 @@ text :: proc (str: string) {
 		el.rect.size = la.max(rect_end(el.rect), el.rect.pos + rect_end(dst)) - el.rect.pos
 
 		draw({
-			src   = Rectf(src),
-			dst   = dst,
-			tint  = color,
-			atlas = (^Atlas)(&default_font_atlas),
+			pos     = dst.pos,
+			size    = dst.size,
+			variant = Draw_Texture{
+				src   = Rectf(src),
+				tint  = color,
+				atlas = (^Atlas)(&default_font_atlas),
+			},
 		})
 	}
 }

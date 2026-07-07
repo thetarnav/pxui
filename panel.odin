@@ -26,10 +26,13 @@ Panel :: struct {}
 panel_begin :: proc (id: u64 = 0) {
 	element_push(Panel, id)
 	draw({
-		atlas = &panel_atlas,
-		tint  = 255,
-		src   = {0, Vec2f(panel_atlas.size)},
-		dst   = Rectf{0, 1},
+		variant = Draw_Nine_Slice{
+			atlas  = &panel_atlas,
+			tint   = 255,
+			src    = {0, Vec2f(panel_atlas.size)},
+			insets = {l=4, t=4, r=4, b=4},
+		},
+		size = Vec2f(1),
 	})
 }
 panel_end :: proc (id: u64 = 0) {
