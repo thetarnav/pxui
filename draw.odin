@@ -1,5 +1,8 @@
 package pxui
 
+import "core:fmt"
+import la "core:math/linalg"
+
 Draw_Commands :: [dynamic]Draw_Plain
 
 Draw_Plain :: struct {
@@ -49,6 +52,18 @@ Draw_Command :: struct {
 	dst: Rectf,
 }
 
+@(private)
+draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, v: Draw_Texture, src, dst: Rectf) {
+	f, d := src.size, dst.size
+	for y: f32; y < d.y; y += f.y {
+	for x: f32; x < d.x; x += f.x {
+		clip := la.min(f, d - {x, y})
+		append(cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+		                          src={src.pos,          clip},
+		                          dst={dst.pos + {x, y}, clip}})
+	}}
+}
+
 get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_commands) * 4, allocator)
@@ -81,7 +96,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 		switch v in c.variant {
 		case Draw_Texture:
-			append(&cmds, Draw_Command{v, dst})
+			draw_tiled(&cmds, v, v.src, dst)
 
 		case Draw_Color:
 			// TODO: implement
@@ -100,52 +115,30 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			d1 := dst.pos + {l, t}
 			d2 := dst.pos + ds - {r, b}
 
+			f := c2 - c1
+			d := d2 - d1
+
 			// corners
 			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, {l, t}}, dst={{d0.x, d0.y}, {l, t}}})
 			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, {r, t}}, dst={{d2.x, d0.y}, {r, t}}})
 			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, {l, b}}, dst={{d0.x, d2.y}, {l, b}}})
 			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, {r, b}}, dst={{d2.x, d2.y}, {r, b}}})
 
-			// repeat edges
-			fw, fh := c2.x - c1.x, c2.y - c1.y
-			dw, dh := d2.x - d1.x, d2.y - d1.y
-			for x := f32(0); x < dw; x += fw {
-				w_clip := min(fw, dw - x)
-				// top
-				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c1.x,     c0.y}, {w_clip, t}},
-				                           dst={{d1.x + x, d0.y}, {w_clip, t}}})
-				// bottom
-				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c1.x,     c2.y}, {w_clip, b}},
-				                           dst={{d1.x + x, d2.y}, {w_clip, b}}})
-			}
-			for y := f32(0); y < dh; y += fh {
-				h_clip := min(fh, dh - y)
-				// top
-				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c0.x, c1.y    }, {l, h_clip}},
-				                           dst={{d0.x, d1.y + y}, {l, h_clip}}})
-				// bottom
-				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c2.x, c1.y    }, {b, h_clip}},
-				                           dst={{d2.x, d1.y + y}, {b, h_clip}}})
-			}
+			// edges
+			draw_tiled(&cmds, v, src={{c1.x, c0.y}, {f.x, t}}, dst={{d1.x, d0.y}, {d.x, t}})
+			draw_tiled(&cmds, v, src={{c1.x, c2.y}, {f.x, b}}, dst={{d1.x, d2.y}, {d.x, b}})
+			draw_tiled(&cmds, v, src={{c0.x, c1.y}, {l, f.y}}, dst={{d0.x, d1.y}, {l, d.y}})
+			draw_tiled(&cmds, v, src={{c2.x, c1.y}, {r, f.y}}, dst={{d2.x, d1.y}, {r, d.y}})
 
-			// repeat fill
-			for y := f32(0); y < dh; y += fh {
-			for x := f32(0); x < dw; x += fw {
-				fh_clip := min(fh, dh - y)
-				fw_clip := min(fw, dw - x)
-				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c1.x,     c1.y    }, {fw_clip, fh_clip}},
-				                           dst={{d1.x + x, d1.y + y}, {fw_clip, fh_clip}}})
-			}}
+			// fill
+			draw_tiled(&cmds, v, src={{c1.x, c1.y}, f}, dst={{d1.x, d1.y}, d})
 		}
 
 	}
 
 	clear(&ctx.draw_commands)
+
+	fmt.println(len(cmds))
 
 	return cmds[:]
 }
