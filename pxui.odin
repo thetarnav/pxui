@@ -27,8 +27,19 @@ Context :: struct {
 	element_root: Element_Handle,
 
 	draw_commands: Draw_Commands,
+
+	// Per frame input
+	mouse:          Vec,
+	mouse_pressed:  bool,
+	mouse_released: bool,
+	mouse_held:     bool,
+
+	element_hover:  Element_Handle,
 }
 ctx: Context
+
+Element_Flag :: enum u8 {Non_Interactable}
+Element_Flags :: bit_set[Element_Flag]
 
 Element :: struct {
 	hash:        u64,            // type + user id
@@ -41,6 +52,8 @@ Element :: struct {
 	next, prev:  Element_Handle, // can be zero—siblings
 
 	_found:      bool,           // was the element present in this frame?
+	flags:       Element_Flags,
+	mouse_in:    bool,
 
 	margin:      Insets,
 	padding:     Insets,
@@ -186,6 +199,7 @@ frame_end :: proc () {
 
 	it := hm.iterator_make(&ctx.elements)
 	for el, handle in hm.iterate(&it) {
+		el.mouse_in = false
 		if el._found || handle == ctx.element_root {
 			el._found = false
 		} else {
@@ -194,39 +208,39 @@ frame_end :: proc () {
 		}
 	}
 
+	mouse_hit_test()
+
 	debug_tree_print()
 }
 
-margin_set        :: proc (v: Insets)       {element_curr().margin = v}
-margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
-margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
-margin_vec        :: proc (v: Vec)          {margin(v.x, v.y, v.x, v.y)}
-margin_all        :: proc (v: int)          {margin(v, v, v, v)}
-margin_t          :: proc (v: int)          {element_curr().margin.t = v}
-margin_b          :: proc (v: int)          {element_curr().margin.b = v}
-margin_l          :: proc (v: int)          {element_curr().margin.l = v}
-margin_r          :: proc (v: int)          {element_curr().margin.r = v}
-margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
-margin_dirs       :: margin_directions
-margin_bottom     :: margin_b
-margin_bot        :: margin_b
-margin_left       :: margin_l
-margin_right      :: margin_r
-margin_top        :: margin_t
+mouse_hit_test :: proc () {
 
-padding_set        :: proc (v: Insets)       {element_curr().padding = v}
-padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
-padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
-padding_vec        :: proc (v: Vec)          {padding(v.x, v.y, v.x, v.y)}
-padding_all        :: proc (v: int)          {padding(v, v, v, v)}
-padding_t          :: proc (v: int)          {element_curr().padding.t = v}
-padding_b          :: proc (v: int)          {element_curr().padding.b = v}
-padding_l          :: proc (v: int)          {element_curr().padding.l = v}
-padding_r          :: proc (v: int)          {element_curr().padding.r = v}
-padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
-padding_dirs       :: padding_directions
-padding_bottom     :: padding_b
-padding_bot        :: padding_b
-padding_left       :: padding_l
-padding_right      :: padding_r
-padding_top        :: padding_t
+	_check(ctx.element_root)
+
+	_check :: proc (h: Element_Handle) -> (hit: bool) {
+		el := element_get(h) or_return
+
+		if .Non_Interactable not_in el.flags && rect_contains(el, ctx.mouse) {
+			el.mouse_in = true
+			ctx.element_hover = el.handle
+			return _check(el.child_first)
+		} else {
+			return _check(el.next)
+		}
+
+		return true
+	}
+}
+
+is_hovered :: proc (h: Element_Handle = {}) -> bool {
+	h := ctx.element_curr if h == {} else h
+	return ctx.element_hover == h
+}
+is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
+	h := ctx.element_curr if h == {} else h
+	el := element_get(h) or_return
+	return el.mouse_in
+}
+is_clicked :: proc (h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && ctx.mouse_pressed
+}

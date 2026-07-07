@@ -31,6 +31,11 @@ main :: proc () {
 
 		mouse := k2.get_mouse_position() / PIXEL_SCALE
 
+		px.ctx.mouse          = px.Vec(mouse)
+		px.ctx.mouse_pressed  = k2.mouse_button_went_down(.Left)
+		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
+		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
+
 		draw_ui()
 
 		for cmd in px.get_draw_commands(context.temp_allocator) {
@@ -80,13 +85,17 @@ draw_ui :: proc () {
 			count := counter()
 			px.padding(2, 1)
 			px.margin_right(1)
-			count^ += 1
+			if px.is_clicked() {
+				count^ += 1
+			}
 		}
 
 		{
 			count := counter()
 			px.padding(3, 2)
-			count^ -= 1
+			if px.is_clicked() {
+				count^ += 1
+			}
 		}
 	}
 

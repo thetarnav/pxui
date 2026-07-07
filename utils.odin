@@ -36,3 +36,19 @@ rect_union :: #force_inline proc "contextless" (a, b: Rect) -> Rect {
 	return rect(la.min(a.pos, b.pos),
 	            la.min(rect_end(a), rect_end(b)))
 }
+@require_results
+rect_offset :: #force_inline proc "contextless" (r: Rect, v: Vec) -> Rect {
+    return {r.pos + v, r.size}
+}
+@require_results
+rect_contains :: #force_inline proc "contextless" (r: Rect, p: Vec) -> bool {
+	return p.x >= r.x && p.x < r.x + r.size.x &&
+	       p.y >= r.y && p.y < r.y + r.size.y
+}
+@require_results
+rect_intersects :: #force_inline proc "contextless" (a, b: Rect) -> bool {
+	return a.x < b.x + b.size.x &&
+	       a.x + a.size.x > b.x &&
+	       a.y < b.y + b.size.y &&
+	       a.y + a.size.y > b.y
+}

@@ -1,5 +1,41 @@
 package pxui
 
+
+margin_set        :: proc (v: Insets)       {element_curr().margin = v}
+margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
+margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
+margin_vec        :: proc (v: Vec)          {margin(v.x, v.y, v.x, v.y)}
+margin_all        :: proc (v: int)          {margin(v, v, v, v)}
+margin_t          :: proc (v: int)          {element_curr().margin.t = v}
+margin_b          :: proc (v: int)          {element_curr().margin.b = v}
+margin_l          :: proc (v: int)          {element_curr().margin.l = v}
+margin_r          :: proc (v: int)          {element_curr().margin.r = v}
+margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_dirs       :: margin_directions
+margin_bottom     :: margin_b
+margin_bot        :: margin_b
+margin_left       :: margin_l
+margin_right      :: margin_r
+margin_top        :: margin_t
+
+padding_set        :: proc (v: Insets)       {element_curr().padding = v}
+padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
+padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
+padding_vec        :: proc (v: Vec)          {padding(v.x, v.y, v.x, v.y)}
+padding_all        :: proc (v: int)          {padding(v, v, v, v)}
+padding_t          :: proc (v: int)          {element_curr().padding.t = v}
+padding_b          :: proc (v: int)          {element_curr().padding.b = v}
+padding_l          :: proc (v: int)          {element_curr().padding.l = v}
+padding_r          :: proc (v: int)          {element_curr().padding.r = v}
+padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_dirs       :: padding_directions
+padding_bottom     :: padding_b
+padding_bot        :: padding_b
+padding_left       :: padding_l
+padding_right      :: padding_r
+padding_top        :: padding_t
+
+
 element_move_x :: proc (el: ^Element, x: int) {
 	element_move_by(el, {x - el.rect.pos.x, 0})
 }
@@ -22,6 +58,7 @@ element_move_by :: proc (el: ^Element, by: Vec) {
 		return true
 	}
 }
+
 
 V_Stack :: struct {}
 v_stack_begin :: proc (id: u64 = 0) {

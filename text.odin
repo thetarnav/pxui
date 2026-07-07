@@ -33,6 +33,7 @@ text :: proc (str: string) {
 	defer element_pop()
 
 	el := element_curr()
+	el.flags += {.Non_Interactable}
 
 	color := RGBA{230, 200, 160, 255}
 	Data :: struct {color: Color, el: ^Element}
@@ -43,9 +44,9 @@ text :: proc (str: string) {
 	cb :: proc (src, dstf: bmfont.Rect) {
 		using data := cast(^Data)context.user_ptr
 
-		dstf := dstf
-		dstf.pos  /= 2
-		dstf.size /= 2
+		// dstf := dstf
+		// dstf.pos  /= 2
+		// dstf.size /= 2
 
 		dst := Rect{Vec(dstf.pos), Vec(dstf.size)}
 
