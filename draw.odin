@@ -107,31 +107,40 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, {r, b}}, dst={{d2.x, d2.y}, {r, b}}})
 
 			// repeat edges
-			for x := f32(0); x < d2.x - d1.x; x += c2.x - c1.x {
-				size := min(c2.x - c1.x, d2.x - d1.x - x)
+			fw, fh := c2.x - c1.x, c2.y - c1.y
+			dw, dh := d2.x - d1.x, d2.y - d1.y
+			for x := f32(0); x < dw; x += fw {
+				w_clip := min(fw, dw - x)
 				// top
 				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c1.x,     c0.y}, {size, t}},
-				                           dst={{d1.x + x, d0.y}, {size, t}}})
+				                           src={{c1.x,     c0.y}, {w_clip, t}},
+				                           dst={{d1.x + x, d0.y}, {w_clip, t}}})
 				// bottom
 				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c1.x,     c2.y}, {size, b}},
-				                           dst={{d1.x + x, d2.y}, {size, b}}})
+				                           src={{c1.x,     c2.y}, {w_clip, b}},
+				                           dst={{d1.x + x, d2.y}, {w_clip, b}}})
 			}
-			for y := f32(0); y < d2.y - d1.y; y += c2.y - c1.y {
-				size := min(c2.y - c1.y, d2.y - d1.y - y)
+			for y := f32(0); y < dh; y += fh {
+				h_clip := min(fh, dh - y)
 				// top
 				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c0.x, c1.y    }, {l, size}},
-				                           dst={{d0.x, d1.y + y}, {l, size}}})
+				                           src={{c0.x, c1.y    }, {l, h_clip}},
+				                           dst={{d0.x, d1.y + y}, {l, h_clip}}})
 				// bottom
 				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-				                           src={{c2.x, c1.y    }, {b, size}},
-				                           dst={{d2.x, d1.y + y}, {b, size}}})
+				                           src={{c2.x, c1.y    }, {b, h_clip}},
+				                           dst={{d2.x, d1.y + y}, {b, h_clip}}})
 			}
 
 			// repeat fill
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c1.x, c1.y}, {c2.x - c1.x, c2.y - c1.y}}, dst={{d1.x, d1.y}, {d2.x - d1.x, d2.y - d1.y}}})
+			for y := f32(0); y < dh; y += fh {
+			for x := f32(0); x < dw; x += fw {
+				fh_clip := min(fh, dh - y)
+				fw_clip := min(fw, dw - x)
+				append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
+				                           src={{c1.x,     c1.y    }, {fw_clip, fh_clip}},
+				                           dst={{d1.x + x, d1.y + y}, {fw_clip, fh_clip}}})
+			}}
 		}
 
 	}
