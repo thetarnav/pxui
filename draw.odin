@@ -1,14 +1,13 @@
 package pxui
 
-import "core:fmt"
 import la "core:math/linalg"
 
 Draw_Commands :: [dynamic]Draw_Plain
 
 Draw_Plain :: struct {
-	pos:     Position,
-	size:    Position,
-	from:    Position_From,
+	pos:     Size,
+	size:    Size,
+	origin:  Size,
 	element: Element_Handle,
 	variant: Draw_Variant,
 }
@@ -28,11 +27,10 @@ Draw_Nine_Slice :: struct {
 	insets: Insets,
 }
 
-Position :: union {
+Size :: union {
 	Vec,   // absolute
 	Vec2f, // relative
 }
-Position_From :: enum u8 {TL, TR, BL, BR}
 
 Draw_Handle :: distinct int
 
@@ -72,27 +70,19 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	for c in ctx.draw_commands {
 		el := element_get_assert(c.element)
 
+		size_to_absolute :: proc (size: Size, el_size: Vec) -> (abs: Vec2f) {
+			switch s in size {
+			case Vec:   abs = Vec2f(s)
+			case Vec2f: abs = s * Vec2f(el_size)
+			}
+			return abs
+		}
+
 		dst: Rectf
-
-		switch size in c.size {
-		case Vec:   dst.size = Vec2f(size)
-		case Vec2f: dst.size = size * Vec2f(el.size)
-		}
-
-		origin: Vec2f
-		mod: Vec2f
-		switch c.from {
-		case .TL: origin = {0, 0}; mod = { 1,  1}
-		case .TR: origin = {1, 0}; mod = {-1,  1}
-		case .BL: origin = {0, 1}; mod = { 1, -1}
-		case .BR: origin = {1, 1}; mod = {-1, -1}
-		}
-		dst.pos = Vec2f(el.pos) + origin * Vec2f(el.size)
-
-		switch pos in c.pos {
-		case Vec:   dst.pos += Vec2f(pos) * mod
-		case Vec2f: dst.pos += (pos * Vec2f(el.size)) * mod
-		}
+		dst.size = size_to_absolute(c.size, el.size)
+		dst.pos  = Vec2f(el.pos) +
+		           size_to_absolute(c.origin, el.size) +
+		           size_to_absolute(c.pos, el.size)
 
 		switch v in c.variant {
 		case Draw_Texture:

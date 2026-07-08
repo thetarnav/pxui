@@ -120,6 +120,13 @@ draw_ui :: proc () {
 		px.padding(6, 2)
 		count^ += 1
 	}
+
+	px.draw({
+		variant = px.Draw_Color{k2.BLUE},
+		origin  = px.Vec2f(1),
+		pos     = -px.Vec{10, 20},
+		size    = px.Vec{14, 24},
+	})
 }
 
 k2_rect :: proc (r: Rect) -> k2.Rect {
