@@ -99,7 +99,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			draw_tiled(&cmds, v, v.src, dst)
 
 		case Draw_Color:
-			// TODO: implement
+			append(&cmds, Draw_Command{tint=v.color, dst=dst})
 
 		case Draw_Nine_Slice:
 			l, t := f32(v.insets.l), f32(v.insets.t)
@@ -137,8 +137,6 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	}
 
 	clear(&ctx.draw_commands)
-
-	fmt.println(len(cmds))
 
 	return cmds[:]
 }

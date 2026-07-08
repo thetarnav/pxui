@@ -44,3 +44,10 @@ panel :: proc (id: u64 = 0) -> bool {
 	panel_begin(id)
 	return true
 }
+
+background_color :: proc (color: Color) {
+	draw({
+		variant = Draw_Color{color},
+		size    = Vec2f(1),
+	})
+}

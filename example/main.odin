@@ -11,7 +11,7 @@ UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
 Vec2 :: [2]f32
-Rect   :: struct {using pos: Vec2, size: Vec2}
+Rect :: px.Rectf
 
 main :: proc () {
 
@@ -39,19 +39,27 @@ main :: proc () {
 		draw_ui()
 
 		for cmd in px.get_draw_commands(context.temp_allocator) {
+			// Scale up the dest rect—ui uses texture pixel size
+			src, dst := cmd.src, cmd.dst
+			dst.pos  *= PIXEL_SCALE
+			dst.size *= PIXEL_SCALE
+
+			// Draw color fill
+			if cmd.atlas == nil {
+				k2.draw_rect(k2_rect(dst), cmd.tint)
+				continue
+			}
+
+			// Convert px.Atlas to k2.Texture
 			tex, in_map := tex_map[cmd.atlas]
 			if !in_map {
 				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, cmd.atlas.pixels),
 				                                     **cmd.atlas.size, .RGBA_8_Norm)
 				tex_map[cmd.atlas] = tex
 			}
-			src, dst := cmd.src, cmd.dst
-			dst.pos  *= PIXEL_SCALE
-			dst.size *= PIXEL_SCALE
-			k2.draw_texture_fit(tex,
-			                    source = {**src.pos, **src.size},
-			                    dest   = {**dst.pos, **dst.size},
-			                    origin = {}, rotation = 0, tint = cmd.tint)
+
+			// Draw texture
+			k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
 		}
 
 		px.frame_end()
@@ -74,12 +82,14 @@ draw_ui :: proc () {
 
 	px.panel()
 	px.width(140)
+	px.padding(10)
 
 	px.v_stack()
+	px.background_color(k2.WHITE)
 
 	{
 		px.panel()
-		px.margin(2)
+		px.margin(4)
 
 		px.h_stack()
 		px.padding(3)

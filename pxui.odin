@@ -209,8 +209,6 @@ frame_end :: proc () {
 	}
 
 	mouse_hit_test()
-
-	debug_tree_print()
 }
 
 mouse_hit_test :: proc () {
