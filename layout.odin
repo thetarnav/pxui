@@ -1,6 +1,14 @@
 package pxui
 
 
+size   :: proc (v: Vec) {element_curr().size = v}
+size_w :: proc (w: int) {element_curr().size.x = w}
+size_h :: proc (h: int) {element_curr().size.y = h}
+size_x :: size_w
+size_y :: size_h
+width  :: size_w
+height :: size_h
+
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
 margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}

@@ -72,6 +72,9 @@ draw_ui :: proc () {
 		return &state.count
 	}
 
+	px.panel()
+	px.width(140)
+
 	px.v_stack()
 
 	{
