@@ -18,7 +18,7 @@ Draw_Color :: struct {
 	color: Color,
 }
 Draw_Texture :: struct {
-	src:   Rectf,
+	src:   Rect,
 	atlas: ^Atlas,
 	tint:  Color,
 }
@@ -28,7 +28,7 @@ Draw_Nine_Slice :: struct {
 }
 
 Size :: union {
-	Vec,   // absolute
+	Vec2i,   // absolute
 	Vec2f, // relative
 }
 
@@ -47,14 +47,14 @@ draw_get :: proc (h: Draw_Handle) -> (^Draw_Plain) {
 
 Draw_Command :: struct {
 	using _: Draw_Texture,
-	dst: Rectf,
+	dst: Rect,
 }
 
 @(private)
-draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, v: Draw_Texture, src, dst: Rectf) {
+draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, v: Draw_Texture, src, dst: Rect) {
 	f, d := src.size, dst.size
-	for y: f32; y < d.y; y += f.y {
-	for x: f32; x < d.x; x += f.x {
+	for y := 0; y < d.y; y += f.y {
+	for x := 0; x < d.x; x += f.x {
 		clip := la.min(f, d - {x, y})
 		append(cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
 		                          src={src.pos,          clip},
@@ -70,17 +70,17 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	for c in ctx.draw_commands {
 		el := element_get_assert(c.element)
 
-		size_to_absolute :: proc (size: Size, el_size: Vec) -> (abs: Vec2f) {
+		size_to_absolute :: proc (size: Size, el_size: Vec2i) -> (abs: Vec2i) {
 			switch s in size {
-			case Vec:   abs = Vec2f(s)
-			case Vec2f: abs = s * Vec2f(el_size)
+			case Vec2i: abs = s
+			case Vec2f: abs = Vec2i(s * Vec2f(el_size))
 			}
 			return abs
 		}
 
-		dst: Rectf
+		dst: Rect
 		dst.size = size_to_absolute(c.size, el.size)
-		dst.pos  = Vec2f(el.pos) +
+		dst.pos  = el.pos +
 		           size_to_absolute(c.origin, el.size) +
 		           size_to_absolute(c.pos, el.size)
 
@@ -92,27 +92,28 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			append(&cmds, Draw_Command{tint=v.color, dst=dst})
 
 		case Draw_Nine_Slice:
-			l, t := f32(v.insets.l), f32(v.insets.t)
-			r, b := f32(v.insets.r), f32(v.insets.b)
+			l, t := v.insets.l, v.insets.t
+			r, b := v.insets.r, v.insets.b
+			lt, lb, rb := Vec2i{l, t}, Vec2i{l, b}, Vec2i{r, b}
 			s  := v.src.size
 			ds := dst.size
 
 			c0 := v.src.pos
-			c1 := v.src.pos + {l, t}
-			c2 := v.src.pos + s - {r, b}
+			c1 := v.src.pos + lt
+			c2 := v.src.pos + s - rb
 
 			d0 := dst.pos
-			d1 := dst.pos + {l, t}
-			d2 := dst.pos + ds - {r, b}
+			d1 := dst.pos + lt
+			d2 := dst.pos + ds - rb
 
 			f := c2 - c1
 			d := d2 - d1
 
 			// corners
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, {l, t}}, dst={{d0.x, d0.y}, {l, t}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, {r, t}}, dst={{d2.x, d0.y}, {r, t}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, {l, b}}, dst={{d0.x, d2.y}, {l, b}}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, {r, b}}, dst={{d2.x, d2.y}, {r, b}}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, lt}, dst={{d0.x, d0.y}, lt}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, rb}, dst={{d2.x, d0.y}, rb}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, lb}, dst={{d0.x, d2.y}, lb}})
+			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, rb}, dst={{d2.x, d2.y}, rb}})
 
 			// edges
 			draw_tiled(&cmds, v, src={{c1.x, c0.y}, {f.x, t}}, dst={{d1.x, d0.y}, {d.x, t}})
@@ -121,7 +122,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			draw_tiled(&cmds, v, src={{c2.x, c1.y}, {r, f.y}}, dst={{d2.x, d1.y}, {r, d.y}})
 
 			// fill
-			draw_tiled(&cmds, v, src={{c1.x, c1.y}, f}, dst={{d1.x, d1.y}, d})
+			draw_tiled(&cmds, v, src={c1, f}, dst={d1, d})
 		}
 
 	}

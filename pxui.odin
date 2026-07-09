@@ -6,11 +6,11 @@ import "core:fmt"
 import hm "core:container/handle_map"
 
 
-Vec    :: [2]int
+Vec2i  :: [2]int
 Vec2f  :: [2]f32
 RGBA   :: [4]u8
 Color  :: RGBA
-Rect   :: struct {using pos: Vec, size: Vec}
+Rect   :: struct {using pos: Vec2i, size: Vec2i}
 Rectf  :: struct {using pos: Vec2f, size: Vec2f}
 Insets :: struct {l, t, r, b: int}
 
@@ -29,7 +29,7 @@ Context :: struct {
 	draw_commands: Draw_Commands,
 
 	// Per frame input
-	mouse:          Vec,
+	mouse:          Vec2i,
 	mouse_pressed:  bool,
 	mouse_released: bool,
 	mouse_held:     bool,

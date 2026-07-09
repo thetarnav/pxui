@@ -29,7 +29,7 @@ panel_begin :: proc (id: u64 = 0) {
 		variant = Draw_Nine_Slice{
 			atlas  = &panel_atlas,
 			tint   = 255,
-			src    = {0, Vec2f(panel_atlas.size)},
+			src    = {0, panel_atlas.size},
 			insets = {l=4, t=4, r=4, b=4},
 		},
 		size = Vec2f(1),

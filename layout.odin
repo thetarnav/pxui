@@ -1,9 +1,9 @@
 package pxui
 
 
-size   :: proc (v: Vec) {element_curr().size = v}
-size_w :: proc (w: int) {element_curr().size.x = w}
-size_h :: proc (h: int) {element_curr().size.y = h}
+size   :: proc (v: Vec2i) {element_curr().size = v}
+size_w :: proc (w: int)   {element_curr().size.x = w}
+size_h :: proc (h: int)   {element_curr().size.y = h}
 size_x :: size_w
 size_y :: size_h
 width  :: size_w
@@ -12,7 +12,7 @@ height :: size_h
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
 margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
-margin_vec        :: proc (v: Vec)          {margin(v.x, v.y, v.x, v.y)}
+margin_vec        :: proc (v: Vec2i)        {margin(v.x, v.y, v.x, v.y)}
 margin_all        :: proc (v: int)          {margin(v, v, v, v)}
 margin_t          :: proc (v: int)          {element_curr().margin.t = v}
 margin_b          :: proc (v: int)          {element_curr().margin.b = v}
@@ -29,7 +29,7 @@ margin_top        :: margin_t
 padding_set        :: proc (v: Insets)       {element_curr().padding = v}
 padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
 padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
-padding_vec        :: proc (v: Vec)          {padding(v.x, v.y, v.x, v.y)}
+padding_vec        :: proc (v: Vec2i)        {padding(v.x, v.y, v.x, v.y)}
 padding_all        :: proc (v: int)          {padding(v, v, v, v)}
 padding_t          :: proc (v: int)          {element_curr().padding.t = v}
 padding_b          :: proc (v: int)          {element_curr().padding.b = v}
@@ -50,15 +50,15 @@ element_move_x :: proc (el: ^Element, x: int) {
 element_move_y :: proc (el: ^Element, y: int) {
 	element_move_by(el, {0, y - el.rect.pos.y})
 }
-element_move :: proc (el: ^Element, #no_broadcast pos: Vec) {
+element_move :: proc (el: ^Element, #no_broadcast pos: Vec2i) {
 	element_move_by(el, pos - el.rect.pos)
 }
-element_move_by :: proc (el: ^Element, by: Vec) {
+element_move_by :: proc (el: ^Element, by: Vec2i) {
 
 	el.rect.pos += by
 	_move_sibling(el.child_first, by)
 
-	_move_sibling :: proc (h: Element_Handle, by: Vec) -> (ok: bool) {
+	_move_sibling :: proc (h: Element_Handle, by: Vec2i) -> (ok: bool) {
 		el := element_get(h) or_return
 		el.rect.pos += by
 		_move_sibling(el.child_first, by)

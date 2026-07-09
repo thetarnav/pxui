@@ -48,7 +48,7 @@ text :: proc (str: string) {
 		// dstf.pos  /= 2
 		// dstf.size /= 2
 
-		dst := Rect{Vec(dstf.pos), Vec(dstf.size)}
+		dst := Rect{Vec2i(dstf.pos), Vec2i(dstf.size)}
 
 		el.rect.size = la.max(rect_end(el.rect), el.rect.pos + rect_end(dst)) - el.rect.pos
 
@@ -56,7 +56,7 @@ text :: proc (str: string) {
 			pos     = dst.pos,
 			size    = dst.size,
 			variant = Draw_Texture{
-				src   = Rectf(src),
+				src   = {Vec2i(src.pos), Vec2i(src.size)},
 				tint  = color,
 				atlas = (^Atlas)(&default_font_atlas),
 			},

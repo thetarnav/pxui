@@ -31,7 +31,7 @@ main :: proc () {
 
 		mouse := k2.get_mouse_position() / PIXEL_SCALE
 
-		px.ctx.mouse          = px.Vec(mouse)
+		px.ctx.mouse          = px.Vec2i(mouse)
 		px.ctx.mouse_pressed  = k2.mouse_button_went_down(.Left)
 		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
 		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
@@ -40,7 +40,8 @@ main :: proc () {
 
 		for cmd in px.get_draw_commands(context.temp_allocator) {
 			// Scale up the dest rect—ui uses texture pixel size
-			src, dst := cmd.src, cmd.dst
+			src := Rect{Vec2(cmd.src.pos), Vec2(cmd.src.size)}
+			dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
 			dst.pos  *= PIXEL_SCALE
 			dst.size *= PIXEL_SCALE
 
@@ -124,8 +125,8 @@ draw_ui :: proc () {
 	px.draw({
 		variant = px.Draw_Color{k2.BLUE},
 		origin  = px.Vec2f(1),
-		pos     = -px.Vec{10, 20},
-		size    = px.Vec{14, 24},
+		pos     = -px.Vec2i{10, 20},
+		size    = px.Vec2i{14, 24},
 	})
 }
 
