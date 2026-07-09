@@ -1,5 +1,7 @@
 package pxui
 
+import la "core:math/linalg"
+
 
 vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
 vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
@@ -25,7 +27,7 @@ size_vec_to_absolute :: proc (size: Size_Vec, el_size: Vec2i) -> (abs: Vec2i) {
 size           :: proc (v: Size_Vec) {element_curr().size = v}
 size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
 size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
-size_w         :: proc (w: Size)     {element_curr().size = w}
+size_w         :: proc (w: Size)     {element_curr().size.x = w}
 size_w_px      :: proc (w: int)      {element_curr().size.x = w}
 size_w_percent :: proc (w: f32)      {element_curr().size.x = w}
 size_h         :: proc (h: Size)     {element_curr().size.y = h}
@@ -100,6 +102,39 @@ element_move_by :: proc (el: ^Element, by: Vec2i) {
 		_move_sibling(el.next, by)
 		return true
 	}
+}
+
+
+default_layout_before :: proc () {
+
+	el     := element_get_assert(ctx.element_curr)
+	parent := element_get_assert(el.parent)
+
+	pos  := size_vec_to_absolute(el.pos,  parent.calc_rect.size)
+	size := size_vec_to_absolute(el.size, parent.calc_rect.size)
+
+	// Update element rect
+	el.calc_rect = {pos  = parent.calc_rect.pos +
+	                       {parent.padding.l, parent.padding.t} +
+	                       {el.margin.l, el.margin.t} +
+	                       pos,
+	                size = {el.padding.l + el.padding.r,
+	                        el.padding.t + el.padding.b} +
+	                       size}
+}
+
+default_layout_after :: proc () {
+
+	el     := element_get_assert(ctx.element_curr)
+	parent := element_get_assert(el.parent)
+
+	// Update parent rect by own size
+	parent.calc_rect.size = la.max(parent.calc_rect.size,
+	                               el.calc_rect.size +
+								   {el.margin.l, el.margin.t} +
+	                               {el.margin.r, el.margin.b} +
+								   {parent.padding.l, parent.padding.t} +
+								   {parent.padding.r, parent.padding.b})
 }
 
 

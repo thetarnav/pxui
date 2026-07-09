@@ -85,6 +85,7 @@ draw_ui :: proc () {
 	px.padding(10)
 
 	px.v_stack()
+	px.width(1.0)
 	px.background_color(k2.WHITE)
 
 	{
@@ -122,7 +123,7 @@ draw_ui :: proc () {
 	}
 
 	px.draw({
-		variant = px.Draw_Color{k2.BLUE},
+		variant = px.Draw_Color{k2.LIGHT_RED},
 		origin  = {1.0, 1.0},
 		pos     = {-10, -20},
 		size    = {14, 24},

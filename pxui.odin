@@ -3,7 +3,6 @@ package pxui
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
-import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 
@@ -160,12 +159,7 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 	state            = el.data_ptr
 	assert(T_size == 0 || state != nil)
 
-	// Update element rect
-	el.calc_rect = {pos  = parent.calc_rect.pos +
-	                       {parent.padding.l, parent.padding.t} +
-	                       {el.margin.l, el.margin.t},
-	                size = {el.padding.l + el.padding.r,
-	                        el.padding.t + el.padding.b}}
+	default_layout_before()
 
 	return
 }
@@ -179,17 +173,12 @@ element_push :: #force_inline proc ($T: typeid, id: u64 = 0) ->
 
 element_pop :: proc () {
 	// switch current element to parent
-	el     := element_get_assert(ctx.element_curr)
-	parent := element_get_assert(el.parent)
-	ctx.element_curr = el.parent
+	el := element_get_assert(ctx.element_curr)
+	assert(el.parent != {})
 
-	// Update parent rect by own size
-	parent.calc_rect.size = la.max(parent.calc_rect.size,
-	                               el.calc_rect.size +
-								   {el.margin.l, el.margin.t} +
-	                               {el.margin.r, el.margin.b} +
-								   {parent.padding.l, parent.padding.t} +
-								   {parent.padding.r, parent.padding.b})
+	default_layout_after()
+
+	ctx.element_curr = el.parent
 }
 
 element_curr :: proc () -> ^Element {
