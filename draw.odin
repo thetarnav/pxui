@@ -79,10 +79,10 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		}
 
 		dst: Rect
-		dst.size = size_to_absolute(c.size, el.size)
-		dst.pos  = el.pos +
-		           size_to_absolute(c.origin, el.size) +
-		           size_to_absolute(c.pos, el.size)
+		dst.size = size_to_absolute(c.size, el.calc_rect.size)
+		dst.pos  = el.calc_rect.pos +
+		           size_to_absolute(c.origin, el.calc_rect.size) +
+		           size_to_absolute(c.pos, el.calc_rect.size)
 
 		switch v in c.variant {
 		case Draw_Texture:

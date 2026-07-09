@@ -46,7 +46,7 @@ text :: proc (str: string) {
 
 		dst := Rect{Vec2i(dstf.pos), Vec2i(dstf.size)}
 
-		el.rect.size = la.max(rect_end(el.rect), el.rect.pos + rect_end(dst)) - el.rect.pos
+		el.calc_rect.size = la.max(rect_end(el.calc_rect), el.calc_rect.pos + rect_end(dst)) - el.calc_rect.pos
 
 		draw({
 			pos     = dst.pos,

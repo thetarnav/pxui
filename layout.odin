@@ -1,9 +1,9 @@
 package pxui
 
 
-size   :: proc (v: Vec2i) {element_curr().size = v}
-size_w :: proc (w: int)   {element_curr().size.x = w}
-size_h :: proc (h: int)   {element_curr().size.y = h}
+size   :: proc (v: Vec2i) {element_curr().calc_rect.size = v}
+size_w :: proc (w: int)   {element_curr().calc_rect.size.x = w}
+size_h :: proc (h: int)   {element_curr().calc_rect.size.y = h}
 size_x :: size_w
 size_y :: size_h
 width  :: size_w
@@ -45,22 +45,22 @@ padding_top        :: padding_t
 
 
 element_move_x :: proc (el: ^Element, x: int) {
-	element_move_by(el, {x - el.rect.pos.x, 0})
+	element_move_by(el, {x - el.calc_rect.pos.x, 0})
 }
 element_move_y :: proc (el: ^Element, y: int) {
-	element_move_by(el, {0, y - el.rect.pos.y})
+	element_move_by(el, {0, y - el.calc_rect.pos.y})
 }
 element_move :: proc (el: ^Element, #no_broadcast pos: Vec2i) {
-	element_move_by(el, pos - el.rect.pos)
+	element_move_by(el, pos - el.calc_rect.pos)
 }
 element_move_by :: proc (el: ^Element, by: Vec2i) {
 
-	el.rect.pos += by
+	el.calc_rect.pos += by
 	_move_sibling(el.child_first, by)
 
 	_move_sibling :: proc (h: Element_Handle, by: Vec2i) -> (ok: bool) {
 		el := element_get(h) or_return
-		el.rect.pos += by
+		el.calc_rect.pos += by
 		_move_sibling(el.child_first, by)
 		_move_sibling(el.next, by)
 		return true
@@ -82,10 +82,10 @@ v_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child below previous
-			element_move_y(child, prev.pos.y + prev.size.y + prev.margin.b + child.margin.t)
+			element_move_y(child, prev.calc_rect.pos.y + prev.calc_rect.size.y + prev.margin.b + child.margin.t)
 			// Increase element rect
-			el.size.y = max(el.size.y,
-			                child.pos.y + child.size.y + child.margin.b + el.padding.b - el.pos.y)
+			el.calc_rect.size.y = max(el.calc_rect.size.y,
+			                          child.calc_rect.pos.y + child.calc_rect.size.y + child.margin.b + el.padding.b - el.calc_rect.pos.y)
 
 			child_id, prev = child.next, child
 		}
@@ -113,10 +113,10 @@ h_stack_end :: proc (id: u64 = 0) {
 		for child in element_get(child_id) {
 
 			// Position each child after previous
-			element_move_x(child, prev.pos.x + prev.size.x + prev.margin.r + child.margin.l)
+			element_move_x(child, prev.calc_rect.pos.x + prev.calc_rect.size.x + prev.margin.r + child.margin.l)
 			// Increase element rect
-			el.size.x = max(el.size.x,
-			                child.pos.x + child.size.x + child.margin.r + el.padding.r - el.pos.x)
+			el.calc_rect.size.x = max(el.calc_rect.size.x,
+			                          child.calc_rect.pos.x + child.calc_rect.size.x + child.margin.r + el.padding.r - el.calc_rect.pos.x)
 
 			child_id, prev = child.next, child
 		}

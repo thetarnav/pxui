@@ -3,6 +3,7 @@ package pxui
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
+import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 
@@ -57,7 +58,7 @@ Element :: struct {
 
 	margin:      Insets,
 	padding:     Insets,
-	using rect:  Rect,           // world rect, calculated from children, margin, padding etc.
+	calc_rect:   Rect,           // world rect, calculated from children, margin, padding etc.
 
 	draw:        Draw_Handle,
 }
@@ -152,11 +153,11 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 	assert(T_size == 0 || state != nil)
 
 	// Update element rect
-	el.size.x = el.padding.l + el.padding.r
-	el.size.y = el.padding.t + el.padding.b
-	el.pos  = parent.pos
-	el.pos += {parent.padding.l, parent.padding.t}
-	el.pos += {el.margin.l, el.margin.t}
+	el.calc_rect = {pos  = parent.calc_rect.pos +
+	                       {parent.padding.l, parent.padding.t} +
+	                       {el.margin.l, el.margin.t},
+	                size = {el.padding.l + el.padding.r,
+	                        el.padding.t + el.padding.b}}
 
 	return
 }
@@ -175,10 +176,12 @@ element_pop :: proc () {
 	ctx.element_curr = el.parent
 
 	// Update parent rect by own size
-	parent.size.x = max(parent.size.x,
-	                    el.size.x + el.margin.l + el.margin.r + parent.padding.l + parent.padding.r)
-	parent.size.y = max(parent.size.y,
-	                    el.size.y + el.margin.t + el.margin.b + parent.padding.t + parent.padding.b)
+	parent.calc_rect.size = la.max(parent.calc_rect.size,
+	                               el.calc_rect.size +
+								   {el.margin.l, el.margin.t} +
+	                               {el.margin.r, el.margin.b} +
+								   {parent.padding.l, parent.padding.t} +
+								   {parent.padding.r, parent.padding.b})
 }
 
 element_curr :: proc () -> ^Element {
@@ -189,7 +192,7 @@ frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
 	root := element_get_assert(ctx.element_root)
-	root.rect = {}
+	root.calc_rect = {}
 
 	clear(&ctx.draw_commands)
 }
@@ -218,7 +221,7 @@ mouse_hit_test :: proc () {
 	_check :: proc (h: Element_Handle) -> (hit: bool) {
 		el := element_get(h) or_return
 
-		if .Non_Interactable not_in el.flags && rect_contains(el, ctx.mouse) {
+		if .Non_Interactable not_in el.flags && rect_contains(el.calc_rect, ctx.mouse) {
 			el.mouse_in = true
 			ctx.element_hover = el.handle
 			return _check(el.child_first)
