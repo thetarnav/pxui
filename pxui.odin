@@ -3,6 +3,7 @@ package pxui
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
+import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 
@@ -47,6 +48,9 @@ ctx: Context
 Element_Flag :: enum u8 {Non_Interactable}
 Element_Flags :: bit_set[Element_Flag]
 
+Layout_Phase :: enum {Pre, Post}
+Layout_Callback :: proc (^Element)
+
 Element :: struct {
 	hash:        u64,            // type + user id
 	data_ptr:    rawptr,         // ptr to user component state
@@ -64,6 +68,8 @@ Element :: struct {
 	margin:      Insets,
 	padding:     Insets,
 	pos, size:   Size_Vec,
+
+	layout:      [Layout_Phase]Layout_Callback,
 
 	calc_rect:   Rect,           // world rect, calculated from children, margin, padding etc.
 
@@ -159,8 +165,6 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 	state            = el.data_ptr
 	assert(T_size == 0 || state != nil)
 
-	default_layout_before()
-
 	return
 }
 
@@ -176,8 +180,6 @@ element_pop :: proc () {
 	el := element_get_assert(ctx.element_curr)
 	assert(el.parent != {})
 
-	default_layout_after()
-
 	ctx.element_curr = el.parent
 }
 
@@ -187,9 +189,6 @@ element_curr :: proc () -> ^Element {
 
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
-
-	root := element_get_assert(ctx.element_root)
-	root.calc_rect = {}
 
 	clear(&ctx.draw_commands)
 }
@@ -208,7 +207,76 @@ frame_end :: proc () {
 		}
 	}
 
+	solve_layout()
+
 	mouse_hit_test()
+}
+
+solve_layout :: proc () {
+	root := element_get_assert(ctx.element_root)
+
+	// Root is sized by the user like any other element.
+	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
+	root.calc_rect = {0, size_vec_to_absolute(root.size, 0)}
+
+	// Pre cb on root: trusted to size/position root.
+	call_layout(root, .Pre)
+	solve_siblings(root.child_first)
+
+	call_layout :: proc (el: ^Element, phase: Layout_Phase) -> bool {
+		cb := el.layout[phase]
+		if cb == nil do return false
+		cb(el)
+		return true
+	}
+
+	solve_node :: proc (el: ^Element) {
+		parent := element_get_assert(el.parent)
+
+		// Pre cb owns the whole subtree.
+		if call_layout(el, .Pre) do return
+
+		default_top_down(el, parent)
+		solve_siblings(el.child_first)
+
+		call_layout(el, .Post)
+
+		default_bottom_up(el, parent)
+	}
+
+	solve_siblings :: proc (h: Element_Handle) {
+		el, ok := element_get(h)
+		if !ok do return
+		solve_node(el)
+		solve_siblings(el.next)
+	}
+}
+
+
+default_top_down :: proc (el, parent: ^Element) {
+	pos  := size_vec_to_absolute(el.pos,  parent.calc_rect.size)
+	size := size_vec_to_absolute(el.size, parent.calc_rect.size)
+	// Update element rect
+	el.calc_rect = {
+		pos  = parent.calc_rect.pos +
+		       {parent.padding.l, parent.padding.t} +
+		       {el.margin.l,    el.margin.t} +
+		       pos,
+		size = {el.padding.l + el.padding.r,
+		        el.padding.t + el.padding.b} +
+		       size,
+	}
+}
+
+default_bottom_up :: proc (el, parent: ^Element) {
+	// Update parent rect by own size
+	parent.calc_rect.size = la.max(parent.calc_rect.size,
+		el.calc_rect.size +
+		{el.margin.l, el.margin.t} +
+		{el.margin.r, el.margin.b} +
+		{parent.padding.l, parent.padding.t} +
+		{parent.padding.r, parent.padding.b}
+	)
 }
 
 mouse_hit_test :: proc () {

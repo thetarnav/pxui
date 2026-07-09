@@ -28,29 +28,33 @@ get_font_atlas :: proc () -> Atlas {
 
 Text :: struct {}
 
-text :: proc (str: string) {
+text :: proc (str: string, color: Color = 255) {
 	element_push(Text)
 	defer element_pop()
 
 	el := element_curr()
 	el.flags += {.Non_Interactable}
 
-	color := RGBA{230, 200, 160, 255}
-	Data :: struct {color: Color, el: ^Element}
-	context.user_ptr = &(Data{color, el})
+	Data :: struct {
+		color:  Color,
+		bounds: Vec2i,
+	}
+	data := Data{color, {}}
+	context.user_ptr = &data
 
 	bmfont.draw_text(str, default_font, cb)
 
-	cb :: proc (src, dstf: bmfont.Rect) {
+	cb :: proc (src, dst: bmfont.Rect) {
 		using data := cast(^Data)context.user_ptr
 
-		dst := Rect{Vec2i(dstf.pos), Vec2i(dstf.size)}
+		pos  := Vec2i(dst.pos)
+		size := Vec2i(dst.size)
 
-		el.calc_rect.size = la.max(rect_end(el.calc_rect), el.calc_rect.pos + rect_end(dst)) - el.calc_rect.pos
+		bounds = la.max(bounds, pos + size)
 
 		draw({
-			pos     = size_vec(dst.pos),
-			size    = size_vec(dst.size),
+			pos     = size_vec(pos),
+			size    = size_vec(size),
 			variant = Draw_Texture{
 				src   = {Vec2i(src.pos), Vec2i(src.size)},
 				tint  = color,
@@ -58,8 +62,10 @@ text :: proc (str: string) {
 			},
 		})
 	}
+
+	size_px(data.bounds)
 }
 
-textf :: proc (str: string, args: ..any) {
-	text(fmt.tprintf(str, ..args))
+textf :: proc (str: string, args: ..any, color: Color = 255) {
+	text(fmt.tprintf(str, ..args), color)
 }

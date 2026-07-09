@@ -72,11 +72,13 @@ main :: proc () {
 
 draw_ui :: proc () {
 
+	px.size_px({UI_W, UI_H}) // root size
+
 	@(deferred_none=px.element_pop)
 	counter :: proc (id: u64 = 0) -> ^int {
 		Counter :: struct {count: int}
 		state, _, _ := px.element_push(Counter)
-		px.textf("Count: %v", state.count)
+		px.textf("Count: %v", state.count, color={230, 200, 160, 255})
 		return &state.count
 	}
 

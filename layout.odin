@@ -1,7 +1,5 @@
 package pxui
 
-import la "core:math/linalg"
-
 
 vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
 vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
@@ -81,6 +79,10 @@ padding_right      :: padding_r
 padding_top        :: padding_t
 
 
+layout_pre  :: proc (cb: Layout_Callback) {element_curr().layout[.Pre]  = cb}
+layout_post :: proc (cb: Layout_Callback) {element_curr().layout[.Post] = cb}
+
+
 element_move_x :: proc (el: ^Element, x: int) {
 	element_move_by(el, {x - el.calc_rect.pos.x, 0})
 }
@@ -105,62 +107,27 @@ element_move_by :: proc (el: ^Element, by: Vec2i) {
 }
 
 
-default_layout_before :: proc () {
-
-	el     := element_get_assert(ctx.element_curr)
-	parent := element_get_assert(el.parent)
-
-	pos  := size_vec_to_absolute(el.pos,  parent.calc_rect.size)
-	size := size_vec_to_absolute(el.size, parent.calc_rect.size)
-
-	// Update element rect
-	el.calc_rect = {pos  = parent.calc_rect.pos +
-	                       {parent.padding.l, parent.padding.t} +
-	                       {el.margin.l, el.margin.t} +
-	                       pos,
-	                size = {el.padding.l + el.padding.r,
-	                        el.padding.t + el.padding.b} +
-	                       size}
-}
-
-default_layout_after :: proc () {
-
-	el     := element_get_assert(ctx.element_curr)
-	parent := element_get_assert(el.parent)
-
-	// Update parent rect by own size
-	parent.calc_rect.size = la.max(parent.calc_rect.size,
-	                               el.calc_rect.size +
-								   {el.margin.l, el.margin.t} +
-	                               {el.margin.r, el.margin.b} +
-								   {parent.padding.l, parent.padding.t} +
-								   {parent.padding.r, parent.padding.b})
-}
-
-
 V_Stack :: struct {}
+v_stack_layout_post :: proc (el: ^Element) {
+	prev, has_children := element_get(el.child_first)
+	if !has_children do return
+
+	child_id := prev.next
+	for child in element_get(child_id) {
+		// Position each child below previous
+		element_move_y(child, prev.calc_rect.pos.y + prev.calc_rect.size.y + prev.margin.b + child.margin.t)
+		// Increase element rect
+		el.calc_rect.size.y = max(el.calc_rect.size.y,
+		                          child.calc_rect.pos.y + child.calc_rect.size.y + child.margin.b + el.padding.b - el.calc_rect.pos.y)
+		child_id, prev = child.next, child
+	}
+}
 v_stack_begin :: proc (id: u64 = 0) {
 	element_push(V_Stack, id)
+	layout_post(v_stack_layout_post)
 }
 v_stack_end :: proc (id: u64 = 0) {
-
-	el := element_curr()
-	assert(element_hash(typeid_of(V_Stack), id) == el.hash)
-
-	if prev, has_children := element_get(el.child_first); has_children {
-		child_id := prev.next
-		for child in element_get(child_id) {
-
-			// Position each child below previous
-			element_move_y(child, prev.calc_rect.pos.y + prev.calc_rect.size.y + prev.margin.b + child.margin.t)
-			// Increase element rect
-			el.calc_rect.size.y = max(el.calc_rect.size.y,
-			                          child.calc_rect.pos.y + child.calc_rect.size.y + child.margin.b + el.padding.b - el.calc_rect.pos.y)
-
-			child_id, prev = child.next, child
-		}
-	}
-
+	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash)
 	element_pop()
 }
 @(deferred_in=v_stack_end)
@@ -170,28 +137,26 @@ v_stack :: proc (id: u64 = 0) -> bool {
 }
 
 H_Stack :: struct {}
+h_stack_layout_post :: proc (el: ^Element) {
+	prev, has_children := element_get(el.child_first)
+	if !has_children do return
+
+	child_id := prev.next
+	for child in element_get(child_id) {
+		// Position each child after previous
+		element_move_x(child, prev.calc_rect.pos.x + prev.calc_rect.size.x + prev.margin.r + child.margin.l)
+		// Increase element rect
+		el.calc_rect.size.x = max(el.calc_rect.size.x,
+		                          child.calc_rect.pos.x + child.calc_rect.size.x + child.margin.r + el.padding.r - el.calc_rect.pos.x)
+		child_id, prev = child.next, child
+	}
+}
 h_stack_begin :: proc (id: u64 = 0) {
 	element_push(H_Stack, id)
+	layout_post(h_stack_layout_post)
 }
 h_stack_end :: proc (id: u64 = 0) {
-
-	el := element_curr()
-	assert(element_hash(typeid_of(H_Stack), id) == el.hash)
-
-	if prev, has_children := element_get(el.child_first); has_children {
-		child_id := prev.next
-		for child in element_get(child_id) {
-
-			// Position each child after previous
-			element_move_x(child, prev.calc_rect.pos.x + prev.calc_rect.size.x + prev.margin.r + child.margin.l)
-			// Increase element rect
-			el.calc_rect.size.x = max(el.calc_rect.size.x,
-			                          child.calc_rect.pos.x + child.calc_rect.size.x + child.margin.r + el.padding.r - el.calc_rect.pos.x)
-
-			child_id, prev = child.next, child
-		}
-	}
-
+	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash)
 	element_pop()
 }
 @(deferred_in=h_stack_end)
