@@ -44,10 +44,6 @@ text :: proc (str: string) {
 	cb :: proc (src, dstf: bmfont.Rect) {
 		using data := cast(^Data)context.user_ptr
 
-		// dstf := dstf
-		// dstf.pos  /= 2
-		// dstf.size /= 2
-
 		dst := Rect{Vec2i(dstf.pos), Vec2i(dstf.size)}
 
 		el.rect.size = la.max(rect_end(el.rect), el.rect.pos + rect_end(dst)) - el.rect.pos

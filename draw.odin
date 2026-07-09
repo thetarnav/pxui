@@ -28,7 +28,7 @@ Draw_Nine_Slice :: struct {
 }
 
 Size :: union {
-	Vec2i,   // absolute
+	Vec2i, // absolute
 	Vec2f, // relative
 }
 
