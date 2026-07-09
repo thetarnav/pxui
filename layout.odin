@@ -92,6 +92,10 @@ element_move_y :: proc (el: ^Element, y: int) {
 element_move :: proc (el: ^Element, #no_broadcast pos: Vec2i) {
 	element_move_by(el, pos - el.calc_rect.pos)
 }
+element_move_axis :: proc (el: ^Element, $AXIS: enum {X, Y}, v: int) {
+	when AXIS == .X do element_move_x(el, v)
+	else            do element_move_y(el, v)
+}
 element_move_by :: proc (el: ^Element, by: Vec2i) {
 
 	el.calc_rect.pos += by
@@ -106,21 +110,34 @@ element_move_by :: proc (el: ^Element, by: Vec2i) {
 	}
 }
 
+@private
+_stack_layout_post :: proc (el: ^Element, $AXIS: enum {X, Y}) {
 
-V_Stack :: struct {}
-v_stack_layout_post :: proc (el: ^Element) {
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
 
 	child_id := prev.next
 	for child in element_get(child_id) {
+		defer child_id, prev = child.next, child
+
 		// Position each child below previous
-		element_move_y(child, prev.calc_rect.pos.y + prev.calc_rect.size.y + prev.margin.b + child.margin.t)
+		element_move_axis(child, AXIS, prev.calc_rect.pos[AXIS] +
+		                               prev.calc_rect.size[AXIS] +
+		                               rb(prev.margin)[AXIS] +
+		                               lt(child.margin)[AXIS])
 		// Increase element rect
-		el.calc_rect.size.y = max(el.calc_rect.size.y,
-		                          child.calc_rect.pos.y + child.calc_rect.size.y + child.margin.b + el.padding.b - el.calc_rect.pos.y)
-		child_id, prev = child.next, child
+		el.calc_rect.size[AXIS] = max(el.calc_rect.size[AXIS],
+		                              child.calc_rect.pos[AXIS] +
+		                              child.calc_rect.size[AXIS] +
+		                              rb(child.margin)[AXIS] +
+		                              rb(el.padding)[AXIS] +
+		                              -el.calc_rect.pos[AXIS])
 	}
+}
+
+V_Stack :: struct {}
+v_stack_layout_post :: proc (el: ^Element) {
+	_stack_layout_post(el, .Y)
 }
 v_stack_begin :: proc (id: u64 = 0) {
 	element_push(V_Stack, id)
@@ -138,18 +155,7 @@ v_stack :: proc (id: u64 = 0) -> bool {
 
 H_Stack :: struct {}
 h_stack_layout_post :: proc (el: ^Element) {
-	prev, has_children := element_get(el.child_first)
-	if !has_children do return
-
-	child_id := prev.next
-	for child in element_get(child_id) {
-		// Position each child after previous
-		element_move_x(child, prev.calc_rect.pos.x + prev.calc_rect.size.x + prev.margin.r + child.margin.l)
-		// Increase element rect
-		el.calc_rect.size.x = max(el.calc_rect.size.x,
-		                          child.calc_rect.pos.x + child.calc_rect.size.x + child.margin.r + el.padding.r - el.calc_rect.pos.x)
-		child_id, prev = child.next, child
-	}
+	_stack_layout_post(el, .X)
 }
 h_stack_begin :: proc (id: u64 = 0) {
 	element_push(H_Stack, id)

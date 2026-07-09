@@ -258,13 +258,8 @@ default_top_down :: proc (el, parent: ^Element) {
 	size := size_vec_to_absolute(el.size, parent.calc_rect.size)
 	// Update element rect
 	el.calc_rect = {
-		pos  = parent.calc_rect.pos +
-		       {parent.padding.l, parent.padding.t} +
-		       {el.margin.l,    el.margin.t} +
-		       pos,
-		size = {el.padding.l + el.padding.r,
-		        el.padding.t + el.padding.b} +
-		       size,
+		pos  = parent.calc_rect.pos + lt(parent.padding) + lt(el.margin) + pos,
+		size = lt(el.padding) + rb(el.padding) + size,
 	}
 }
 
@@ -272,10 +267,10 @@ default_bottom_up :: proc (el, parent: ^Element) {
 	// Update parent rect by own size
 	parent.calc_rect.size = la.max(parent.calc_rect.size,
 		el.calc_rect.size +
-		{el.margin.l, el.margin.t} +
-		{el.margin.r, el.margin.b} +
-		{parent.padding.l, parent.padding.t} +
-		{parent.padding.r, parent.padding.b}
+		lt(el.margin) +
+		rb(el.margin) +
+		lt(parent.padding) +
+		rb(parent.padding)
 	)
 }
 
