@@ -7,17 +7,23 @@ import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 
-Vec2i  :: [2]int
-Vec2f  :: [2]f32
-RGBA   :: [4]u8
-Color  :: RGBA
-Rect   :: struct {using pos: Vec2i, size: Vec2i}
-Rectf  :: struct {using pos: Vec2f, size: Vec2f}
-Insets :: struct {l, t, r, b: int}
+Vec2i    :: [2]int
+Vec2f    :: [2]f32
+RGBA     :: [4]u8
+Color    :: RGBA
+Rect     :: struct {using pos: Vec2i, size: Vec2i}
+Rectf    :: struct {using pos: Vec2f, size: Vec2f}
+Insets   :: struct {l, t, r, b: int}
+
+Size :: union {
+	int, // absolute
+	f32, // relative
+}
+Size_Vec :: [2]Size
 
 Atlas :: struct {
 	pixels: []RGBA,
-	size:   [2]int,
+	size:   Vec2i,
 }
 
 Context :: struct {
@@ -58,6 +64,8 @@ Element :: struct {
 
 	margin:      Insets,
 	padding:     Insets,
+	pos, size:   Size_Vec,
+
 	calc_rect:   Rect,           // world rect, calculated from children, margin, padding etc.
 
 	draw:        Draw_Handle,

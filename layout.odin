@@ -1,13 +1,48 @@
 package pxui
 
 
-size   :: proc (v: Vec2i) {element_curr().calc_rect.size = v}
-size_w :: proc (w: int)   {element_curr().calc_rect.size.x = w}
-size_h :: proc (h: int)   {element_curr().calc_rect.size.y = h}
-size_x :: size_w
-size_y :: size_h
-width  :: size_w
-height :: size_h
+vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
+vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
+to_size :: proc {vec2f_to_size, vec2i_to_size}
+size_vec :: to_size
+
+size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
+	h := ctx.element_curr if h == {} else h
+	return element_get_assert(h).size
+}
+
+size_to_absolute :: proc (size: Size, el_size: int) -> (abs: int) {
+	switch s in size {
+	case int: abs = s
+	case f32: abs = int(s * f32(el_size))
+	}
+	return abs
+}
+size_vec_to_absolute :: proc (size: Size_Vec, el_size: Vec2i) -> (abs: Vec2i) {
+	return {size_to_absolute(size.x, el_size.x), size_to_absolute(size.y, el_size.y)}
+}
+
+size           :: proc (v: Size_Vec) {element_curr().size = v}
+size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
+size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
+size_w         :: proc (w: Size)     {element_curr().size = w}
+size_w_px      :: proc (w: int)      {element_curr().size.x = w}
+size_w_percent :: proc (w: f32)      {element_curr().size.x = w}
+size_h         :: proc (h: Size)     {element_curr().size.y = h}
+size_h_px      :: proc (h: int)      {element_curr().size.y = h}
+size_h_percent :: proc (h: f32)      {element_curr().size.y = h}
+size_x         :: size_w
+size_x_px      :: size_w_px
+size_x_percent :: size_w_percent
+size_y         :: size_h
+size_y_px      :: size_h_px
+size_y_percent :: size_h_percent
+width          :: size_w
+width_px       :: size_w_px
+width_percent  :: size_w_percent
+height         :: size_h
+height_px      :: size_h_px
+height_percent :: size_h_percent
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}

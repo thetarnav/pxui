@@ -5,9 +5,9 @@ import la "core:math/linalg"
 Draw_Commands :: [dynamic]Draw_Plain
 
 Draw_Plain :: struct {
-	pos:     Size,
-	size:    Size,
-	origin:  Size,
+	pos:     Size_Vec,
+	size:    Size_Vec,
+	origin:  Size_Vec,
 	element: Element_Handle,
 	variant: Draw_Variant,
 }
@@ -25,11 +25,6 @@ Draw_Texture :: struct {
 Draw_Nine_Slice :: struct {
 	using txt: Draw_Texture,
 	insets: Insets,
-}
-
-Size :: union {
-	Vec2i, // absolute
-	Vec2f, // relative
 }
 
 Draw_Handle :: distinct int
@@ -70,19 +65,11 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	for c in ctx.draw_commands {
 		el := element_get_assert(c.element)
 
-		size_to_absolute :: proc (size: Size, el_size: Vec2i) -> (abs: Vec2i) {
-			switch s in size {
-			case Vec2i: abs = s
-			case Vec2f: abs = Vec2i(s * Vec2f(el_size))
-			}
-			return abs
-		}
-
 		dst: Rect
-		dst.size = size_to_absolute(c.size, el.calc_rect.size)
+		dst.size = size_vec_to_absolute(c.size, el.calc_rect.size)
 		dst.pos  = el.calc_rect.pos +
-		           size_to_absolute(c.origin, el.calc_rect.size) +
-		           size_to_absolute(c.pos, el.calc_rect.size)
+		           size_vec_to_absolute(c.origin, el.calc_rect.size) +
+		           size_vec_to_absolute(c.pos, el.calc_rect.size)
 
 		switch v in c.variant {
 		case Draw_Texture:

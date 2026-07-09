@@ -2,7 +2,6 @@
 
 package example
 
-import "core:fmt"
 import "core:slice"
 import k2 "shared:karl2d"
 import px "../"
@@ -124,9 +123,9 @@ draw_ui :: proc () {
 
 	px.draw({
 		variant = px.Draw_Color{k2.BLUE},
-		origin  = px.Vec2f(1),
-		pos     = -px.Vec2i{10, 20},
-		size    = px.Vec2i{14, 24},
+		origin  = {1.0, 1.0},
+		pos     = {-10, -20},
+		size    = {14, 24},
 	})
 }
 

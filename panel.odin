@@ -32,7 +32,7 @@ panel_begin :: proc (id: u64 = 0) {
 			src    = {0, panel_atlas.size},
 			insets = {l=4, t=4, r=4, b=4},
 		},
-		size = Vec2f(1),
+		size = {1.0, 1.0},
 	})
 }
 panel_end :: proc (id: u64 = 0) {
@@ -48,6 +48,6 @@ panel :: proc (id: u64 = 0) -> bool {
 background_color :: proc (color: Color) {
 	draw({
 		variant = Draw_Color{color},
-		size    = Vec2f(1),
+		size    = {1.0, 1.0},
 	})
 }

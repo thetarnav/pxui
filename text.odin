@@ -49,8 +49,8 @@ text :: proc (str: string) {
 		el.calc_rect.size = la.max(rect_end(el.calc_rect), el.calc_rect.pos + rect_end(dst)) - el.calc_rect.pos
 
 		draw({
-			pos     = dst.pos,
-			size    = dst.size,
+			pos     = size_vec(dst.pos),
+			size    = size_vec(dst.size),
 			variant = Draw_Texture{
 				src   = {Vec2i(src.pos), Vec2i(src.size)},
 				tint  = color,
