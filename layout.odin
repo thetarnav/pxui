@@ -81,13 +81,14 @@ _stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
 		                           prev.rel_rect.size[AXIS] +
 		                           rb(prev.margin)[AXIS] +
 		                           lt(child.margin)[AXIS]
-		// Increase element rect
-		el.rel_rect.size[AXIS] = max(el.rel_rect.size[AXIS],
-		                             child.rel_rect.pos[AXIS] +
-		                             child.rel_rect.size[AXIS] +
-		                             rb(child.margin)[AXIS] +
-		                             rb(el.padding)[AXIS])
 	}
+
+	// Increase element rect
+	el.rel_rect.size[AXIS] = max(el.rel_rect.size[AXIS],
+	                             prev.rel_rect.pos[AXIS] +
+	                             prev.rel_rect.size[AXIS] +
+	                             rb(prev.margin)[AXIS] +
+	                             rb(el.padding)[AXIS])
 }
 
 V_Stack :: struct {}
@@ -130,6 +131,8 @@ h_stack :: proc (id: u64 = 0) -> bool {
 rect_cut_layout_post :: proc (el: ^Element) {
 	s := element_state(Rect_Cut, el.handle)
 
+	// Find out how much space is taken by non-fill elements
+	// and how many elements need to share the remaining space
 	space_taken := rb(el.padding)[s.axis] +
 	               lt(el.padding)[s.axis]
 	fills: int
