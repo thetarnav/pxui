@@ -1,11 +1,5 @@
 package pxui
 
-
-vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
-vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
-to_size :: proc {vec2f_to_size, vec2i_to_size}
-size_vec :: to_size
-
 size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
 	h := ctx.element_curr if h == {} else h
 	return element_get_assert(h).size

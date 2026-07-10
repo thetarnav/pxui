@@ -134,7 +134,7 @@ draw_ui :: proc () {
 		px.margin_right(16)
 
 		{
-			count := counter()
+			counter()
 			px.padding(3, 6, 3, 8)
 		}
 

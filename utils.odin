@@ -24,6 +24,12 @@ size_vec_to_pixel :: proc (s: Size_Vec, ref: Vec2i) -> Vec2i {
 	return {size_to_pixel(s.x, ref.x), size_to_pixel(s.y, ref.y)}
 }
 
+vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
+vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
+to_size       :: proc {vec2f_to_size, vec2i_to_size}
+size_vec      :: to_size
+vec_to_size   :: to_size
+
 @require_results
 rect :: #force_inline proc "contextless" (s, e: Vec2i) -> Rect {
     return {s, e-s}
