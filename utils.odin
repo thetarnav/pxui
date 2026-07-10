@@ -7,6 +7,23 @@ lb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.b}}
 rt :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.t}}
 rb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.b}}
 
+// Convert a Size to a pixel value along one axis.
+// `ref` is the reference size in pixels (parent's content area along that axis).
+size_to_pixel :: proc (s: Size, ref: int) -> int {
+	switch v in s {
+	case Content: return 0
+	case Fill:    return ref
+	case int:     return v
+	case f32:     return int(v * f32(ref))
+	}
+	return 0
+}
+
+// Convert a Size_Vec to a Vec2i of pixel values, using `ref` as the reference.
+size_vec_to_pixel :: proc (s: Size_Vec, ref: Vec2i) -> Vec2i {
+	return {size_to_pixel(s.x, ref.x), size_to_pixel(s.y, ref.y)}
+}
+
 @require_results
 rect :: #force_inline proc "contextless" (s, e: Vec2i) -> Rect {
     return {s, e-s}

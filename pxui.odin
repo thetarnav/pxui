@@ -241,7 +241,7 @@ solve_layout :: proc () {
 
 	// Root is sized by the user like any other element.
 	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
-	root.calc_rect = {0, size_vec_to_absolute(root.size, 0)}
+	root.calc_rect = {0, size_vec_to_pixel(root.size, 0)}
 
 	// Pre cb on root: trusted to size/position root.
 	call_layout(root, .Pre)
@@ -278,8 +278,8 @@ solve_layout :: proc () {
 
 
 default_top_down :: proc (el, parent: ^Element) {
-	pos  := size_vec_to_absolute(el.pos,  parent.calc_rect.size)
-	size := size_vec_to_absolute(el.size, parent.calc_rect.size - lt(parent.padding) - rb(parent.padding))
+	pos  := size_vec_to_pixel(el.pos,  parent.calc_rect.size)
+	size := size_vec_to_pixel(el.size, parent.calc_rect.size - lt(parent.padding) - rb(parent.padding))
 	// Update element rect
 	el.calc_rect = {
 		pos  = parent.calc_rect.pos + lt(parent.padding) + lt(el.margin) + pos,

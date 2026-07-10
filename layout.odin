@@ -11,19 +11,6 @@ size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
 	return element_get_assert(h).size
 }
 
-size_to_absolute :: proc (size: Size, el_size: int) -> (abs: int) {
-	switch s in size {
-	case Content: abs = 0
-	case Fill:    abs = el_size
-	case int:     abs = s
-	case f32:     abs = int(s * f32(el_size))
-	}
-	return abs
-}
-size_vec_to_absolute :: proc (size: Size_Vec, el_size: Vec2i) -> (abs: Vec2i) {
-	return {size_to_absolute(size.x, el_size.x), size_to_absolute(size.y, el_size.y)}
-}
-
 size           :: proc (v: Size_Vec) {element_curr().size = v}
 size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
 size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
