@@ -224,7 +224,6 @@ frame_end :: proc () {
 
 	it := hm.iterator_make(&ctx.elements)
 	for el, handle in hm.iterate(&it) {
-		el.mouse_in = false
 		if el._found || handle == ctx.element_root {
 			el._found = false
 		} else {
@@ -290,12 +289,11 @@ default_top_down :: proc (el, parent: ^Element) {
 default_bottom_up :: proc (el, parent: ^Element) {
 	// Update parent rect by own size
 	parent.rel_rect.size = la.max(parent.rel_rect.size,
-		el.rel_rect.size +
-		lt(el.margin) +
-		rb(el.margin) +
-		lt(parent.padding) +
-		rb(parent.padding)
-	)
+	                              el.rel_rect.size +
+	                              lt(el.margin) +
+	                              rb(el.margin) +
+	                              lt(parent.padding) +
+	                              rb(parent.padding))
 }
 
 update_screen_rect_and_mouse :: proc () {
