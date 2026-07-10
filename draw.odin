@@ -66,10 +66,10 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		el := element_get_assert(c.element)
 
 		dst: Rect
-		dst.size = size_vec_to_pixel(c.size, el.calc_rect.size)
-		dst.pos  = el.calc_rect.pos +
-		           size_vec_to_pixel(c.origin, el.calc_rect.size) +
-		           size_vec_to_pixel(c.pos, el.calc_rect.size)
+		dst.size = size_vec_to_pixel(c.size, el.rel_rect.size)
+		dst.pos  = el.screen_pos +
+		           size_vec_to_pixel(c.origin, el.rel_rect.size) +
+		           size_vec_to_pixel(c.pos, el.rel_rect.size)
 
 		switch v in c.variant {
 		case Draw_Texture:

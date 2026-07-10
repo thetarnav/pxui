@@ -72,35 +72,6 @@ layout_pre  :: proc (cb: Layout_Callback) {element_curr().layout[.Pre]  = cb}
 layout_post :: proc (cb: Layout_Callback) {element_curr().layout[.Post] = cb}
 
 
-element_move_x :: proc (el: ^Element, x: int) {
-	element_move_by(el, {x - el.calc_rect.pos.x, 0})
-}
-element_move_y :: proc (el: ^Element, y: int) {
-	element_move_by(el, {0, y - el.calc_rect.pos.y})
-}
-element_move :: proc (el: ^Element, #no_broadcast pos: Vec2i) {
-	element_move_by(el, pos - el.calc_rect.pos)
-}
-element_move_axis :: proc (el: ^Element, axis: Axis, v: int) {
-	switch axis {
-	case .X: element_move_x(el, v)
-	case .Y: element_move_y(el, v)
-	}
-}
-element_move_by :: proc (el: ^Element, by: Vec2i) {
-
-	el.calc_rect.pos += by
-	_move_sibling(el.child_first, by)
-
-	_move_sibling :: proc (h: Element_Handle, by: Vec2i) -> (ok: bool) {
-		el := element_get(h) or_return
-		el.calc_rect.pos += by
-		_move_sibling(el.child_first, by)
-		_move_sibling(el.next, by)
-		return true
-	}
-}
-
 @private
 _stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
 
@@ -112,17 +83,16 @@ _stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
 		defer child_id, prev = child.next, child
 
 		// Position each child below previous
-		element_move_axis(child, AXIS, prev.calc_rect.pos[AXIS] +
-		                               prev.calc_rect.size[AXIS] +
-		                               rb(prev.margin)[AXIS] +
-		                               lt(child.margin)[AXIS])
+		child.rel_rect.pos[AXIS] = prev.rel_rect.pos[AXIS] +
+		                           prev.rel_rect.size[AXIS] +
+		                           rb(prev.margin)[AXIS] +
+		                           lt(child.margin)[AXIS]
 		// Increase element rect
-		el.calc_rect.size[AXIS] = max(el.calc_rect.size[AXIS],
-		                              child.calc_rect.pos[AXIS] +
-		                              child.calc_rect.size[AXIS] +
-		                              rb(child.margin)[AXIS] +
-		                              rb(el.padding)[AXIS] +
-		                              -el.calc_rect.pos[AXIS])
+		el.rel_rect.size[AXIS] = max(el.rel_rect.size[AXIS],
+		                             child.rel_rect.pos[AXIS] +
+		                             child.rel_rect.size[AXIS] +
+		                             rb(child.margin)[AXIS] +
+		                             rb(el.padding)[AXIS])
 	}
 }
 
@@ -177,7 +147,7 @@ rect_cut_layout_post :: proc (el: ^Element) {
 		if _, is_fill := child.size[s.axis].(Fill); is_fill {
 			fills += 1
 		} else {
-			space_taken += child.calc_rect.size[s.axis]
+			space_taken += child.rel_rect.size[s.axis]
 		}
 		space_taken += rb(child.margin)[s.axis] +
 		               lt(child.margin)[s.axis]
@@ -190,18 +160,18 @@ rect_cut_layout_post :: proc (el: ^Element) {
 
 		// All fill-children divide the remaining space equally
 		if _, is_fill := child.size[s.axis].(Fill); is_fill {
-			space := (el.calc_rect.size[s.axis] - space_taken)/fills
+			space := (el.rel_rect.size[s.axis] - space_taken)/fills
 			space_taken += space
 			fills -= 1
-			child.calc_rect.size[s.axis] = space
+			child.rel_rect.size[s.axis] = space
 		}
 
 		if prev != nil {
 			// Position each child below previous
-			element_move_axis(child, s.axis, prev.calc_rect.pos[s.axis] +
-			                                 prev.calc_rect.size[s.axis] +
-			                                 rb(prev.margin)[s.axis] +
-			                                 lt(child.margin)[s.axis])
+			child.rel_rect.pos[s.axis] = prev.rel_rect.pos[s.axis] +
+			                             prev.rel_rect.size[s.axis] +
+			                             rb(prev.margin)[s.axis] +
+			                             lt(child.margin)[s.axis]
 		}
 	}
 }

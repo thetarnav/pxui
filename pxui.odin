@@ -79,7 +79,8 @@ Element :: struct {
 
 	layout:      [Layout_Phase]Layout_Callback,
 
-	calc_rect:   Rect,           // world rect, calculated from children, margin, padding etc.
+	rel_rect:    Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
+	screen_pos:  Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
 
 	draw:        Draw_Handle,
 }
@@ -211,7 +212,8 @@ frame_begin :: proc () {
 	// that would expose the previous frame's value.
 	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
-		el.calc_rect = {}
+		el.rel_rect   = {}
+		el.screen_pos = {}
 	}
 
 	clear(&ctx.draw_commands)
@@ -233,7 +235,7 @@ frame_end :: proc () {
 
 	solve_layout()
 
-	mouse_hit_test()
+	update_screen_rect_and_mouse()
 }
 
 solve_layout :: proc () {
@@ -241,7 +243,7 @@ solve_layout :: proc () {
 
 	// Root is sized by the user like any other element.
 	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
-	root.calc_rect = {0, size_vec_to_pixel(root.size, 0)}
+	root.rel_rect = {0, size_vec_to_pixel(root.size, 0)}
 
 	// Pre cb on root: trusted to size/position root.
 	call_layout(root, .Pre)
@@ -278,19 +280,17 @@ solve_layout :: proc () {
 
 
 default_top_down :: proc (el, parent: ^Element) {
-	pos  := size_vec_to_pixel(el.pos,  parent.calc_rect.size)
-	size := size_vec_to_pixel(el.size, parent.calc_rect.size - lt(parent.padding) - rb(parent.padding))
+	pos  := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
+	size := size_vec_to_pixel(el.size, parent.rel_rect.size - lt(parent.padding) - rb(parent.padding))
 	// Update element rect
-	el.calc_rect = {
-		pos  = parent.calc_rect.pos + lt(parent.padding) + lt(el.margin) + pos,
-		size = lt(el.padding) + rb(el.padding) + size,
-	}
+	el.rel_rect.pos  = lt(parent.padding) + lt(el.margin) + pos
+	el.rel_rect.size = lt(el.padding) + rb(el.padding) + size
 }
 
 default_bottom_up :: proc (el, parent: ^Element) {
 	// Update parent rect by own size
-	parent.calc_rect.size = la.max(parent.calc_rect.size,
-		el.calc_rect.size +
+	parent.rel_rect.size = la.max(parent.rel_rect.size,
+		el.rel_rect.size +
 		lt(el.margin) +
 		rb(el.margin) +
 		lt(parent.padding) +
@@ -298,20 +298,34 @@ default_bottom_up :: proc (el, parent: ^Element) {
 	)
 }
 
-mouse_hit_test :: proc () {
+update_screen_rect_and_mouse :: proc () {
 
-	_check(ctx.element_root)
+	root := element_get_assert(ctx.element_root)
 
-	_check :: proc (h: Element_Handle) -> (hit: bool) {
-		el := element_get(h) or_return
+	_visit(root.child_first, check_mouse=true)
 
-		if .Non_Interactable not_in el.flags && rect_contains(el.calc_rect, ctx.mouse) {
+	_visit :: proc (h: Element_Handle, check_mouse: bool) -> (hit: bool) {
+
+		el     := element_get(h) or_return
+		parent := element_get_assert(el.parent)
+
+		// Update position on screen
+		el.screen_pos = parent.screen_pos + el.rel_rect.pos
+
+		// Check mouse hover
+		if check_mouse &&
+		   .Non_Interactable not_in el.flags &&
+		   rect_contains({el.screen_pos, el.rel_rect.size}, ctx.mouse)
+		{
 			el.mouse_in = true
-			ctx.element_hover = el.handle
-			return _check(el.child_first)
+			ctx.element_hover = h
 		} else {
-			return _check(el.next)
+			el.mouse_in = false
 		}
+
+		_visit(el.child_first, check_mouse=el.mouse_in)
+
+		_visit(el.next, check_mouse=check_mouse && !el.mouse_in)
 
 		return true
 	}
