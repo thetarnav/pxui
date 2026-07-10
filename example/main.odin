@@ -78,7 +78,11 @@ draw_ui :: proc () {
 	counter :: proc (id: u64 = 0) -> ^int {
 		Counter :: struct {count: int}
 		state, _, _ := px.element_push(Counter)
-		px.textf("Count: %v", state.count, color={230, 200, 160, 255})
+		hovered := px.is_hovered()
+		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else {230, 200, 160, 255})
+		if px.is_clicked() {
+			state.count += 1
+		}
 		return &state.count
 	}
 
@@ -100,20 +104,14 @@ draw_ui :: proc () {
 		px.padding(3)
 
 		{
-			count := counter()
+			counter()
 			px.padding(2, 1)
 			px.margin_right(1)
-			if px.is_clicked() {
-				count^ += 1
-			}
 		}
 
 		{
-			count := counter()
+			counter()
 			px.padding(3, 2)
-			if px.is_clicked() {
-				count^ += 1
-			}
 		}
 	}
 
@@ -138,9 +136,6 @@ draw_ui :: proc () {
 		{
 			count := counter()
 			px.padding(3, 6, 3, 8)
-			if px.is_clicked() {
-				count^ += 1
-			}
 		}
 
 		{
