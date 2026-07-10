@@ -83,6 +83,7 @@ draw_ui :: proc () {
 	}
 
 	px.panel()
+	px.nine_slice()
 	px.width(140)
 	px.padding(10)
 
@@ -92,6 +93,7 @@ draw_ui :: proc () {
 
 	{
 		px.panel()
+		px.nine_slice()
 		px.margin(4)
 
 		px.h_stack()
@@ -117,11 +119,52 @@ draw_ui :: proc () {
 
 	{
 		px.panel()
+		px.nine_slice()
 		px.margin(4, 0, 4, 5)
 
 		count := counter()
 		px.padding(6, 2)
 		count^ += 1
+	}
+
+	{
+		px.rect_cut(.H)
+		px.width(1.0)
+		px.background_color(k2.LIGHT_BROWN)
+		px.padding(4)
+		px.margin(4)
+		px.margin_right(16)
+
+		{
+			count := counter()
+			px.padding(3, 6, 3, 8)
+			if px.is_clicked() {
+				count^ += 1
+			}
+		}
+
+		{
+			px.panel()
+			px.background_color(k2.LIGHT_YELLOW)
+			px.margin_right(3)
+			px.width(px.Fill{})
+			px.height(px.Fill{})
+		}
+
+		{
+			px.panel()
+			px.background_color(k2.LIGHT_PURPLE)
+			px.margin_right(3)
+			px.width(20)
+			px.height(px.Fill{})
+		}
+
+		{
+			px.panel()
+			px.background_color(k2.LIGHT_BLUE)
+			px.width(px.Fill{})
+			px.height(px.Fill{})
+		}
 	}
 
 	px.draw({

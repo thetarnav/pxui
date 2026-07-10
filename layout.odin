@@ -13,8 +13,10 @@ size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
 
 size_to_absolute :: proc (size: Size, el_size: int) -> (abs: int) {
 	switch s in size {
-	case int: abs = s
-	case f32: abs = int(s * f32(el_size))
+	case Content: abs = 0
+	case Fill:    abs = el_size
+	case int:     abs = s
+	case f32:     abs = int(s * f32(el_size))
 	}
 	return abs
 }
@@ -92,9 +94,11 @@ element_move_y :: proc (el: ^Element, y: int) {
 element_move :: proc (el: ^Element, #no_broadcast pos: Vec2i) {
 	element_move_by(el, pos - el.calc_rect.pos)
 }
-element_move_axis :: proc (el: ^Element, $AXIS: enum {X, Y}, v: int) {
-	when AXIS == .X do element_move_x(el, v)
-	else            do element_move_y(el, v)
+element_move_axis :: proc (el: ^Element, axis: Axis, v: int) {
+	switch axis {
+	case .X: element_move_x(el, v)
+	case .Y: element_move_y(el, v)
+	}
 }
 element_move_by :: proc (el: ^Element, by: Vec2i) {
 
@@ -111,7 +115,7 @@ element_move_by :: proc (el: ^Element, by: Vec2i) {
 }
 
 @private
-_stack_layout_post :: proc (el: ^Element, $AXIS: enum {X, Y}) {
+_stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -168,5 +172,65 @@ h_stack_end :: proc (id: u64 = 0) {
 @(deferred_in=h_stack_end)
 h_stack :: proc (id: u64 = 0) -> bool {
 	h_stack_begin(id)
+	return true
+}
+
+
+rect_cut_layout_post :: proc (el: ^Element) {
+	s := element_state(Rect_Cut, el.handle)
+
+	space_taken := rb(el.padding)[s.axis] +
+	               lt(el.padding)[s.axis]
+	fills: int
+
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		defer child_id = child.next
+
+		if _, is_fill := child.size[s.axis].(Fill); is_fill {
+			fills += 1
+		} else {
+			space_taken += child.calc_rect.size[s.axis]
+		}
+		space_taken += rb(child.margin)[s.axis] +
+		               lt(child.margin)[s.axis]
+	}
+
+	prev: ^Element
+	child_id = el.child_first
+	for child in element_get(child_id) {
+		defer child_id, prev = child.next, child
+
+		// All fill-children divide the remaining space equally
+		if _, is_fill := child.size[s.axis].(Fill); is_fill {
+			space := (el.calc_rect.size[s.axis] - space_taken)/fills
+			space_taken += space
+			fills -= 1
+			child.calc_rect.size[s.axis] = space
+		}
+
+		if prev != nil {
+			// Position each child below previous
+			element_move_axis(child, s.axis, prev.calc_rect.pos[s.axis] +
+			                                 prev.calc_rect.size[s.axis] +
+			                                 rb(prev.margin)[s.axis] +
+			                                 lt(child.margin)[s.axis])
+		}
+	}
+}
+
+Rect_Cut :: struct {axis: Axis}
+rect_cut_begin :: proc (axis: Axis, id: u64 = 0) {
+	s, _, _ := element_push(Rect_Cut, id)
+	s.axis = axis
+	layout_post(rect_cut_layout_post)
+}
+rect_cut_end :: proc (axis: Axis, id: u64 = 0) {
+	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash)
+	element_pop()
+}
+@(deferred_in=rect_cut_end)
+rect_cut :: proc (axis: Axis, id: u64 = 0) -> bool {
+	rect_cut_begin(axis, id)
 	return true
 }

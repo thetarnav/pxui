@@ -15,11 +15,18 @@ Rect     :: struct {using pos: Vec2i, size: Vec2i}
 Rectf    :: struct {using pos: Vec2f, size: Vec2f}
 Insets   :: struct {l, t, r, b: int}
 
+Content :: struct {}
+Fill    :: struct {}
 Size :: union {
-	int, // absolute
-	f32, // relative
+	Content, // derive from content
+	Fill,    // fill available space
+	int,     // absolute
+	f32,     // relative
 }
 Size_Vec :: [2]Size
+
+Axis :: enum {H=0, V=1,
+              X=0, Y=1}
 
 Atlas :: struct {
 	pixels: []RGBA,
@@ -45,13 +52,14 @@ Context :: struct {
 }
 ctx: Context
 
-Element_Flag :: enum u8 {Non_Interactable}
+Element_Flag  :: enum u8 {Non_Interactable}
 Element_Flags :: bit_set[Element_Flag]
 
-Layout_Phase :: enum {Pre, Post}
+Layout_Phase    :: enum {Pre, Post}
 Layout_Callback :: proc (^Element)
 
 Element :: struct {
+	type:        typeid,
 	hash:        u64,            // type + user id
 	data_ptr:    rawptr,         // ptr to user component state
 
@@ -113,6 +121,13 @@ element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 	return hash_combine(type_id, user_id) if user_id > 0 else type_id
 }
 
+element_state :: proc ($T: typeid, h: Element_Handle = {}) -> ^T {
+	h := ctx.element_curr if h == {} else h
+	el := element_get_assert(h)
+	assert(el.type == typeid_of(T))
+	return (^T)(el.data_ptr)
+}
+
 @private
 _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
                       (state: rawptr, el: ^Element, init: bool)
@@ -141,8 +156,9 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
 		assert(alloc_err == nil)
 
 		handle, add_err := hm.add(&ctx.elements, Element{
-			parent   = parent.handle,
+			type     = T,
 			hash     = hash,
+			parent   = parent.handle,
 			data_ptr = raw_data(bytes),
 		})
 		// TODO: how to handle errors?
@@ -255,7 +271,7 @@ solve_layout :: proc () {
 
 default_top_down :: proc (el, parent: ^Element) {
 	pos  := size_vec_to_absolute(el.pos,  parent.calc_rect.size)
-	size := size_vec_to_absolute(el.size, parent.calc_rect.size)
+	size := size_vec_to_absolute(el.size, parent.calc_rect.size - lt(parent.padding) - rb(parent.padding))
 	// Update element rect
 	el.calc_rect = {
 		pos  = parent.calc_rect.pos + lt(parent.padding) + lt(el.margin) + pos,

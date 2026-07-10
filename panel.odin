@@ -25,15 +25,6 @@ get_panel_atlas :: proc () -> Atlas {
 Panel :: struct {}
 panel_begin :: proc (id: u64 = 0) {
 	element_push(Panel, id)
-	draw({
-		variant = Draw_Nine_Slice{
-			atlas  = &panel_atlas,
-			tint   = 255,
-			src    = {0, panel_atlas.size},
-			insets = {l=4, t=4, r=4, b=4},
-		},
-		size = {1.0, 1.0},
-	})
 }
 panel_end :: proc (id: u64 = 0) {
 	assert(element_hash(typeid_of(Panel), id) == element_curr().hash)
@@ -45,6 +36,17 @@ panel :: proc (id: u64 = 0) -> bool {
 	return true
 }
 
+nine_slice :: proc () {
+	draw({
+		variant = Draw_Nine_Slice{
+			atlas  = &panel_atlas,
+			tint   = 255,
+			src    = {0, panel_atlas.size},
+			insets = {l=4, t=4, r=4, b=4},
+		},
+		size = {1.0, 1.0},
+	})
+}
 background_color :: proc (color: Color) {
 	draw({
 		variant = Draw_Color{color},
