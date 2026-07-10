@@ -2,6 +2,8 @@ package pxui
 
 import "core:os"
 import "core:strings"
+import "core:fmt"
+import hm "core:container/handle_map"
 
 debug_tree_display :: proc (allocator := context.allocator) -> string {
 
@@ -65,4 +67,14 @@ debug_tree_display :: proc (allocator := context.allocator) -> string {
 debug_tree_print :: proc () {
 	str := debug_tree_display(context.temp_allocator)
 	os.write_string(os.stdout, str)
+}
+
+debug_dump_calc_rects :: proc () {
+	it := hm.iterator_make(&ctx.elements)
+	for el, handle in hm.iterate(&it) {
+		fmt.eprintfln("[{} idx={}] pos={},{} size={},{}",
+			handle, el.handle.idx,
+			el.calc_rect.pos.x, el.calc_rect.pos.y,
+			el.calc_rect.size.x, el.calc_rect.size.y)
+	}
 }

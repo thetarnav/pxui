@@ -206,6 +206,14 @@ element_curr :: proc () -> ^Element {
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
+	// TODO: temporary—remove once no stale-prev-frame calc_rect reads remain.
+	// calc_rect is recomputed by the solver in frame_end; reading it before
+	// that would expose the previous frame's value.
+	it := hm.iterator_make(&ctx.elements)
+	for el, _ in hm.iterate(&it) {
+		el.calc_rect = {}
+	}
+
 	clear(&ctx.draw_commands)
 }
 

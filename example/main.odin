@@ -36,6 +36,7 @@ main :: proc () {
 		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
 
 		draw_ui()
+		px.frame_end()
 
 		for cmd in px.get_draw_commands(context.temp_allocator) {
 			// Scale up the dest rect—ui uses texture pixel size
@@ -62,7 +63,6 @@ main :: proc () {
 			k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
 		}
 
-		px.frame_end()
 		k2.present()
 	}
 
