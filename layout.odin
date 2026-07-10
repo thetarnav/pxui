@@ -128,6 +128,87 @@ h_stack :: proc (id: u64 = 0) -> bool {
 }
 
 
+_flex_layout_post :: proc (el: ^Element, $AX: Axis) {
+
+	prev, has_children := element_get(el.child_first)
+	if !has_children do return
+
+	PERP :: (int(AX) + 1) % 2
+
+	max_size := el.rel_rect.size[AX] +
+	            -rb(el.padding)[AX]
+
+	cursor: Vec2i
+	cursor[PERP] = lt(el.padding)[PERP]
+	cursor[AX] = prev.rel_rect.pos[AX] +
+	             prev.rel_rect.size[AX] +
+	             rb(prev.margin)[AX]
+
+	row_size: int
+
+	child_id := prev.next
+	for child in element_get(child_id) {
+		defer child_id, prev = child.next, child
+
+		child_size := rb(child.margin)[AX] + child.rel_rect.size[AX]
+
+		cursor[AX] += lt(child.margin)[AX]
+		if cursor[AX] + child_size > max_size {
+			cursor[AX] = lt(el.padding)[AX] + lt(child.margin)[AX]
+			cursor[PERP] += row_size
+			row_size = 0
+		}
+
+		child.rel_rect.pos = cursor
+		child.rel_rect.pos[PERP] += lt(child.margin)[PERP]
+
+		cursor[AX] += child_size
+		row_size = max(row_size,
+		               child.rel_rect.size[PERP] +
+		               lt(child.margin)[PERP] +
+		               rb(child.margin)[PERP])
+	}
+
+	// Increase element rect
+	el.rel_rect.size[PERP] = max(el.rel_rect.size[PERP],
+	                             prev.rel_rect.pos[PERP] +
+	                             prev.rel_rect.size[PERP] +
+	                             rb(prev.margin)[PERP] +
+	                             rb(el.padding)[PERP])
+}
+
+Flex :: struct {axis: Axis}
+flex_layout_post :: proc (el: ^Element) {
+	s := element_state(Flex, el.handle)
+	if s.axis == .H do _flex_layout_post(el, .H)
+	else            do _flex_layout_post(el, .V)
+}
+flex_begin :: proc (axis: Axis = .H, id: u64 = 0) {
+	s, _, _ := element_push(Flex, id)
+	s.axis = axis
+	layout_post(flex_layout_post)
+}
+flex_end :: proc () {
+	assert(typeid_of(Flex) == element_curr().type)
+	element_pop()
+}
+@(deferred_none=flex_end)
+flex :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
+	flex_begin(axis, id)
+	return true
+}
+@(deferred_none=flex_end)
+flex_h :: proc (id: u64 = 0) -> bool {
+	flex_begin(.H, id)
+	return true
+}
+@(deferred_none=flex_end)
+flex_v :: proc (id: u64 = 0) -> bool {
+	flex_begin(.V, id)
+	return true
+}
+
+
 rect_cut_layout_post :: proc (el: ^Element) {
 	s := element_state(Rect_Cut, el.handle)
 
@@ -174,17 +255,17 @@ rect_cut_layout_post :: proc (el: ^Element) {
 }
 
 Rect_Cut :: struct {axis: Axis}
-rect_cut_begin :: proc (axis: Axis, id: u64 = 0) {
+rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0) {
 	s, _, _ := element_push(Rect_Cut, id)
 	s.axis = axis
 	layout_post(rect_cut_layout_post)
 }
-rect_cut_end :: proc (axis: Axis, id: u64 = 0) {
+rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash)
 	element_pop()
 }
 @(deferred_in=rect_cut_end)
-rect_cut :: proc (axis: Axis, id: u64 = 0) -> bool {
+rect_cut :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
 	rect_cut_begin(axis, id)
 	return true
 }

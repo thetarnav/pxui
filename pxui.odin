@@ -251,7 +251,9 @@ solve_layout :: proc () {
 	call_layout :: proc (el: ^Element, phase: Layout_Phase) -> bool {
 		cb := el.layout[phase]
 		if cb == nil do return false
+		ctx.element_curr = el.handle
 		cb(el)
+		ctx.element_curr = ctx.element_root
 		return true
 	}
 

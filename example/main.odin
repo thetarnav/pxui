@@ -131,7 +131,6 @@ draw_ui :: proc () {
 		px.background_color(k2.LIGHT_BROWN)
 		px.padding(4)
 		px.margin(4)
-		px.margin_right(16)
 
 		{
 			counter()
@@ -161,6 +160,24 @@ draw_ui :: proc () {
 			px.height(px.Fill{})
 		}
 	}
+
+	{
+		px.flex_h()
+		px.width(px.Fill{})
+		px.background_color(k2.LIGHT_BROWN)
+		px.padding(4)
+		px.margin(4)
+		px.margin_right(16)
+
+		for i in 0..<10 {
+			px.panel()
+			px.background_color(k2.LIGHT_YELLOW)
+			px.margin(2)
+			px.width((i % 5) * 10 + 16)
+			px.height(20)
+		}
+	}
+
 
 	px.draw({
 		variant = px.Draw_Color{k2.LIGHT_RED},
