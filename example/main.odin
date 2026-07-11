@@ -22,8 +22,6 @@ main :: proc () {
 
 	px.init()
 
-	tex_map: map[^px.Atlas]k2.Texture
-
 	for k2.update() {
 		defer k2.reset_frame_allocator()
 		defer free_all(context.temp_allocator)
@@ -36,32 +34,10 @@ main :: proc () {
 		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
 		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
 
-		draw_ui()
+		ui()
 		px.frame_end()
 
-		for cmd in px.get_draw_commands(context.temp_allocator) {
-			// Scale up the dest rect—ui uses texture pixel size
-			src := Rect{Vec2(cmd.src.pos), Vec2(cmd.src.size)}
-			dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
-
-			// Draw color fill
-			if cmd.atlas == nil {
-				k2.draw_rect(k2_rect(dst), cmd.tint)
-				continue
-			}
-
-			// Convert px.Atlas to k2.Texture
-			tex, in_map := tex_map[cmd.atlas]
-			if !in_map {
-				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, cmd.atlas.pixels),
-				                                     **cmd.atlas.size, .RGBA_8_Norm)
-				tex_map[cmd.atlas] = tex
-			}
-
-			// Draw texture
-			k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
-		}
-
+		render_ui()
 		k2.present()
 	}
 
@@ -69,7 +45,36 @@ main :: proc () {
 	k2.shutdown()
 }
 
-draw_ui :: proc () {
+render_ui :: proc () {
+
+	@static
+	tex_map: map[^px.Atlas]k2.Texture
+
+	for cmd in px.get_draw_commands(context.temp_allocator) {
+		// Scale up the dest rect—ui uses texture pixel size
+		src := Rect{Vec2(cmd.src.pos), Vec2(cmd.src.size)}
+		dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
+
+		// Draw color fill
+		if cmd.atlas == nil {
+			k2.draw_rect(k2_rect(dst), cmd.tint)
+			continue
+		}
+
+		// Convert px.Atlas to k2.Texture
+		tex, in_map := tex_map[cmd.atlas]
+		if !in_map {
+			tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, cmd.atlas.pixels),
+			                                     **cmd.atlas.size, .RGBA_8_Norm)
+			tex_map[cmd.atlas] = tex
+		}
+
+		// Draw texture
+		k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
+	}
+}
+
+ui :: proc () {
 
 	// root size
 	px.size_px(px.Vec2i(k2.get_screen_size()) / PIXEL_SCALE)
