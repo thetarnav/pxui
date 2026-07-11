@@ -210,25 +210,27 @@ flex_v :: proc (id: u64 = 0) -> bool {
 
 
 rect_cut_layout_post :: proc (el: ^Element) {
-	s := element_state(Rect_Cut, el.handle)
+
+	s  := element_state(Rect_Cut, el.handle)
+	ax := s.axis
 
 	// Find out how much space is taken by non-fill elements
 	// and how many elements need to share the remaining space
-	space_taken := rb(el.padding)[s.axis] +
-	               lt(el.padding)[s.axis]
+	space_taken := rb(el.padding)[ax] +
+	               lt(el.padding)[ax]
 	fills: int
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
 		defer child_id = child.next
 
-		if _, is_fill := child.size[s.axis].(Fill); is_fill {
+		if _, is_fill := child.size[ax].(Fill); is_fill {
 			fills += 1
 		} else {
-			space_taken += child.rel_rect.size[s.axis]
+			space_taken += child.rel_rect.size[ax]
 		}
-		space_taken += rb(child.margin)[s.axis] +
-		               lt(child.margin)[s.axis]
+		space_taken += rb(child.margin)[ax] +
+		               lt(child.margin)[ax]
 	}
 
 	prev: ^Element
@@ -237,19 +239,19 @@ rect_cut_layout_post :: proc (el: ^Element) {
 		defer child_id, prev = child.next, child
 
 		// All fill-children divide the remaining space equally
-		if _, is_fill := child.size[s.axis].(Fill); is_fill {
-			space := (el.rel_rect.size[s.axis] - space_taken)/fills
+		if _, is_fill := child.size[ax].(Fill); is_fill {
+			space := (el.rel_rect.size[ax] - space_taken)/fills
 			space_taken += space
 			fills -= 1
-			child.rel_rect.size[s.axis] = space
+			child.rel_rect.size[ax] = space
 		}
 
 		if prev != nil {
 			// Position each child below previous
-			child.rel_rect.pos[s.axis] = prev.rel_rect.pos[s.axis] +
-			                             prev.rel_rect.size[s.axis] +
-			                             rb(prev.margin)[s.axis] +
-			                             lt(child.margin)[s.axis]
+			child.rel_rect.pos[ax] = prev.rel_rect.pos[ax] +
+			                         prev.rel_rect.size[ax] +
+			                         rb(prev.margin)[ax] +
+			                         lt(child.margin)[ax]
 		}
 	}
 }
