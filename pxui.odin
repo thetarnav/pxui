@@ -282,7 +282,10 @@ solve_layout :: proc () {
 
 default_top_down :: proc (el, parent: ^Element) {
 	pos  := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
-	size := size_vec_to_pixel(el.size, parent.rel_rect.size - lt(parent.padding) - rb(parent.padding))
+	size := size_vec_to_pixel(el.size, parent.rel_rect.size -
+                                       lt(parent.padding) - rb(parent.padding) -
+                                       lt(el.padding) - rb(el.padding) -
+                                       lt(el.margin) - rb(el.margin))
 	// Update element rect
 	el.rel_rect.pos  = lt(parent.padding) + lt(el.margin) + pos
 	el.rel_rect.size = lt(el.padding) + rb(el.padding) + size
