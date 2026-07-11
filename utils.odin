@@ -7,6 +7,16 @@ lb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.b}}
 rt :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.t}}
 rb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.b}}
 
+element_size_and_margin :: proc (el: ^Element) -> Vec2i {
+	return el.rel_rect.size + lt(el.margin) + rb(el.margin)
+}
+element_size_and_margin_lt :: proc (el: ^Element) -> Vec2i {
+	return el.rel_rect.size + lt(el.margin)
+}
+element_size_and_margin_rb :: proc (el: ^Element) -> Vec2i {
+	return el.rel_rect.size + rb(el.margin)
+}
+
 // Convert a Size to a pixel value along one axis.
 // `ref` is the reference size in pixels (parent's content area along that axis).
 size_to_pixel :: proc (s: Size, ref: int) -> int {

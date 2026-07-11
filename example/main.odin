@@ -102,33 +102,37 @@ ui :: proc () {
 	px.background_color(k2.WHITE)
 
 	{
-		px.panel()
-		px.nine_slice()
+		px.h_stack()
 		px.margin(4)
 
-		px.h_stack()
-		px.padding(3)
-
 		{
-			counter()
-			px.padding(2, 1)
-			px.margin_right(1)
+			px.panel()
+			px.nine_slice()
+			px.margin_right(4)
+
+			px.h_stack()
+			px.padding(3)
+
+			{
+				counter()
+				px.padding(2, 1)
+				px.margin_right(1)
+			}
+
+			{
+				counter()
+				px.padding(3, 2)
+			}
 		}
 
 		{
-			counter()
-			px.padding(3, 2)
+			px.panel()
+			px.nine_slice()
+
+			count := counter()
+			px.padding(6, 2, 6, 5)
+			count^ += 1
 		}
-	}
-
-	{
-		px.panel()
-		px.nine_slice()
-		px.margin(4, 0, 4, 5)
-
-		count := counter()
-		px.padding(6, 2)
-		count^ += 1
 	}
 
 	{
@@ -140,7 +144,7 @@ ui :: proc () {
 
 		{
 			counter()
-			px.padding(3, 6, 3, 8)
+			px.padding(3, 0, 3, 3)
 		}
 
 		{
@@ -171,19 +175,34 @@ ui :: proc () {
 		px.flex_h()
 		px.width(px.Fill{})
 		px.background_color(k2.LIGHT_BROWN)
-		px.padding(4)
+		px.padding(2)
 		px.margin(4)
-		px.margin_right(16)
 
 		for i in 0..<10 {
 			px.panel()
-			px.background_color(k2.LIGHT_YELLOW)
+			px.background_color(k2.LIGHT_RED)
 			px.margin(2)
 			px.width((i % 5) * 10 + 16)
-			px.height(20)
+			px.height(14)
 		}
 	}
 
+	{
+		px.masonry(4)
+		px.width(px.Fill{})
+		px.background_color(k2.LIGHT_BROWN)
+		px.padding(2)
+		px.margin(4)
+		px.margin_right(16)
+
+		for i in 0..<8 {
+			px.panel()
+			px.background_color(k2.LIGHT_YELLOW)
+			px.margin(2)
+			px.width(1.0)
+			px.height((i % 5) * 12 + 20)
+		}
+	}
 
 	px.draw({
 		variant = px.Draw_Color{k2.LIGHT_RED},

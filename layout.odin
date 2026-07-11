@@ -1,5 +1,7 @@
 package pxui
 
+import "core:slice"
+
 size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
 	h := ctx.element_curr if h == {} else h
 	return element_get_assert(h).size
@@ -67,7 +69,7 @@ layout_post :: proc (cb: Layout_Callback) {element_curr().layout[.Post] = cb}
 
 
 @private
-_stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
+_stack_layout_post :: proc (el: ^Element, $AX: Axis) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -77,18 +79,16 @@ _stack_layout_post :: proc (el: ^Element, $AXIS: Axis) {
 		defer child_id, prev = child.next, child
 
 		// Position each child below previous
-		child.rel_rect.pos[AXIS] = prev.rel_rect.pos[AXIS] +
-		                           prev.rel_rect.size[AXIS] +
-		                           rb(prev.margin)[AXIS] +
-		                           lt(child.margin)[AXIS]
+		child.rel_rect.pos[AX] = prev.rel_rect.pos[AX] +
+		                         element_size_and_margin_rb(prev)[AX] +
+		                         lt(child.margin)[AX]
 	}
 
 	// Increase element rect
-	el.rel_rect.size[AXIS] = max(el.rel_rect.size[AXIS],
-	                             prev.rel_rect.pos[AXIS] +
-	                             prev.rel_rect.size[AXIS] +
-	                             rb(prev.margin)[AXIS] +
-	                             rb(el.padding)[AXIS])
+	el.rel_rect.size[AX] = max(el.rel_rect.size[AX],
+	                           prev.rel_rect.pos[AX] +
+	                           element_size_and_margin_rb(prev)[AX] +
+	                           rb(el.padding)[AX])
 }
 
 V_Stack :: struct {}
@@ -140,9 +140,7 @@ _flex_layout_post :: proc (el: ^Element, $AX: Axis) {
 
 	cursor: Vec2i
 	cursor[PERP] = lt(el.padding)[PERP]
-	cursor[AX] = prev.rel_rect.pos[AX] +
-	             prev.rel_rect.size[AX] +
-	             rb(prev.margin)[AX]
+	cursor[AX] = prev.rel_rect.pos[AX] + element_size_and_margin_rb(prev)[AX]
 
 	row_size: int
 
@@ -150,10 +148,8 @@ _flex_layout_post :: proc (el: ^Element, $AX: Axis) {
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		child_size := rb(child.margin)[AX] + child.rel_rect.size[AX]
-
 		cursor[AX] += lt(child.margin)[AX]
-		if cursor[AX] + child_size > max_size {
+		if cursor[AX] + element_size_and_margin_rb(child)[AX] > max_size {
 			cursor[AX] = lt(el.padding)[AX] + lt(child.margin)[AX]
 			cursor[PERP] += row_size
 			row_size = 0
@@ -162,11 +158,8 @@ _flex_layout_post :: proc (el: ^Element, $AX: Axis) {
 		child.rel_rect.pos = cursor
 		child.rel_rect.pos[PERP] += lt(child.margin)[PERP]
 
-		cursor[AX] += child_size
-		row_size = max(row_size,
-		               child.rel_rect.size[PERP] +
-		               lt(child.margin)[PERP] +
-		               rb(child.margin)[PERP])
+		cursor[AX] += element_size_and_margin_rb(child)[AX]
+		row_size = max(row_size, element_size_and_margin(child)[PERP])
 	}
 
 	// Increase element rect
@@ -269,5 +262,64 @@ rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0) {
 @(deferred_in=rect_cut_end)
 rect_cut :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
 	rect_cut_begin(axis, id)
+	return true
+}
+
+
+@private
+_masonry_layout_post :: proc (el: ^Element, c: int, $AX: Axis) {
+
+	_, has_children := element_get(el.child_first)
+	if !has_children do return
+
+	PERP :: (int(AX) + 1) % 2
+
+	cols := make([]int, c, context.temp_allocator)
+
+	space_w := el.rel_rect.size[PERP] -
+	           lt(el.padding)[PERP] -
+	           rb(el.padding)[PERP]
+	col_w := space_w / c
+
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		defer child_id = child.next
+
+		min_idx := slice.min_index(cols) or_break
+
+		child.rel_rect.pos[PERP] = min_idx * col_w
+		child.rel_rect.pos[AX]   = cols[min_idx]
+		child.rel_rect.pos += lt(child.margin) + rb(el.padding)
+
+		child.rel_rect.size[PERP] = col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP]
+
+		cols[min_idx] += element_size_and_margin(child)[AX]
+	}
+
+	el.rel_rect.size[AX] = max(el.rel_rect.size[AX],
+	                           slice.max(cols) +
+	                           lt(el.padding)[AX] +
+	                           rb(el.padding)[AX])
+}
+masonry_layout_post :: proc (el: ^Element) {
+	s := element_state(Masonry, el.handle)
+	if s.axis == .H do _masonry_layout_post(el, s.cols, .H)
+	else            do _masonry_layout_post(el, s.cols, .V)
+}
+
+Masonry :: struct {axis: Axis, cols: int}
+masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+	s, _, _ := element_push(Masonry, id)
+	s.axis = axis
+	s.cols = cols
+	layout_post(masonry_layout_post)
+}
+masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)
+	element_pop()
+}
+@(deferred_in=masonry_end)
+masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
+	masonry_begin(cols, axis, id, loc)
 	return true
 }
