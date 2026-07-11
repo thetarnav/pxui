@@ -77,7 +77,8 @@ render_ui :: proc () {
 ui :: proc () {
 
 	// root size
-	px.size_px(px.Vec2i(k2.get_screen_size()) / PIXEL_SCALE)
+	ws := px.Vec2i(k2.get_screen_size()) / PIXEL_SCALE
+	px.size_px(ws)
 
 	@(deferred_none=px.element_pop)
 	counter :: proc (id: u64 = 0) -> ^int {
@@ -188,7 +189,10 @@ ui :: proc () {
 	}
 
 	{
-		px.masonry(4)
+		cols := 4
+		if      ws.x < 250 do cols = 3
+		else if ws.x > 400 do cols = 5
+		px.masonry(cols)
 		px.width(px.Fill{})
 		px.background_color(k2.LIGHT_BROWN)
 		px.padding(2)
