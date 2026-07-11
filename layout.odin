@@ -279,7 +279,7 @@ _masonry_layout_post :: proc (el: ^Element, c: int, $AX: Axis) {
 	space_w := el.rel_rect.size[PERP] -
 	           lt(el.padding)[PERP] -
 	           rb(el.padding)[PERP]
-	col_w := space_w / c
+	col_w := space_w / c // TODO: what to do about the flored pixel fraction (it grows space after)
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
