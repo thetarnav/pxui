@@ -72,7 +72,8 @@ main :: proc () {
 
 draw_ui :: proc () {
 
-	px.size_px({UI_W, UI_H}) // root size
+	ws := px.Vec2i(k2.get_screen_size())
+	px.size_px(ws / PIXEL_SCALE) // root size
 
 	@(deferred_none=px.element_pop)
 	counter :: proc (id: u64 = 0) -> ^int {
@@ -87,9 +88,10 @@ draw_ui :: proc () {
 	}
 
 	px.panel()
-	px.nine_slice()
-	px.width(140)
+	px.margin(4)
 	px.padding(10)
+	px.width(px.Fill{})
+	px.nine_slice()
 
 	px.v_stack()
 	px.width(1.0)
