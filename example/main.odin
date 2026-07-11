@@ -17,6 +17,9 @@ main :: proc () {
 	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
 		options = {window_mode = .Windowed_Resizable})
 
+	camera := k2.Camera{zoom = PIXEL_SCALE}
+	k2.set_camera(camera)
+
 	px.init()
 
 	tex_map: map[^px.Atlas]k2.Texture
@@ -28,9 +31,7 @@ main :: proc () {
 		k2.clear({30, 30, 40, 255})
 		px.frame_begin()
 
-		mouse := k2.get_mouse_position() / PIXEL_SCALE
-
-		px.ctx.mouse          = px.Vec2i(mouse)
+		px.ctx.mouse          = px.Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
 		px.ctx.mouse_pressed  = k2.mouse_button_went_down(.Left)
 		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
 		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
@@ -42,8 +43,6 @@ main :: proc () {
 			// Scale up the dest rect—ui uses texture pixel size
 			src := Rect{Vec2(cmd.src.pos), Vec2(cmd.src.size)}
 			dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
-			dst.pos  *= PIXEL_SCALE
-			dst.size *= PIXEL_SCALE
 
 			// Draw color fill
 			if cmd.atlas == nil {
@@ -72,8 +71,8 @@ main :: proc () {
 
 draw_ui :: proc () {
 
-	ws := px.Vec2i(k2.get_screen_size())
-	px.size_px(ws / PIXEL_SCALE) // root size
+	// root size
+	px.size_px(px.Vec2i(k2.get_screen_size()) / PIXEL_SCALE)
 
 	@(deferred_none=px.element_pop)
 	counter :: proc (id: u64 = 0) -> ^int {
