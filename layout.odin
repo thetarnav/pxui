@@ -405,14 +405,7 @@ scrollbar :: proc (loc := #caller_location) -> bool {
 
 scrollbar_thumb_begin :: proc (loc := #caller_location) {
 	element_push(Scroll_Area_Scrollbar_Thumb, loc=loc)
-
-	scrollbar := element_parent()
-	state     := element_state(Scroll_Area_Container, scrollbar.parent, loc)
-
-	ax := state.axis
-
-	size_axis_fill(perp(ax))
-	size_axis(ax, 10) // fallback; set in layout proc
+	size_fill()
 
 	layout_top_down(proc (el: ^Element) {
 		scrollbar := element_parent()
