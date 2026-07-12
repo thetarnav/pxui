@@ -1,9 +1,10 @@
 package pxui
 
+import "core:io"
 import "core:os"
 import "core:strings"
 
-debug_tree_display :: proc (allocator := context.allocator) -> string {
+debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
 	root := element_get_assert(ctx.element_root)
 	screen := root.screen_pos + root.rel_rect.size
@@ -63,7 +64,38 @@ debug_tree_display :: proc (allocator := context.allocator) -> string {
 		return true
 	}
 }
-debug_tree_print :: proc () {
-	str := debug_tree_display(context.temp_allocator)
+debug_tree_layout_print :: proc () {
+	str := debug_tree_display_layout(context.temp_allocator)
 	os.write_string(os.stdout, str)
+}
+
+Debug_Tree_Display_Proc :: proc (w: io.Writer, el: ^Element)
+debug_tree_display_write :: proc (w: io.Writer, root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
+
+	visit(w, info, root, 0)
+	visit :: proc (w: io.Writer, info: Debug_Tree_Display_Proc, h: Element_Handle, depth: int) -> bool {
+		el := element_get(h) or_return
+
+		for _ in 0..<depth {
+			io.write_string(w, "| ")
+		}
+		element_display_writer(w, el)
+
+		if info != nil {
+			io.write_rune(w, ' ')
+			info(w, el)
+		}
+
+		io.write_rune(w, '\n')
+
+		visit(w, info, el.child_first, depth+1)
+		visit(w, info, el.next, depth)
+
+		return true
+	}
+}
+
+debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
+	w := io.to_writer(os.to_writer(os.stdout))
+	debug_tree_display_write(w, root, info)
 }
