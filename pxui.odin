@@ -54,8 +54,8 @@ ctx: Context
 Element_Flag  :: enum u8 {Non_Interactable}
 Element_Flags :: bit_set[Element_Flag]
 
-Layout_Phase    :: enum {Pre, Post}
-Layout_Callback :: proc (^Element)
+Layout_Direction :: enum {Top_Down, Bottom_Up}
+Layout_Callback  :: proc (^Element)
 
 Element :: struct {
 	type:        typeid,
@@ -76,7 +76,7 @@ Element :: struct {
 	padding:     Insets,
 	pos, size:   Size_Vec,
 
-	layout:      [Layout_Phase]Layout_Callback,
+	layout:      [Layout_Direction]Layout_Callback,
 
 	rel_rect:    Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
 	screen_pos:  Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
@@ -114,6 +114,10 @@ element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> 
 	fmt.assertf(ok, "Couldn't find element with the handle `%v`.", handle, loc=loc)
 	return el
 }
+element_get_or_curr :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
+	h := ctx.element_curr if h == {} else h
+	return element_get_assert(h)
+}
 
 @(require_results)
 element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
@@ -122,10 +126,17 @@ element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 }
 
 element_state :: proc ($T: typeid, h: Element_Handle = {}) -> ^T {
-	h := ctx.element_curr if h == {} else h
-	el := element_get_assert(h)
+	el := element_get_or_curr(h)
 	assert(el.type == typeid_of(T))
 	return (^T)(el.data_ptr)
+}
+
+element_size :: proc (h: Element_Handle = {}) -> Size_Vec {
+	return element_get_or_curr(h).size
+}
+element_screen_rect :: proc (h: Element_Handle = {}) -> Rect {
+	el := element_get_or_curr(h)
+	return {el.screen_pos, el.rel_rect.size}
 }
 
 @private
@@ -260,12 +271,12 @@ solve_layout :: proc () {
 	}
 
 	// Pre cb on root: trusted to size/position root.
-	call_layout(root, .Pre)
+	call_layout(root, .Top_Down)
 	solve_siblings(root.child_first)
 
 	fmt.println(root.rel_rect.size, element_get_assert(root.child_first).rel_rect.size)
 
-	call_layout :: proc (el: ^Element, phase: Layout_Phase) -> bool {
+	call_layout :: proc (el: ^Element, phase: Layout_Direction) -> bool {
 		cb := el.layout[phase]
 		if cb == nil do return false
 		ctx.element_curr = el.handle
@@ -278,11 +289,11 @@ solve_layout :: proc () {
 		parent := element_get_assert(el.parent)
 
 		// default_top_down(el, parent)
-		call_layout(el, .Pre)
+		call_layout(el, .Top_Down)
 
 		solve_siblings(el.child_first)
 
-		call_layout(el, .Post)
+		call_layout(el, .Bottom_Up)
 		default_bottom_up(el, parent)
 	}
 

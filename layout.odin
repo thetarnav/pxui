@@ -2,16 +2,6 @@ package pxui
 
 import "core:slice"
 
-element_size :: proc (h: Element_Handle = {}) -> Size_Vec {
-	h := ctx.element_curr if h == {} else h
-	return element_get_assert(h).size
-}
-element_screen_rect :: proc (h: Element_Handle = {}) -> Rect {
-	h  := ctx.element_curr if h == {} else h
-	el := element_get_assert(h)
-	return {el.screen_pos, el.rel_rect.size}
-}
-
 size           :: proc (v: Size_Vec) {element_curr().size = v}
 size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
 size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
@@ -76,12 +66,12 @@ padding_right      :: padding_r
 padding_top        :: padding_t
 
 
-layout_pre  :: proc (cb: Layout_Callback) {element_curr().layout[.Pre]  = cb}
-layout_post :: proc (cb: Layout_Callback) {element_curr().layout[.Post] = cb}
+layout_top_down  :: proc (cb: Layout_Callback) {element_curr().layout[.Top_Down]  = cb}
+layout_bottom_up :: proc (cb: Layout_Callback) {element_curr().layout[.Bottom_Up] = cb}
 
 
 @private
-_stack_layout_post :: proc (el: ^Element, $AX: Axis) {
+_stack_update_layout :: proc (el: ^Element, $AX: Axis) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -105,11 +95,11 @@ _stack_layout_post :: proc (el: ^Element, $AX: Axis) {
 
 V_Stack :: struct {}
 v_stack_layout_post :: proc (el: ^Element) {
-	_stack_layout_post(el, .Y)
+	_stack_update_layout(el, .Y)
 }
 v_stack_begin :: proc (id: u64 = 0) {
 	element_push(V_Stack, id)
-	layout_post(v_stack_layout_post)
+	layout_bottom_up(v_stack_layout_post)
 }
 v_stack_end :: proc (id: u64 = 0) {
 	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash)
@@ -122,12 +112,12 @@ v_stack :: proc (id: u64 = 0) -> bool {
 }
 
 H_Stack :: struct {}
-h_stack_layout_post :: proc (el: ^Element) {
-	_stack_layout_post(el, .X)
+h_stack_update_layout :: proc (el: ^Element) {
+	_stack_update_layout(el, .X)
 }
 h_stack_begin :: proc (id: u64 = 0) {
 	element_push(H_Stack, id)
-	layout_post(h_stack_layout_post)
+	layout_bottom_up(h_stack_update_layout)
 }
 h_stack_end :: proc (id: u64 = 0) {
 	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash)
@@ -140,7 +130,8 @@ h_stack :: proc (id: u64 = 0) -> bool {
 }
 
 
-_flex_layout_post :: proc (el: ^Element, $AX: Axis) {
+@private
+_flex_update_layout :: proc (el: ^Element, $AX: Axis) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -183,15 +174,15 @@ _flex_layout_post :: proc (el: ^Element, $AX: Axis) {
 }
 
 Flex :: struct {axis: Axis}
-flex_layout_post :: proc (el: ^Element) {
+flex_update_layout :: proc (el: ^Element) {
 	s := element_state(Flex, el.handle)
-	if s.axis == .H do _flex_layout_post(el, .H)
-	else            do _flex_layout_post(el, .V)
+	if s.axis == .H do _flex_update_layout(el, .H)
+	else            do _flex_update_layout(el, .V)
 }
 flex_begin :: proc (axis: Axis = .H, id: u64 = 0) {
 	s, _, _ := element_push(Flex, id)
 	s.axis = axis
-	layout_post(flex_layout_post)
+	layout_bottom_up(flex_update_layout)
 }
 flex_end :: proc () {
 	assert(typeid_of(Flex) == element_curr().type)
@@ -214,7 +205,7 @@ flex_v :: proc (id: u64 = 0) -> bool {
 }
 
 
-rect_cut_layout_post :: proc (el: ^Element) {
+rect_cut_update_layout :: proc (el: ^Element) {
 
 	s  := element_state(Rect_Cut, el.handle)
 	ax := s.axis
@@ -265,7 +256,7 @@ Rect_Cut :: struct {axis: Axis}
 rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0) {
 	s, _, _ := element_push(Rect_Cut, id)
 	s.axis = axis
-	layout_pre(rect_cut_layout_post)
+	layout_top_down(rect_cut_update_layout)
 }
 rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash)
@@ -279,7 +270,7 @@ rect_cut :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
 
 
 @private
-_masonry_layout_post :: proc (el: ^Element, c: int, $AX: Axis) {
+_masonry_update_layout :: proc (el: ^Element, c: int, $AX: Axis) {
 
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -313,10 +304,10 @@ _masonry_layout_post :: proc (el: ^Element, c: int, $AX: Axis) {
 	                           lt(el.padding)[AX] +
 	                           rb(el.padding)[AX])
 }
-masonry_layout_post :: proc (el: ^Element) {
+masonry_update_layout :: proc (el: ^Element) {
 	s := element_state(Masonry, el.handle)
-	if s.axis == .H do _masonry_layout_post(el, s.cols, .H)
-	else            do _masonry_layout_post(el, s.cols, .V)
+	if s.axis == .H do _masonry_update_layout(el, s.cols, .H)
+	else            do _masonry_update_layout(el, s.cols, .V)
 }
 
 Masonry :: struct {axis: Axis, cols: int}
@@ -324,7 +315,7 @@ masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_l
 	s, _, _ := element_push(Masonry, id)
 	s.axis = axis
 	s.cols = cols
-	layout_pre(masonry_layout_post)
+	layout_top_down(masonry_update_layout)
 }
 masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)
