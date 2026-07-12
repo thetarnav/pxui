@@ -1,10 +1,14 @@
 package pxui
 
+import "core:io"
+import "core:strings"
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
 import hm "core:container/handle_map"
 
+@private
+Source_Code_Location :: runtime.Source_Code_Location
 
 Vec2i    :: [2]int
 Vec2f    :: [2]f32
@@ -65,17 +69,19 @@ Layout_Direction :: enum {Top_Down, Bottom_Up}
 Layout_Callback  :: proc (^Element)
 
 Element :: struct {
-	type:         typeid,
-	hash:         u64,            // type + user id
-	data_ptr:     rawptr,         // ptr to user component state
+	type:         typeid,               // data_ptr type
+	id:           u64,
+	loc:          Source_Code_Location, // element_push call location
+	hash:         u64,                  // type + user id
+	data_ptr:     rawptr,               // ptr to user component state
 
-	using handle: Element_Handle, // self
-	parent:       Element_Handle, // can be zero—root
-	child_first:  Element_Handle, // can be zero—no children
-	child_last:   Element_Handle, // can be zero—no children
-	next, prev:   Element_Handle, // can be zero—siblings
+	using handle: Element_Handle,       // self
+	parent:       Element_Handle,       // can be zero—root
+	child_first:  Element_Handle,       // can be zero—no children
+	child_last:   Element_Handle,       // can be zero—no children
+	next, prev:   Element_Handle,       // can be zero—siblings
 
-	_found:       bool,           // was the element present in this frame?
+	_found:       bool,                 // was the element present in this frame?
 	flags:        Element_Flags,
 	mouse_in:     bool,
 
@@ -132,6 +138,47 @@ element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 	return hash_combine(type_id, user_id) if user_id > 0 else type_id
 }
 
+element_display_write  :: proc (buf: []byte, i: ^int, h: Element_Handle = {}, loc := #caller_location) -> bool {
+	el := element_get_or_curr(h, loc=loc)
+
+	_ = runtime.write_rune(i, buf, '<') or_return
+
+	runtime.write_typeid(i, buf, el.type) or_return
+
+	if el.id != 0 {
+		runtime.write_string(i, buf, " id=") or_return
+		runtime.write_u64(i, buf, el.id) or_return
+	}
+
+	if el.loc != {} {
+		runtime.write_string(i, buf, " loc=") or_return
+		runtime.write_caller_location(i, buf, el.loc) or_return
+	}
+
+	_ = runtime.write_rune(i, buf, '>') or_return
+
+	return true
+}
+element_display_writer  :: proc (w: io.Writer, h: Element_Handle = {}, n_written: ^int = nil, loc := #caller_location) -> (n: int, err: io.Error) {
+	buf: [1024]byte
+	i: int
+	element_display_write(buf[:], &i, h, loc=loc)
+	return io.write_full(w, buf[:i])
+}
+element_display_builder  :: proc (sb: ^strings.Builder, h: Element_Handle = {}, loc := #caller_location) -> int {
+	buf: [1024]byte
+	i: int
+	element_display_write(buf[:], &i, h, loc=loc)
+	return strings.write_bytes(sb, buf[:i], loc=loc)
+}
+@(require_results)
+element_display_string :: proc (h: Element_Handle = {}, allocator := context.allocator, loc := #caller_location) -> (string, bool) #optional_ok {
+	sb := strings.builder_make(allocator, loc=loc)
+	n := element_display_builder(&sb, h, loc=loc)
+	return strings.to_string(sb), n > 0
+}
+element_display :: proc {element_display_write, element_display_writer, element_display_builder, element_display_string}
+
 element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
 	el := element_get_or_curr(h, loc)
 	assert(el.type == typeid_of(T), loc=loc)
@@ -151,10 +198,10 @@ element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Ele
 }
 
 @private
-_element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64, loc := #caller_location) ->
+_element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, loc := #caller_location) ->
                       (state: rawptr, el: ^Element, init: bool)
 {
-	hash   := element_hash(T, user_id)
+	hash   := element_hash(type, user_id)
 	parent := element_curr()
 
 	search: {
@@ -174,12 +221,14 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64, loc := #ca
 		// Not found—alloc and append a new element
 
 		// TODO: use pool/arena for state to keep memory continious
-		bytes, alloc_err := runtime.mem_alloc(T_size, T_align, allocator=ctx.allocator)
+		bytes, alloc_err := runtime.mem_alloc(type_size, type_align, allocator=ctx.allocator)
 		assert(alloc_err == nil)
 
 		handle, add_err := hm.add(&ctx.elements, Element{
-			type     = T,
+			type     = type,
 			hash     = hash,
+			id       = user_id,
+			loc      = loc,
 			parent   = parent.handle,
 			data_ptr = raw_data(bytes),
 		})
@@ -201,15 +250,15 @@ _element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64, loc := #ca
 	ctx.element_curr = el.handle
 	el._found        = true
 	state            = el.data_ptr
-	assert(T_size == 0 || state != nil)
+	assert(type_size == 0 || state != nil)
 
 	return
 }
 
-element_push :: #force_inline proc ($T: typeid, id: u64 = 0) ->
+element_push :: #force_inline proc ($T: typeid, id: u64 = 0, loc := #caller_location) ->
                                    (state: ^T, element: ^Element, init: bool) {
 	ptr: rawptr
-	ptr, element, init = _element_push(T, size_of(T), align_of(T), id)
+	ptr, element, init = _element_push(T, size_of(T), align_of(T), id, loc)
 	return (^T)(ptr), element, init
 }
 

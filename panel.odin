@@ -23,16 +23,16 @@ get_panel_atlas :: proc () -> Atlas {
 }
 
 Panel :: struct {}
-panel_begin :: proc (id: u64 = 0) {
-	element_push(Panel, id)
+panel_begin :: proc (id: u64 = 0, loc := #caller_location) {
+	element_push(Panel, id, loc)
 }
-panel_end :: proc (id: u64 = 0) {
-	assert(element_hash(typeid_of(Panel), id) == element_curr().hash)
+panel_end :: proc (id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(Panel), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=panel_end)
-panel :: proc (id: u64 = 0) -> bool {
-	panel_begin(id)
+panel :: proc (id: u64 = 0, loc := #caller_location) -> bool {
+	panel_begin(id, loc)
 	return true
 }
 

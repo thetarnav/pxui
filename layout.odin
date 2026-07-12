@@ -102,17 +102,17 @@ V_Stack :: struct {}
 v_stack_layout_post :: proc (el: ^Element) {
 	_stack_update_layout(el, .Y)
 }
-v_stack_begin :: proc (id: u64 = 0) {
-	element_push(V_Stack, id)
+v_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
+	element_push(V_Stack, id, loc)
 	layout_bottom_up(v_stack_layout_post)
 }
-v_stack_end :: proc (id: u64 = 0) {
-	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash)
+v_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=v_stack_end)
-v_stack :: proc (id: u64 = 0) -> bool {
-	v_stack_begin(id)
+v_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
+	v_stack_begin(id, loc)
 	return true
 }
 
@@ -120,17 +120,17 @@ H_Stack :: struct {}
 h_stack_update_layout :: proc (el: ^Element) {
 	_stack_update_layout(el, .X)
 }
-h_stack_begin :: proc (id: u64 = 0) {
-	element_push(H_Stack, id)
+h_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
+	element_push(H_Stack, id, loc)
 	layout_bottom_up(h_stack_update_layout)
 }
-h_stack_end :: proc (id: u64 = 0) {
-	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash)
+h_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=h_stack_end)
-h_stack :: proc (id: u64 = 0) -> bool {
-	h_stack_begin(id)
+h_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
+	h_stack_begin(id, loc)
 	return true
 }
 
@@ -184,8 +184,8 @@ flex_update_layout :: proc (el: ^Element) {
 	if s.axis == .H do _flex_update_layout(el, .H)
 	else            do _flex_update_layout(el, .V)
 }
-flex_begin :: proc (axis: Axis = .H, id: u64 = 0) {
-	s, _, _ := element_push(Flex, id)
+flex_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+	s, _, _ := element_push(Flex, id, loc)
 	s.axis = axis
 	layout_bottom_up(flex_update_layout)
 }
@@ -194,18 +194,18 @@ flex_end :: proc () {
 	element_pop()
 }
 @(deferred_none=flex_end)
-flex :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
-	flex_begin(axis, id)
+flex :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(axis, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_h :: proc (id: u64 = 0) -> bool {
-	flex_begin(.H, id)
+flex_h :: proc (id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(.H, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_v :: proc (id: u64 = 0) -> bool {
-	flex_begin(.V, id)
+flex_v :: proc (id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(.V, id, loc)
 	return true
 }
 
@@ -258,18 +258,18 @@ rect_cut_update_layout :: proc (el: ^Element) {
 }
 
 Rect_Cut :: struct {axis: Axis}
-rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0) {
-	s, _, _ := element_push(Rect_Cut, id)
+rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+	s, _, _ := element_push(Rect_Cut, id, loc)
 	s.axis = axis
 	layout_top_down(rect_cut_update_layout)
 }
-rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0) {
-	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash)
+rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=rect_cut_end)
-rect_cut :: proc (axis: Axis = .H, id: u64 = 0) -> bool {
-	rect_cut_begin(axis, id)
+rect_cut :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool {
+	rect_cut_begin(axis, id, loc)
 	return true
 }
 
@@ -317,7 +317,7 @@ masonry_update_layout :: proc (el: ^Element) {
 
 Masonry :: struct {axis: Axis, cols: int}
 masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
-	s, _, _ := element_push(Masonry, id)
+	s, _, _ := element_push(Masonry, id, loc)
 	s.axis = axis
 	s.cols = cols
 	layout_top_down(masonry_update_layout)
@@ -339,13 +339,13 @@ Scroll_Area_Scrollbar       :: struct {}
 Scroll_Area_Scrollbar_Thumb :: struct {}
 scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
-	state, _, _ := element_push(Scroll_Area_Container, id)
+	state, _, _ := element_push(Scroll_Area_Container, id, loc)
 	state.axis = axis
 
 	size_fill()
 
 	layout_bottom_up(proc (outer: ^Element) {
-		state := element_state(Scroll_Area_Container)
+		state := element_state(Scroll_Area_Container,)
 		ax := state.axis
 
 		content := element_get_assert(outer.child_first)
@@ -372,7 +372,7 @@ scroll_container :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location)
 }
 
 scroll_content_begin :: proc (loc := #caller_location) {
-	_, el, _ := element_push(Scroll_Area_Content)
+	_, el, _ := element_push(Scroll_Area_Content, loc=loc)
 	state := element_state(Scroll_Area_Container, el.parent, loc)
 	size_axis_fill(perp(state.axis))
 }
@@ -387,7 +387,7 @@ scroll_content :: proc (loc := #caller_location) -> bool {
 }
 
 scrollbar_begin :: proc (loc := #caller_location) {
-	_, el, _ := element_push(Scroll_Area_Scrollbar)
+	_, el, _ := element_push(Scroll_Area_Scrollbar, loc=loc)
 	state := element_state(Scroll_Area_Container, el.parent, loc)
 
 	size_axis_fill(state.axis)
@@ -404,7 +404,7 @@ scrollbar :: proc (loc := #caller_location) -> bool {
 }
 
 scrollbar_thumb_begin :: proc (loc := #caller_location) {
-	element_push(Scroll_Area_Scrollbar_Thumb)
+	element_push(Scroll_Area_Scrollbar_Thumb, loc=loc)
 
 	scrollbar := element_parent()
 	state     := element_state(Scroll_Area_Container, scrollbar.parent, loc)

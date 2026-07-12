@@ -110,7 +110,9 @@ ui :: proc () {
 	defer {
 		px.scrollbar()
 		px.background_color({180, 140, 100, 255})
+
 		px.scrollbar_thumb()
+
 		px.panel()
 		px.size_fill()
 		px.margin(2)
