@@ -2,32 +2,44 @@ package pxui
 
 import "core:slice"
 
-size_get :: proc (h: Element_Handle = {}) -> Size_Vec {
+element_size :: proc (h: Element_Handle = {}) -> Size_Vec {
 	h := ctx.element_curr if h == {} else h
 	return element_get_assert(h).size
+}
+element_screen_rect :: proc (h: Element_Handle = {}) -> Rect {
+	h  := ctx.element_curr if h == {} else h
+	el := element_get_assert(h)
+	return {el.screen_pos, el.rel_rect.size}
 }
 
 size           :: proc (v: Size_Vec) {element_curr().size = v}
 size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
 size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
+size_fill      :: proc ()            {element_curr().size = Fill{}}
 size_w         :: proc (w: Size)     {element_curr().size.x = w}
 size_w_px      :: proc (w: int)      {element_curr().size.x = w}
 size_w_percent :: proc (w: f32)      {element_curr().size.x = w}
+size_w_fill    :: proc ()            {element_curr().size.x = Fill{}}
 size_h         :: proc (h: Size)     {element_curr().size.y = h}
 size_h_px      :: proc (h: int)      {element_curr().size.y = h}
 size_h_percent :: proc (h: f32)      {element_curr().size.y = h}
+size_h_fill    :: proc ()            {element_curr().size.y = Fill{}}
 size_x         :: size_w
 size_x_px      :: size_w_px
 size_x_percent :: size_w_percent
+size_x_fill    :: size_w_fill
 size_y         :: size_h
 size_y_px      :: size_h_px
 size_y_percent :: size_h_percent
+size_y_fill    :: size_h_fill
 width          :: size_w
 width_px       :: size_w_px
 width_percent  :: size_w_percent
+width_fill     :: size_w_fill
 height         :: size_h
 height_px      :: size_h_px
 height_percent :: size_h_percent
+height_fill    :: size_h_fill
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
@@ -253,7 +265,7 @@ Rect_Cut :: struct {axis: Axis}
 rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0) {
 	s, _, _ := element_push(Rect_Cut, id)
 	s.axis = axis
-	layout_post(rect_cut_layout_post)
+	layout_pre(rect_cut_layout_post)
 }
 rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash)
@@ -312,7 +324,7 @@ masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_l
 	s, _, _ := element_push(Masonry, id)
 	s.axis = axis
 	s.cols = cols
-	layout_post(masonry_layout_post)
+	layout_pre(masonry_layout_post)
 }
 masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)

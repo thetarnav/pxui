@@ -72,12 +72,17 @@ render_ui :: proc () {
 		// Draw texture
 		k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
 	}
+
+	// ws := k2.get_screen_size() / PIXEL_SCALE
+	// k2.draw_rect_outline({0, 0, **ws}, 2, k2.RED)
+	//
+	// k2.draw_rect_outline(k2_rect_px(px.element_screen_rect(px.ctx.element_root)), 2, k2.GREEN)
 }
 
 ui :: proc () {
 
 	// root size
-	ws := px.Vec2i(k2.get_screen_size()) / PIXEL_SCALE
+	ws := px.Vec2i(k2.get_screen_size() / PIXEL_SCALE)
 	px.size_px(ws)
 
 	@(deferred_none=px.element_pop)
@@ -95,11 +100,11 @@ ui :: proc () {
 	px.panel()
 	px.margin(4)
 	px.padding(10)
-	px.width(px.Fill{})
+	px.width_fill()
 	px.nine_slice()
 
 	px.v_stack()
-	px.width(1.0)
+	px.width_fill()
 	px.background_color(k2.WHITE)
 
 	{
@@ -152,8 +157,7 @@ ui :: proc () {
 			px.panel()
 			px.background_color(k2.LIGHT_YELLOW)
 			px.margin_right(3)
-			px.width(px.Fill{})
-			px.height(px.Fill{})
+			px.size_fill()
 		}
 
 		{
@@ -161,20 +165,19 @@ ui :: proc () {
 			px.background_color(k2.LIGHT_PURPLE)
 			px.margin_right(3)
 			px.width(20)
-			px.height(px.Fill{})
+			px.height_fill()
 		}
 
 		{
 			px.panel()
 			px.background_color(k2.LIGHT_BLUE)
-			px.width(px.Fill{})
-			px.height(px.Fill{})
+			px.size_fill()
 		}
 	}
 
 	{
 		px.flex_h()
-		px.width(px.Fill{})
+		px.width_fill()
 		px.background_color(k2.LIGHT_BROWN)
 		px.padding(2)
 		px.margin(4)
@@ -193,18 +196,26 @@ ui :: proc () {
 		if      ws.x < 250 do cols = 3
 		else if ws.x > 400 do cols = 5
 		px.masonry(cols)
-		px.width(px.Fill{})
+		px.width_fill()
 		px.background_color(k2.LIGHT_BROWN)
 		px.padding(2)
 		px.margin(4)
 		px.margin_right(16)
 
 		for i in 0..<8 {
-			px.panel()
-			px.background_color(k2.LIGHT_YELLOW)
+			px.rect_cut()
+			px.width_fill()
 			px.margin(2)
-			px.width(1.0)
-			px.height((i % 5) * 12 + 20)
+			px.padding(1)
+			px.background_color(k2.LIGHT_YELLOW)
+
+			for j in 0..<2 {
+				px.panel()
+				px.background_color(k2.LIGHT_RED)
+				px.width_fill()
+				px.height((i % 5) * 8 + 10 + j * 16)
+				px.margin(1)
+			}
 		}
 	}
 
@@ -218,5 +229,8 @@ ui :: proc () {
 
 k2_rect :: proc (r: Rect) -> k2.Rect {
 	return k2.Rect{**r.pos, **r.size}
+}
+k2_rect_px :: proc (r: px.Rect) -> k2.Rect {
+	return k2.Rect{**Vec2(r.pos), **Vec2(r.size)}
 }
 

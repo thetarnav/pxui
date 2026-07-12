@@ -3,7 +3,6 @@ package pxui
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
-import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 
@@ -17,8 +16,8 @@ Insets   :: struct {l, t, r, b: int}
 
 Content :: struct {}
 Fill    :: struct {}
-Size :: union {
-	Content, // derive from content
+Size :: union #no_nil {
+	Content, // derive from content - default
 	Fill,    // fill available space
 	int,     // absolute
 	f32,     // relative
@@ -238,15 +237,33 @@ frame_end :: proc () {
 }
 
 solve_layout :: proc () {
+
 	root := element_get_assert(ctx.element_root)
 
 	// Root is sized by the user like any other element.
 	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
 	root.rel_rect = {0, size_vec_to_pixel(root.size, 0)}
 
+	update_size(root.child_first)
+
+	update_size :: proc (h: Element_Handle) -> bool {
+		el     := element_get(h) or_return
+		parent := element_get_assert(el.parent)
+
+		default_top_down(el, parent)
+		update_size(el.child_first)
+
+		default_bottom_up(el, parent)
+		update_size(el.next)
+
+		return true
+	}
+
 	// Pre cb on root: trusted to size/position root.
 	call_layout(root, .Pre)
 	solve_siblings(root.child_first)
+
+	fmt.println(root.rel_rect.size, element_get_assert(root.child_first).rel_rect.size)
 
 	call_layout :: proc (el: ^Element, phase: Layout_Phase) -> bool {
 		cb := el.layout[phase]
@@ -260,14 +277,12 @@ solve_layout :: proc () {
 	solve_node :: proc (el: ^Element) {
 		parent := element_get_assert(el.parent)
 
-		// Pre cb owns the whole subtree.
-		if call_layout(el, .Pre) do return
+		// default_top_down(el, parent)
+		call_layout(el, .Pre)
 
-		default_top_down(el, parent)
 		solve_siblings(el.child_first)
 
 		call_layout(el, .Post)
-
 		default_bottom_up(el, parent)
 	}
 
@@ -279,26 +294,39 @@ solve_layout :: proc () {
 	}
 }
 
-
 default_top_down :: proc (el, parent: ^Element) {
-	pos  := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
-	size := size_vec_to_pixel(el.size, parent.rel_rect.size -
-                                       lt(parent.padding) - rb(parent.padding) -
-                                       lt(el.padding) - rb(el.padding) -
-                                       lt(el.margin) - rb(el.margin))
-	// Update element rect
-	el.rel_rect.pos  = lt(parent.padding) + lt(el.margin) + pos
-	el.rel_rect.size = lt(el.padding) + rb(el.padding) + size
+
+	pos := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
+
+	el.rel_rect.pos = lt(parent.padding) + lt(el.margin) + pos
+
+	for s, ax in el.size {
+		switch v in s {
+		case Fill, f32:
+			percent := v.(f32) or_else 1.0
+			avail_size := parent.rel_rect.size[ax] -
+			              lt(parent.padding)[ax] - rb(parent.padding)[ax] -
+			              lt(el.padding)[ax] - rb(el.padding)[ax] -
+			              lt(el.margin)[ax] - rb(el.margin)[ax]
+			el.rel_rect.size[ax] = int(f32(avail_size) * percent) +
+			                       lt(el.padding)[ax] + rb(el.padding)[ax]
+		case Content:
+			// skip - done in bottom-up step
+		case int:
+			el.rel_rect.size[ax] = v
+		}
+	}
 }
 
 default_bottom_up :: proc (el, parent: ^Element) {
 	// Update parent rect by own size
-	parent.rel_rect.size = la.max(parent.rel_rect.size,
-	                              el.rel_rect.size +
-	                              lt(el.margin) +
-	                              rb(el.margin) +
-	                              lt(parent.padding) +
-	                              rb(parent.padding))
+	for s, ax in parent.size {
+		_ = s.(Content) or_continue
+		parent.rel_rect.size[ax] = max(parent.rel_rect.size[ax],
+		                               el.rel_rect.size[ax] +
+		                               lt(el.margin)[ax] + rb(el.margin)[ax] +
+		                               lt(parent.padding)[ax] + rb(parent.padding)[ax])
+	}
 }
 
 update_screen_rect_and_mouse :: proc () {
