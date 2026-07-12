@@ -2,6 +2,8 @@ package pxui
 
 import la "core:math/linalg"
 
+perp :: #force_inline proc "contextless" (a: Axis) -> Axis {return Axis((int(a) + 1) % 2)}
+
 lt :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.t}}
 lb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.b}}
 rt :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.t}}

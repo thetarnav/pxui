@@ -32,22 +32,29 @@ Atlas :: struct {
 	size:   Vec2i,
 }
 
-Context :: struct {
-	allocator:    mem.Allocator,
-
-	elements:     hm.Dynamic_Handle_Map(Element, Element_Handle), // TODO: implement own? why a xar is used—the point of handled is not to use pointers
-	element_curr: Element_Handle,
-	element_root: Element_Handle,
-
-	draw_commands: Draw_Commands,
-
-	// Per frame input
+// Per frame input
+Frame_Input :: struct {
 	mouse:          Vec2i,
 	mouse_pressed:  bool,
 	mouse_released: bool,
 	mouse_held:     bool,
 
-	element_hover:  Element_Handle,
+	wheel_delta:    Vec2f,
+}
+
+Context :: struct {
+	allocator:         mem.Allocator,
+
+	// TODO: implement own?  why a xar is  used—the point of handled  is not to use  pointers
+	elements:          hm.Dynamic_Handle_Map(Element, Element_Handle),
+	element_curr:      Element_Handle,
+	element_root:      Element_Handle,
+
+	draw_commands:     Draw_Commands,
+
+	using frame_input: Frame_Input,
+
+	element_hover:     Element_Handle,
 }
 ctx: Context
 
@@ -372,13 +379,10 @@ update_screen_rect_and_mouse :: proc () {
 }
 
 is_hovered :: proc (h: Element_Handle = {}) -> bool {
-	h := ctx.element_curr if h == {} else h
-	return ctx.element_hover == h
+	return element_get_or_curr(h).handle == ctx.element_hover
 }
 is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
-	h := ctx.element_curr if h == {} else h
-	el := element_get(h) or_return
-	return el.mouse_in
+	return element_get_or_curr(h).mouse_in
 }
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed

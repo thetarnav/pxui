@@ -2,34 +2,38 @@ package pxui
 
 import "core:slice"
 
-size           :: proc (v: Size_Vec) {element_curr().size = v}
-size_px        :: proc (v: Vec2i)    {element_curr().size = {v.x, v.y}}
-size_percent   :: proc (v: Vec2f)    {element_curr().size = {v.x, v.y}}
-size_fill      :: proc ()            {element_curr().size = Fill{}}
-size_w         :: proc (w: Size)     {element_curr().size.x = w}
-size_w_px      :: proc (w: int)      {element_curr().size.x = w}
-size_w_percent :: proc (w: f32)      {element_curr().size.x = w}
-size_w_fill    :: proc ()            {element_curr().size.x = Fill{}}
-size_h         :: proc (h: Size)     {element_curr().size.y = h}
-size_h_px      :: proc (h: int)      {element_curr().size.y = h}
-size_h_percent :: proc (h: f32)      {element_curr().size.y = h}
-size_h_fill    :: proc ()            {element_curr().size.y = Fill{}}
-size_x         :: size_w
-size_x_px      :: size_w_px
-size_x_percent :: size_w_percent
-size_x_fill    :: size_w_fill
-size_y         :: size_h
-size_y_px      :: size_h_px
-size_y_percent :: size_h_percent
-size_y_fill    :: size_h_fill
-width          :: size_w
-width_px       :: size_w_px
-width_percent  :: size_w_percent
-width_fill     :: size_w_fill
-height         :: size_h
-height_px      :: size_h_px
-height_percent :: size_h_percent
-height_fill    :: size_h_fill
+size              :: proc (v: Size_Vec)         {element_curr().size = v}
+size_px           :: proc (v: Vec2i)            {element_curr().size = {v.x, v.y}}
+size_percent      :: proc (v: Vec2f)            {element_curr().size = {v.x, v.y}}
+size_fill         :: proc ()                    {element_curr().size = Fill{}}
+size_w            :: proc (w: Size)             {element_curr().size.x = w}
+size_w_px         :: proc (w: int)              {element_curr().size.x = w}
+size_w_percent    :: proc (w: f32)              {element_curr().size.x = w}
+size_w_fill       :: proc ()                    {element_curr().size.x = Fill{}}
+size_h            :: proc (h: Size)             {element_curr().size.y = h}
+size_h_px         :: proc (h: int)              {element_curr().size.y = h}
+size_h_percent    :: proc (h: f32)              {element_curr().size.y = h}
+size_h_fill       :: proc ()                    {element_curr().size.y = Fill{}}
+size_axis         :: proc (axis: Axis, v: Size) {element_curr().size[axis] = v}
+size_axis_px      :: proc (axis: Axis, v: int)  {element_curr().size[axis] = v}
+size_axis_percent :: proc (axis: Axis, v: f32)  {element_curr().size[axis] = v}
+size_axis_fill    :: proc (axis: Axis)          {element_curr().size[axis] = Fill{}}
+size_x            :: size_w
+size_x_px         :: size_w_px
+size_x_percent    :: size_w_percent
+size_x_fill       :: size_w_fill
+size_y            :: size_h
+size_y_px         :: size_h_px
+size_y_percent    :: size_h_percent
+size_y_fill       :: size_h_fill
+width             :: size_w
+width_px          :: size_w_px
+width_percent     :: size_w_percent
+width_fill        :: size_w_fill
+height            :: size_h
+height_px         :: size_h_px
+height_percent    :: size_h_percent
+height_fill       :: size_h_fill
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
@@ -324,5 +328,49 @@ masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_loc
 @(deferred_in=masonry_end)
 masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
 	masonry_begin(cols, axis, id, loc)
+	return true
+}
+
+
+Scroll_Container_Outer :: struct {axis: Axis, scroll: f32}
+Scroll_Container_Inner :: struct {}
+scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+
+	state, _, _ := element_push(Scroll_Container_Outer, id)
+	state.axis = axis
+
+	size_fill()
+
+	layout_bottom_up(proc (outer: ^Element) {
+		state := element_state(Scroll_Container_Outer)
+		ax := state.axis
+
+		inner := element_get_assert(outer.child_first)
+
+		oh := outer.rel_rect.size[ax]
+		ih := inner.rel_rect.size[ax]
+		sh := ih-oh
+
+		if is_mouse_in() {
+			state.scroll += ctx.wheel_delta[ax]
+			state.scroll = clamp(state.scroll, -f32(sh), 0)
+		}
+
+		inner.rel_rect.pos[ax] += int(state.scroll)
+	})
+
+	element_push(Scroll_Container_Inner)
+
+	size_axis_fill(perp(axis))
+}
+scroll_container_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(Scroll_Container_Inner)) == element_curr().hash, loc=loc)
+	element_pop()
+	assert(element_hash(typeid_of(Scroll_Container_Outer), id) == element_curr().hash, loc=loc)
+	element_pop()
+}
+@(deferred_in=scroll_container_end)
+scroll_container :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
+	scroll_container_begin(axis, id, loc)
 	return true
 }

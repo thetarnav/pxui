@@ -33,6 +33,7 @@ main :: proc () {
 		px.ctx.mouse_pressed  = k2.mouse_button_went_down(.Left)
 		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
 		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
+		px.ctx.wheel_delta    = {0, k2.get_mouse_wheel_delta() * 10} // no x delta in k2 :(
 
 		ui()
 		px.frame_end()
@@ -101,7 +102,10 @@ ui :: proc () {
 	px.margin(4)
 	px.padding(10)
 	px.width_fill()
+	px.height_fill()
 	px.nine_slice()
+
+	px.scroll_container()
 
 	px.v_stack()
 	px.width_fill()
