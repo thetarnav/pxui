@@ -274,8 +274,6 @@ solve_layout :: proc () {
 	call_layout(root, .Top_Down)
 	solve_siblings(root.child_first)
 
-	fmt.println(root.rel_rect.size, element_get_assert(root.child_first).rel_rect.size)
-
 	call_layout :: proc (el: ^Element, phase: Layout_Direction) -> bool {
 		cb := el.layout[phase]
 		if cb == nil do return false
