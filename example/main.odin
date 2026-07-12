@@ -220,6 +220,22 @@ ui :: proc () {
 			px.margin(4)
 			px.margin_right(16)
 
+			{
+				px.v_stack()
+				px.width_fill()
+				px.margin(2)
+				px.padding(1)
+				px.background_color(k2.LIGHT_PURPLE)
+
+				for _ in 0..<2 {
+					px.panel()
+					px.width_fill()
+					px.height(30)
+					px.margin(1)
+					px.background_color(k2.LIGHT_RED)
+				}
+			}
+
 			for i in 0..<8 {
 				px.rect_cut()
 				px.width_fill()
