@@ -65,30 +65,30 @@ Layout_Direction :: enum {Top_Down, Bottom_Up}
 Layout_Callback  :: proc (^Element)
 
 Element :: struct {
-	type:        typeid,
-	hash:        u64,            // type + user id
-	data_ptr:    rawptr,         // ptr to user component state
+	type:         typeid,
+	hash:         u64,            // type + user id
+	data_ptr:     rawptr,         // ptr to user component state
 
-	handle:      Element_Handle, // self
-	parent:      Element_Handle, // can be zero—root
-	child_first: Element_Handle, // can be zero—no children
-	child_last:  Element_Handle, // can be zero—no children
-	next, prev:  Element_Handle, // can be zero—siblings
+	using handle: Element_Handle, // self
+	parent:       Element_Handle, // can be zero—root
+	child_first:  Element_Handle, // can be zero—no children
+	child_last:   Element_Handle, // can be zero—no children
+	next, prev:   Element_Handle, // can be zero—siblings
 
-	_found:      bool,           // was the element present in this frame?
-	flags:       Element_Flags,
-	mouse_in:    bool,
+	_found:       bool,           // was the element present in this frame?
+	flags:        Element_Flags,
+	mouse_in:     bool,
 
-	margin:      Insets,
-	padding:     Insets,
-	pos, size:   Size_Vec,
+	margin:       Insets,
+	padding:      Insets,
+	pos, size:    Size_Vec,
 
-	layout:      [Layout_Direction]Layout_Callback,
+	layout:       [Layout_Direction]Layout_Callback,
 
-	rel_rect:    Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
-	screen_pos:  Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
+	rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
+	screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
 
-	draw:        Draw_Handle,
+	draw:         Draw_Handle,
 }
 
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
@@ -123,7 +123,7 @@ element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> 
 }
 element_get_or_curr :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
 	h := ctx.element_curr if h == {} else h
-	return element_get_assert(h)
+	return element_get_assert(h, loc)
 }
 
 @(require_results)
@@ -132,26 +132,30 @@ element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 	return hash_combine(type_id, user_id) if user_id > 0 else type_id
 }
 
-element_state :: proc ($T: typeid, h: Element_Handle = {}) -> ^T {
-	el := element_get_or_curr(h)
-	assert(el.type == typeid_of(T))
+element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	el := element_get_or_curr(h, loc)
+	assert(el.type == typeid_of(T), loc=loc)
 	return (^T)(el.data_ptr)
 }
 
-element_size :: proc (h: Element_Handle = {}) -> Size_Vec {
-	return element_get_or_curr(h).size
+element_size :: proc (h: Element_Handle = {}, loc := #caller_location) -> Size_Vec {
+	return element_get_or_curr(h, loc).size
 }
-element_screen_rect :: proc (h: Element_Handle = {}) -> Rect {
-	el := element_get_or_curr(h)
+element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
+	el := element_get_or_curr(h, loc)
 	return {el.screen_pos, el.rel_rect.size}
 }
 
+element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
+	return element_get_assert(element_get_or_curr(h, loc).parent, loc)
+}
+
 @private
-_element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64) ->
+_element_push :: proc (T: typeid, T_size, T_align: int, user_id: u64, loc := #caller_location) ->
                       (state: rawptr, el: ^Element, init: bool)
 {
 	hash   := element_hash(T, user_id)
-	parent := element_get_assert(ctx.element_curr)
+	parent := element_curr()
 
 	search: {
 		// Search for matching child from previous frame
@@ -211,10 +215,8 @@ element_push :: #force_inline proc ($T: typeid, id: u64 = 0) ->
 
 element_pop :: proc () {
 	// switch current element to parent
-	el := element_get_assert(ctx.element_curr)
-	assert(el.parent != {})
-
-	ctx.element_curr = el.parent
+	parent := element_parent()
+	ctx.element_curr = parent.handle
 }
 
 element_curr :: proc () -> ^Element {

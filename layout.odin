@@ -1,5 +1,6 @@
 package pxui
 
+import "core:math"
 import "core:slice"
 
 size              :: proc (v: Size_Vec)         {element_curr().size = v}
@@ -332,45 +333,115 @@ masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_locatio
 }
 
 
-Scroll_Container_Outer :: struct {axis: Axis, scroll: f32}
-Scroll_Container_Inner :: struct {}
+Scroll_Area_Container       :: struct {axis: Axis, scroll: f32}
+Scroll_Area_Content         :: struct {}
+Scroll_Area_Scrollbar       :: struct {}
+Scroll_Area_Scrollbar_Thumb :: struct {}
 scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
-	state, _, _ := element_push(Scroll_Container_Outer, id)
+	state, _, _ := element_push(Scroll_Area_Container, id)
 	state.axis = axis
 
 	size_fill()
 
 	layout_bottom_up(proc (outer: ^Element) {
-		state := element_state(Scroll_Container_Outer)
+		state := element_state(Scroll_Area_Container)
 		ax := state.axis
 
-		inner := element_get_assert(outer.child_first)
+		content := element_get_assert(outer.child_first)
 
 		oh := outer.rel_rect.size[ax]
-		ih := inner.rel_rect.size[ax]
-		sh := ih-oh
+		ih := content.rel_rect.size[ax]
 
 		if is_mouse_in() {
 			state.scroll += ctx.wheel_delta[ax]
-			state.scroll = clamp(state.scroll, -f32(sh), 0)
+			state.scroll = clamp(state.scroll, -f32(ih-oh), 0)
 		}
 
-		inner.rel_rect.pos[ax] += int(state.scroll)
+		content.rel_rect.pos[ax] += int(state.scroll)
 	})
-
-	element_push(Scroll_Container_Inner)
-
-	size_axis_fill(perp(axis))
 }
 scroll_container_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
-	assert(element_hash(typeid_of(Scroll_Container_Inner)) == element_curr().hash, loc=loc)
-	element_pop()
-	assert(element_hash(typeid_of(Scroll_Container_Outer), id) == element_curr().hash, loc=loc)
+	assert(element_hash(typeid_of(Scroll_Area_Container), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=scroll_container_end)
 scroll_container :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
 	scroll_container_begin(axis, id, loc)
+	return true
+}
+
+scroll_content_begin :: proc (loc := #caller_location) {
+	_, el, _ := element_push(Scroll_Area_Content)
+	state := element_state(Scroll_Area_Container, el.parent, loc)
+	size_axis_fill(perp(state.axis))
+}
+scroll_content_end :: proc (loc := #caller_location) {
+	assert(typeid_of(Scroll_Area_Content) == element_curr().type, loc=loc)
+	element_pop()
+}
+@(deferred_in=scroll_content_end)
+scroll_content :: proc (loc := #caller_location) -> bool {
+	scroll_content_begin(loc)
+	return true
+}
+
+scrollbar_begin :: proc (loc := #caller_location) {
+	_, el, _ := element_push(Scroll_Area_Scrollbar)
+	state := element_state(Scroll_Area_Container, el.parent, loc)
+
+	size_axis_fill(state.axis)
+	size_axis(perp(state.axis), 10)
+}
+scrollbar_end :: proc (loc := #caller_location) {
+	assert(typeid_of(Scroll_Area_Scrollbar) == element_curr().type, loc=loc)
+	element_pop()
+}
+@(deferred_in=scrollbar_end)
+scrollbar :: proc (loc := #caller_location) -> bool {
+	scrollbar_begin(loc)
+	return true
+}
+
+scrollbar_thumb_begin :: proc (loc := #caller_location) {
+	element_push(Scroll_Area_Scrollbar_Thumb)
+
+	scrollbar := element_parent()
+	state     := element_state(Scroll_Area_Container, scrollbar.parent, loc)
+
+	ax := state.axis
+
+	size_axis_fill(perp(ax))
+	size_axis(ax, 10) // fallback; set in layout proc
+
+	layout_top_down(proc (el: ^Element) {
+		scrollbar := element_parent()
+		container := element_parent(scrollbar)
+		content   := element_get_assert(container.child_first)
+		state     := element_state(Scroll_Area_Container, container)
+
+		ax     := state.axis
+		scroll := state.scroll
+
+		oh := f32(container.rel_rect.size[ax])
+		ih := f32(content.rel_rect.size[ax])
+		sh := ih-oh
+
+		if ih > 0 && sh > 0 && oh > 0 {
+			el.rel_rect.size[ax] = int(oh * oh/ih)
+			el.rel_rect.pos[ax]  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
+		} else {
+			el.rel_rect.size[ax] = 10
+			el.rel_rect.pos[ax]  = 0
+		}
+	})
+}
+scrollbar_thumb_end :: proc (loc := #caller_location) {
+	assert(typeid_of(Scroll_Area_Scrollbar_Thumb) == element_curr().type, loc=loc)
+	element_pop()
+}
+@(deferred_in=scrollbar_thumb_end)
+scrollbar_thumb :: proc (loc := #caller_location) -> bool {
+	scrollbar_thumb_begin(loc)
 	return true
 }

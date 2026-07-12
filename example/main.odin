@@ -107,118 +107,131 @@ ui :: proc () {
 
 	px.scroll_container()
 
-	px.v_stack()
-	px.width_fill()
-	px.background_color(k2.WHITE)
+	defer {
+		px.scrollbar()
+		px.background_color({180, 140, 100, 255})
+		px.scrollbar_thumb()
+		px.panel()
+		px.size_fill()
+		px.margin(2)
+		px.background_color({230, 200, 160, 255})
+	}
 
 	{
-		px.h_stack()
-		px.margin(4)
+		px.scroll_content()
+		px.v_stack()
+		px.width_fill()
+		px.background_color(k2.WHITE)
 
 		{
-			px.panel()
-			px.nine_slice()
-			px.margin_right(4)
-
 			px.h_stack()
-			px.padding(3)
+			px.margin(4)
 
 			{
-				counter()
-				px.padding(2, 1)
-				px.margin_right(1)
+				px.panel()
+				px.nine_slice()
+				px.margin_right(4)
+
+				px.h_stack()
+				px.padding(3)
+
+				{
+					counter()
+					px.padding(2, 1)
+					px.margin_right(1)
+				}
+
+				{
+					counter()
+					px.padding(3, 2)
+				}
 			}
 
 			{
-				counter()
-				px.padding(3, 2)
+				px.panel()
+				px.nine_slice()
+
+				count := counter()
+				px.padding(6, 2, 6, 5)
+				count^ += 1
 			}
 		}
 
 		{
-			px.panel()
-			px.nine_slice()
+			px.rect_cut(.H)
+			px.width(1.0)
+			px.background_color(k2.LIGHT_BROWN)
+			px.padding(4)
+			px.margin(4)
 
-			count := counter()
-			px.padding(6, 2, 6, 5)
-			count^ += 1
-		}
-	}
+			{
+				counter()
+				px.padding(3, 0, 3, 3)
+			}
 
-	{
-		px.rect_cut(.H)
-		px.width(1.0)
-		px.background_color(k2.LIGHT_BROWN)
-		px.padding(4)
-		px.margin(4)
+			{
+				px.panel()
+				px.background_color(k2.LIGHT_YELLOW)
+				px.margin_right(3)
+				px.size_fill()
+			}
 
-		{
-			counter()
-			px.padding(3, 0, 3, 3)
-		}
+			{
+				px.panel()
+				px.background_color(k2.LIGHT_PURPLE)
+				px.margin_right(3)
+				px.width(20)
+				px.height_fill()
+			}
 
-		{
-			px.panel()
-			px.background_color(k2.LIGHT_YELLOW)
-			px.margin_right(3)
-			px.size_fill()
-		}
-
-		{
-			px.panel()
-			px.background_color(k2.LIGHT_PURPLE)
-			px.margin_right(3)
-			px.width(20)
-			px.height_fill()
+			{
+				px.panel()
+				px.background_color(k2.LIGHT_BLUE)
+				px.size_fill()
+			}
 		}
 
 		{
-			px.panel()
-			px.background_color(k2.LIGHT_BLUE)
-			px.size_fill()
-		}
-	}
-
-	{
-		px.flex_h()
-		px.width_fill()
-		px.background_color(k2.LIGHT_BROWN)
-		px.padding(2)
-		px.margin(4)
-
-		for i in 0..<10 {
-			px.panel()
-			px.background_color(k2.LIGHT_RED)
-			px.margin(2)
-			px.width((i % 5) * 10 + 16)
-			px.height(14)
-		}
-	}
-
-	{
-		cols := 4
-		if      ws.x < 250 do cols = 3
-		else if ws.x > 400 do cols = 5
-		px.masonry(cols)
-		px.width_fill()
-		px.background_color(k2.LIGHT_BROWN)
-		px.padding(2)
-		px.margin(4)
-		px.margin_right(16)
-
-		for i in 0..<8 {
-			px.rect_cut()
+			px.flex_h()
 			px.width_fill()
-			px.margin(2)
-			px.padding(1)
-			px.background_color(k2.LIGHT_YELLOW)
+			px.background_color(k2.LIGHT_BROWN)
+			px.padding(2)
+			px.margin(4)
 
-			for j in 0..<2 {
+			for i in 0..<10 {
 				px.panel()
 				px.background_color(k2.LIGHT_RED)
+				px.margin(2)
+				px.width((i % 5) * 10 + 16)
+				px.height(14)
+			}
+		}
+
+		{
+			cols := 4
+			if      ws.x < 250 do cols = 3
+			else if ws.x > 400 do cols = 5
+			px.masonry(cols)
+			px.width_fill()
+			px.background_color(k2.LIGHT_BROWN)
+			px.padding(2)
+			px.margin(4)
+			px.margin_right(16)
+
+			for i in 0..<8 {
+				px.rect_cut()
 				px.width_fill()
-				px.height((i % 5) * 8 + 10 + j * 16)
-				px.margin(1)
+				px.margin(2)
+				px.padding(1)
+				px.background_color(k2.LIGHT_YELLOW)
+
+				for j in 0..<2 {
+					px.panel()
+					px.background_color(k2.LIGHT_RED)
+					px.width_fill()
+					px.height((i % 5) * 10 + 16 + j * 16)
+					px.margin(1)
+				}
 			}
 		}
 	}
