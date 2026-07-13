@@ -105,7 +105,7 @@ ui :: proc () {
 	px.height_fill()
 	px.nine_slice()
 
-	px.scroll_container()
+	px.scroll_area()
 
 	defer {
 		px.scrollbar()
@@ -121,6 +121,7 @@ ui :: proc () {
 
 	{
 		px.scroll_content()
+
 		px.v_stack()
 		px.width_fill()
 		px.background_color(k2.WHITE)

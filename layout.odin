@@ -262,7 +262,7 @@ Scroll_Area_Container       :: struct {axis: Axis, scroll: f32}
 Scroll_Area_Content         :: struct {}
 Scroll_Area_Scrollbar       :: struct {}
 Scroll_Area_Scrollbar_Thumb :: struct {}
-scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
 	s, _, _ := element_push(Scroll_Area_Container, id, loc)
 	s.axis = axis
@@ -286,13 +286,13 @@ scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_loc
 		element_set_pos(content, ax, int(s.scroll))
 	})
 }
-scroll_container_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+scroll_area_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Scroll_Area_Container), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
-@(deferred_in=scroll_container_end)
-scroll_container :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
-	scroll_container_begin(axis, id, loc)
+@(deferred_in=scroll_area_end)
+scroll_area :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
+	scroll_area_begin(axis, id, loc)
 	return true
 }
 
