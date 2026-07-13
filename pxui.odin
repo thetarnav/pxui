@@ -81,20 +81,25 @@ Element :: struct {
 	child_last:   Element_Handle,       // can be zero—no children
 	next, prev:   Element_Handle,       // can be zero—siblings
 
-	_found:       bool,                 // was the element present in this frame?
-	flags:        Element_Flags,
-	mouse_in:     bool,
+	using prev_frame: struct {
+		mouse_in:     bool,
+	},
 
-	margin:       Insets,
-	padding:      Insets,
-	pos, size:    Size_Vec,
+	using frame: struct {
+		_found:       bool,             // was the element present in this frame?
+		flags:        Element_Flags,
 
-	layout:       [Layout_Direction]Layout_Callback,
+		margin:       Insets,
+		padding:      Insets,
+		pos, size:    Size_Vec,
 
-	rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
-	screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
+		layout:       [Layout_Direction]Layout_Callback,
 
-	draw:         Draw_Handle,
+		rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
+		screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
+
+		draw:         Draw_Handle,
+	},
 }
 
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
@@ -275,13 +280,9 @@ element_curr :: proc () -> ^Element {
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
-	// TODO: temporary—remove once no stale-prev-frame calc_rect reads remain.
-	// calc_rect is recomputed by the solver in frame_end; reading it before
-	// that would expose the previous frame's value.
 	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
-		el.rel_rect   = {}
-		el.screen_pos = {}
+		el.frame = {}
 	}
 
 	clear(&ctx.draw_commands)
@@ -341,7 +342,8 @@ solve_layout :: proc () {
 		return true
 	}
 
-	solve_node :: proc (el: ^Element) {
+	solve_siblings :: proc (h: Element_Handle) -> bool {
+		el     := element_get(h) or_return
 		parent := element_get_assert(el.parent)
 
 		// default_top_down(el, parent)
@@ -351,48 +353,45 @@ solve_layout :: proc () {
 
 		call_layout(el, .Bottom_Up)
 		default_bottom_up(el, parent)
-	}
 
-	solve_siblings :: proc (h: Element_Handle) {
-		el, ok := element_get(h)
-		if !ok do return
-		solve_node(el)
 		solve_siblings(el.next)
+
+		return true
 	}
-}
 
-default_top_down :: proc (el, parent: ^Element) {
+	default_top_down :: proc (el, parent: ^Element) {
 
-	pos := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
+		pos := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
 
-	el.rel_rect.pos = lt(parent.padding) + lt(el.margin) + pos
+		el.rel_rect.pos = lt(parent.padding) + lt(el.margin) + pos
 
-	for s, ax in el.size {
-		switch v in s {
-		case Fill, f32:
-			percent := v.(f32) or_else 1.0
-			avail_size := parent.rel_rect.size[ax] -
-			              lt(parent.padding)[ax] - rb(parent.padding)[ax] -
-			              lt(el.padding)[ax] - rb(el.padding)[ax] -
-			              lt(el.margin)[ax] - rb(el.margin)[ax]
-			el.rel_rect.size[ax] = int(f32(avail_size) * percent) +
-			                       lt(el.padding)[ax] + rb(el.padding)[ax]
-		case Content:
-			// skip - done in bottom-up step
-		case int:
-			el.rel_rect.size[ax] = v
+		for s, ax in el.size {
+			switch v in s {
+			case Fill, f32:
+				percent := v.(f32) or_else 1.0
+				avail_size := parent.rel_rect.size[ax] -
+				              lt(parent.padding)[ax] - rb(parent.padding)[ax] -
+				              lt(el.padding)[ax] - rb(el.padding)[ax] -
+				              lt(el.margin)[ax] - rb(el.margin)[ax]
+				el.rel_rect.size[ax] = int(f32(avail_size) * percent) +
+				                       lt(el.padding)[ax] + rb(el.padding)[ax]
+			case Content:
+				// skip - done in bottom-up step
+			case int:
+				el.rel_rect.size[ax] = v
+			}
 		}
 	}
-}
 
-default_bottom_up :: proc (el, parent: ^Element) {
-	// Update parent rect by own size
-	for s, ax in parent.size {
-		_ = s.(Content) or_continue
-		parent.rel_rect.size[ax] = max(parent.rel_rect.size[ax],
-		                               el.rel_rect.size[ax] +
-		                               lt(el.margin)[ax] + rb(el.margin)[ax] +
-		                               lt(parent.padding)[ax] + rb(parent.padding)[ax])
+	default_bottom_up :: proc (el, parent: ^Element) {
+		// Update parent rect by own size
+		for s, ax in parent.size {
+			_ = s.(Content) or_continue
+			parent.rel_rect.size[ax] = max(parent.rel_rect.size[ax],
+			                               el.rel_rect.size[ax] +
+			                               lt(el.margin)[ax] + rb(el.margin)[ax] +
+			                               lt(parent.padding)[ax] + rb(parent.padding)[ax])
+		}
 	}
 }
 
