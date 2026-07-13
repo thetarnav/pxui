@@ -3,77 +3,6 @@ package pxui
 import "core:math"
 import "core:slice"
 
-size              :: proc (v: Size_Vec)         {element_curr().size = v}
-size_px           :: proc (v: Vec2i)            {element_curr().size = {v.x, v.y}}
-size_percent      :: proc (v: Vec2f)            {element_curr().size = {v.x, v.y}}
-size_fill         :: proc ()                    {element_curr().size = Fill{}}
-size_w            :: proc (w: Size)             {element_curr().size.x = w}
-size_w_px         :: proc (w: int)              {element_curr().size.x = w}
-size_w_percent    :: proc (w: f32)              {element_curr().size.x = w}
-size_w_fill       :: proc ()                    {element_curr().size.x = Fill{}}
-size_h            :: proc (h: Size)             {element_curr().size.y = h}
-size_h_px         :: proc (h: int)              {element_curr().size.y = h}
-size_h_percent    :: proc (h: f32)              {element_curr().size.y = h}
-size_h_fill       :: proc ()                    {element_curr().size.y = Fill{}}
-size_axis         :: proc (axis: Axis, v: Size) {element_curr().size[axis] = v}
-size_axis_px      :: proc (axis: Axis, v: int)  {element_curr().size[axis] = v}
-size_axis_percent :: proc (axis: Axis, v: f32)  {element_curr().size[axis] = v}
-size_axis_fill    :: proc (axis: Axis)          {element_curr().size[axis] = Fill{}}
-size_x            :: size_w
-size_x_px         :: size_w_px
-size_x_percent    :: size_w_percent
-size_x_fill       :: size_w_fill
-size_y            :: size_h
-size_y_px         :: size_h_px
-size_y_percent    :: size_h_percent
-size_y_fill       :: size_h_fill
-width             :: size_w
-width_px          :: size_w_px
-width_percent     :: size_w_percent
-width_fill        :: size_w_fill
-height            :: size_h
-height_px         :: size_h_px
-height_percent    :: size_h_percent
-height_fill       :: size_h_fill
-
-margin_set        :: proc (v: Insets)       {element_curr().margin = v}
-margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
-margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
-margin_vec        :: proc (v: Vec2i)        {margin(v.x, v.y, v.x, v.y)}
-margin_all        :: proc (v: int)          {margin(v, v, v, v)}
-margin_t          :: proc (v: int)          {element_curr().margin.t = v}
-margin_b          :: proc (v: int)          {element_curr().margin.b = v}
-margin_l          :: proc (v: int)          {element_curr().margin.l = v}
-margin_r          :: proc (v: int)          {element_curr().margin.r = v}
-margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
-margin_dirs       :: margin_directions
-margin_bottom     :: margin_b
-margin_bot        :: margin_b
-margin_left       :: margin_l
-margin_right      :: margin_r
-margin_top        :: margin_t
-
-padding_set        :: proc (v: Insets)       {element_curr().padding = v}
-padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
-padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
-padding_vec        :: proc (v: Vec2i)        {padding(v.x, v.y, v.x, v.y)}
-padding_all        :: proc (v: int)          {padding(v, v, v, v)}
-padding_t          :: proc (v: int)          {element_curr().padding.t = v}
-padding_b          :: proc (v: int)          {element_curr().padding.b = v}
-padding_l          :: proc (v: int)          {element_curr().padding.l = v}
-padding_r          :: proc (v: int)          {element_curr().padding.r = v}
-padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
-padding_dirs       :: padding_directions
-padding_bottom     :: padding_b
-padding_bot        :: padding_b
-padding_left       :: padding_l
-padding_right      :: padding_r
-padding_top        :: padding_t
-
-
-layout_top_down  :: proc (cb: Layout_Callback) {element_curr().layout[.Top_Down]  = cb}
-layout_bottom_up :: proc (cb: Layout_Callback) {element_curr().layout[.Bottom_Up] = cb}
-
 
 @private
 _stack_update_layout :: proc (el: ^Element, $AX: Axis) {
@@ -86,16 +15,15 @@ _stack_update_layout :: proc (el: ^Element, $AX: Axis) {
 		defer child_id, prev = child.next, child
 
 		// Position each child below previous
-		child.rel_rect.pos[AX] = prev.rel_rect.pos[AX] +
-		                         element_size_and_margin_rb(prev)[AX] +
-		                         lt(child.margin)[AX]
+		element_set_pos(child, AX, prev.rel_rect.pos[AX] +
+		                           element_size_and_margin_rb(prev)[AX] +
+		                           lt(child.margin)[AX])
 	}
 
 	// Increase element rect
-	el.rel_rect.size[AX] = max(el.rel_rect.size[AX],
-	                           prev.rel_rect.pos[AX] +
-	                           element_size_and_margin_rb(prev)[AX] +
-	                           rb(el.padding)[AX])
+	element_expand_size(el, AX, prev.rel_rect.pos[AX] +
+	                            element_size_and_margin_rb(prev)[AX] +
+	                            rb(el.padding)[AX])
 }
 
 V_Stack :: struct {}
@@ -136,19 +64,19 @@ h_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
 
 
 @private
-_flex_update_layout :: proc (el: ^Element, $AX: Axis) {
+_flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
 
-	PERP :: (int(AX) + 1) % 2
+	PERP :: Axis((int(AXIS) + 1) % 2)
 
-	max_size := el.rel_rect.size[AX] +
-	            -rb(el.padding)[AX]
+	max_size := el.rel_rect.size[AXIS] +
+	            -rb(el.padding)[AXIS]
 
 	cursor: Vec2i
 	cursor[PERP] = lt(el.padding)[PERP]
-	cursor[AX] = prev.rel_rect.pos[AX] + element_size_and_margin_rb(prev)[AX]
+	cursor[AXIS] = prev.rel_rect.pos[AXIS] + element_size_and_margin_rb(prev)[AXIS]
 
 	row_size: int
 
@@ -156,26 +84,25 @@ _flex_update_layout :: proc (el: ^Element, $AX: Axis) {
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		cursor[AX] += lt(child.margin)[AX]
-		if cursor[AX] + element_size_and_margin_rb(child)[AX] > max_size {
-			cursor[AX] = lt(el.padding)[AX] + lt(child.margin)[AX]
+		cursor[AXIS] += lt(child.margin)[AXIS]
+		if cursor[AXIS] + element_size_and_margin_rb(child)[AXIS] > max_size {
+			cursor[AXIS] = lt(el.padding)[AXIS] + lt(child.margin)[AXIS]
 			cursor[PERP] += row_size
 			row_size = 0
 		}
 
-		child.rel_rect.pos = cursor
-		child.rel_rect.pos[PERP] += lt(child.margin)[PERP]
+		element_set_pos(child, {AXIS = cursor[AXIS],
+		                        PERP = cursor[PERP] + lt(child.margin)[PERP]})
 
-		cursor[AX] += element_size_and_margin_rb(child)[AX]
+		cursor[AXIS] += element_size_and_margin_rb(child)[AXIS]
 		row_size = max(row_size, element_size_and_margin(child)[PERP])
 	}
 
 	// Increase element rect
-	el.rel_rect.size[PERP] = max(el.rel_rect.size[PERP],
-	                             prev.rel_rect.pos[PERP] +
-	                             prev.rel_rect.size[PERP] +
-	                             rb(prev.margin)[PERP] +
-	                             rb(el.padding)[PERP])
+	element_expand_size(el, PERP, prev.rel_rect.pos[PERP] +
+	                              prev.rel_rect.size[PERP] +
+	                              rb(prev.margin)[PERP] +
+	                              rb(el.padding)[PERP])
 }
 
 Flex :: struct {axis: Axis}
@@ -244,15 +171,15 @@ rect_cut_update_layout :: proc (el: ^Element) {
 			space := (el.rel_rect.size[ax] - space_taken)/fills
 			space_taken += space
 			fills -= 1
-			child.rel_rect.size[ax] = space
+			element_set_size(child, ax, space)
 		}
 
 		if prev != nil {
 			// Position each child below previous
-			child.rel_rect.pos[ax] = prev.rel_rect.pos[ax] +
-			                         prev.rel_rect.size[ax] +
-			                         rb(prev.margin)[ax] +
-			                         lt(child.margin)[ax]
+			element_set_pos(child, ax, prev.rel_rect.pos[ax] +
+			                           prev.rel_rect.size[ax] +
+			                           rb(prev.margin)[ax] +
+			                           lt(child.margin)[ax])
 		}
 	}
 }
@@ -275,12 +202,12 @@ rect_cut :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool
 
 
 @private
-_masonry_update_layout :: proc (el: ^Element, c: int, $AX: Axis) {
+_masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
 
-	PERP :: (int(AX) + 1) % 2
+	PERP :: Axis((int(AXIS) + 1) % 2)
 
 	cols := make([]int, c, context.temp_allocator)
 
@@ -295,19 +222,17 @@ _masonry_update_layout :: proc (el: ^Element, c: int, $AX: Axis) {
 
 		min_idx := slice.min_index(cols) or_break
 
-		child.rel_rect.pos[PERP] = min_idx * col_w
-		child.rel_rect.pos[AX]   = cols[min_idx]
-		child.rel_rect.pos += lt(child.margin) + rb(el.padding)
+		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * col_w} +
+		                       lt(child.margin) + rb(el.padding))
 
-		child.rel_rect.size[PERP] = col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP]
+		element_set_size(child, PERP, col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP])
 
-		cols[min_idx] += element_size_and_margin(child)[AX]
+		cols[min_idx] += element_size_and_margin(child)[AXIS]
 	}
 
-	el.rel_rect.size[AX] = max(el.rel_rect.size[AX],
-	                           slice.max(cols) +
-	                           lt(el.padding)[AX] +
-	                           rb(el.padding)[AX])
+	element_expand_size(el, AXIS, slice.max(cols) +
+	                              lt(el.padding)[AXIS] +
+	                              rb(el.padding)[AXIS])
 }
 masonry_update_layout :: proc (el: ^Element) {
 	s := element_state(Masonry, el.handle)
@@ -339,14 +264,14 @@ Scroll_Area_Scrollbar       :: struct {}
 Scroll_Area_Scrollbar_Thumb :: struct {}
 scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
-	state, _, _ := element_push(Scroll_Area_Container, id, loc)
-	state.axis = axis
+	s, _, _ := element_push(Scroll_Area_Container, id, loc)
+	s.axis = axis
 
 	size_fill()
 
 	layout_bottom_up(proc (outer: ^Element) {
-		state := element_state(Scroll_Area_Container,)
-		ax := state.axis
+		s := element_state(Scroll_Area_Container,)
+		ax := s.axis
 
 		content := element_get_assert(outer.child_first)
 
@@ -354,11 +279,11 @@ scroll_container_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_loc
 		ih := content.rel_rect.size[ax]
 
 		if is_mouse_in() {
-			state.scroll += ctx.wheel_delta[ax]
-			state.scroll = clamp(state.scroll, -f32(ih-oh), 0)
+			s.scroll += ctx.wheel_delta[ax]
+			s.scroll = clamp(s.scroll, -f32(ih-oh), 0)
 		}
 
-		content.rel_rect.pos[ax] += int(state.scroll)
+		element_set_pos(content, ax, int(s.scroll))
 	})
 }
 scroll_container_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
@@ -420,13 +345,14 @@ scrollbar_thumb_begin :: proc (loc := #caller_location) {
 		ih := f32(content.rel_rect.size[ax])
 		sh := ih-oh
 
+		pos:  int
+		size: int = 10
 		if ih > 0 && sh > 0 && oh > 0 {
-			el.rel_rect.size[ax] = int(oh * oh/ih)
-			el.rel_rect.pos[ax]  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
-		} else {
-			el.rel_rect.size[ax] = 10
-			el.rel_rect.pos[ax]  = 0
+			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
+			size = int(oh * oh/ih)
 		}
+		element_set_pos(el, ax, pos)
+		element_set_size(el, ax, size)
 	})
 }
 scrollbar_thumb_end :: proc (loc := #caller_location) {

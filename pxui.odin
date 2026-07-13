@@ -5,6 +5,7 @@ import "core:strings"
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
+import la "core:math/linalg"
 import hm "core:container/handle_map"
 
 @private
@@ -436,4 +437,119 @@ is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
 }
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
+}
+
+
+size              :: proc (v: Size_Vec)         {element_curr().size = v}
+size_px           :: proc (v: Vec2i)            {element_curr().size = {v.x, v.y}}
+size_percent      :: proc (v: Vec2f)            {element_curr().size = {v.x, v.y}}
+size_fill         :: proc ()                    {element_curr().size = Fill{}}
+size_w            :: proc (w: Size)             {element_curr().size.x = w}
+size_w_px         :: proc (w: int)              {element_curr().size.x = w}
+size_w_percent    :: proc (w: f32)              {element_curr().size.x = w}
+size_w_fill       :: proc ()                    {element_curr().size.x = Fill{}}
+size_h            :: proc (h: Size)             {element_curr().size.y = h}
+size_h_px         :: proc (h: int)              {element_curr().size.y = h}
+size_h_percent    :: proc (h: f32)              {element_curr().size.y = h}
+size_h_fill       :: proc ()                    {element_curr().size.y = Fill{}}
+size_axis         :: proc (axis: Axis, v: Size) {element_curr().size[axis] = v}
+size_axis_px      :: proc (axis: Axis, v: int)  {element_curr().size[axis] = v}
+size_axis_percent :: proc (axis: Axis, v: f32)  {element_curr().size[axis] = v}
+size_axis_fill    :: proc (axis: Axis)          {element_curr().size[axis] = Fill{}}
+size_x            :: size_w
+size_x_px         :: size_w_px
+size_x_percent    :: size_w_percent
+size_x_fill       :: size_w_fill
+size_y            :: size_h
+size_y_px         :: size_h_px
+size_y_percent    :: size_h_percent
+size_y_fill       :: size_h_fill
+width             :: size_w
+width_px          :: size_w_px
+width_percent     :: size_w_percent
+width_fill        :: size_w_fill
+height            :: size_h
+height_px         :: size_h_px
+height_percent    :: size_h_percent
+height_fill       :: size_h_fill
+
+margin_set        :: proc (v: Insets)       {element_curr().margin = v}
+margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
+margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
+margin_vec        :: proc (v: Vec2i)        {margin(v.x, v.y, v.x, v.y)}
+margin_all        :: proc (v: int)          {margin(v, v, v, v)}
+margin_t          :: proc (v: int)          {element_curr().margin.t = v}
+margin_b          :: proc (v: int)          {element_curr().margin.b = v}
+margin_l          :: proc (v: int)          {element_curr().margin.l = v}
+margin_r          :: proc (v: int)          {element_curr().margin.r = v}
+margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_dirs       :: margin_directions
+margin_bottom     :: margin_b
+margin_bot        :: margin_b
+margin_left       :: margin_l
+margin_right      :: margin_r
+margin_top        :: margin_t
+
+padding_set        :: proc (v: Insets)       {element_curr().padding = v}
+padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
+padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
+padding_vec        :: proc (v: Vec2i)        {padding(v.x, v.y, v.x, v.y)}
+padding_all        :: proc (v: int)          {padding(v, v, v, v)}
+padding_t          :: proc (v: int)          {element_curr().padding.t = v}
+padding_b          :: proc (v: int)          {element_curr().padding.b = v}
+padding_l          :: proc (v: int)          {element_curr().padding.l = v}
+padding_r          :: proc (v: int)          {element_curr().padding.r = v}
+padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_dirs       :: padding_directions
+padding_bottom     :: padding_b
+padding_bot        :: padding_b
+padding_left       :: padding_l
+padding_right      :: padding_r
+padding_top        :: padding_t
+
+
+layout_top_down  :: proc (cb: Layout_Callback) {element_curr().layout[.Top_Down]  = cb}
+layout_bottom_up :: proc (cb: Layout_Callback) {element_curr().layout[.Bottom_Up] = cb}
+
+
+element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}
+element_set_pos_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.pos = v
+}
+element_set_pos_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.pos[axis] = v
+}
+element_set_left :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.pos.x = v
+}
+element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.pos.y = v
+}
+
+element_set_size :: proc {element_set_size_vec, element_set_size_axis}
+element_set_size_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size = v
+}
+element_set_size_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size[axis] = v
+}
+element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size.x = v
+}
+element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size.y = v
+}
+
+element_expand_size :: proc {element_expand_size_vec, element_expand_size_axis}
+element_expand_size_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size = la.max(v, element_get_assert(h, loc).rel_rect.size)
+}
+element_expand_size_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size[axis] = max(v, element_get_assert(h, loc).rel_rect.size[axis])
+}
+element_expand_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size.x = max(v, element_get_assert(h, loc).rel_rect.size.x)
+}
+element_expand_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	element_get_assert(h, loc).rel_rect.size.y = max(v, element_get_assert(h, loc).rel_rect.size.y)
 }
