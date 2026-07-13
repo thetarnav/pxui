@@ -15,13 +15,13 @@ _stack_update_layout :: proc (el: ^Element, $AX: Axis) {
 		defer child_id, prev = child.next, child
 
 		// Position each child below previous
-		element_set_pos(child, AX, prev.rel_rect.pos[AX] +
+		element_set_pos(child, AX, element_pos(prev, AX) +
 		                           element_size_and_margin_rb(prev)[AX] +
 		                           lt(child.margin)[AX])
 	}
 
 	// Increase element rect
-	element_expand_size(el, AX, prev.rel_rect.pos[AX] +
+	element_expand_size(el, AX, element_pos(prev, AX) +
 	                            element_size_and_margin_rb(prev)[AX] +
 	                            rb(el.padding)[AX])
 }
@@ -71,12 +71,12 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
 
-	max_size := el.rel_rect.size[AXIS] +
+	max_size := element_size(el, AXIS) +
 	            -rb(el.padding)[AXIS]
 
 	cursor: Vec2i
 	cursor[PERP] = lt(el.padding)[PERP]
-	cursor[AXIS] = prev.rel_rect.pos[AXIS] + element_size_and_margin_rb(prev)[AXIS]
+	cursor[AXIS] = element_pos(prev, AXIS) + element_size_and_margin_rb(prev)[AXIS]
 
 	row_size: int
 
@@ -99,8 +99,8 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 	}
 
 	// Increase element rect
-	element_expand_size(el, PERP, prev.rel_rect.pos[PERP] +
-	                              prev.rel_rect.size[PERP] +
+	element_expand_size(el, PERP, element_pos(prev, PERP) +
+	                              element_size(prev, PERP) +
 	                              rb(prev.margin)[PERP] +
 	                              rb(el.padding)[PERP])
 }
@@ -155,7 +155,7 @@ rect_cut_update_layout :: proc (el: ^Element) {
 		if _, is_fill := child.size[ax].(Fill); is_fill {
 			fills += 1
 		} else {
-			space_taken += child.rel_rect.size[ax]
+			space_taken += element_size(child, ax)
 		}
 		space_taken += rb(child.margin)[ax] +
 		               lt(child.margin)[ax]
@@ -168,7 +168,7 @@ rect_cut_update_layout :: proc (el: ^Element) {
 
 		// All fill-children divide the remaining space equally
 		if _, is_fill := child.size[ax].(Fill); is_fill {
-			space := (el.rel_rect.size[ax] - space_taken)/fills
+			space := (element_size(el, ax) - space_taken)/fills
 			space_taken += space
 			fills -= 1
 			element_set_size(child, ax, space)
@@ -176,8 +176,8 @@ rect_cut_update_layout :: proc (el: ^Element) {
 
 		if prev != nil {
 			// Position each child below previous
-			element_set_pos(child, ax, prev.rel_rect.pos[ax] +
-			                           prev.rel_rect.size[ax] +
+			element_set_pos(child, ax, element_pos(prev, ax) +
+			                           element_size(prev, ax) +
 			                           rb(prev.margin)[ax] +
 			                           lt(child.margin)[ax])
 		}
@@ -211,7 +211,7 @@ _masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	cols := make([]int, c, context.temp_allocator)
 
-	space_w := el.rel_rect.size[PERP] -
+	space_w := element_size(el, PERP) -
 	           lt(el.padding)[PERP] -
 	           rb(el.padding)[PERP]
 	col_w := space_w / c // TODO: what to do about the flored pixel fraction (it grows space after)
@@ -275,8 +275,8 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 
 		content := element_get_assert(outer.child_first)
 
-		oh := outer.rel_rect.size[ax]
-		ih := content.rel_rect.size[ax]
+		oh := element_size(outer, ax)
+		ih := element_size(content, ax)
 
 		if is_mouse_in() {
 			s.scroll += ctx.wheel_delta[ax]
@@ -341,8 +341,8 @@ scrollbar_thumb_begin :: proc (loc := #caller_location) {
 		ax     := state.axis
 		scroll := state.scroll
 
-		oh := f32(container.rel_rect.size[ax])
-		ih := f32(content.rel_rect.size[ax])
+		oh := f32(element_size(container, ax))
+		ih := f32(element_size(content, ax))
 		sh := ih-oh
 
 		pos:  int

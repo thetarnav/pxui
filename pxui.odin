@@ -191,9 +191,6 @@ element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_locati
 	return (^T)(el.data_ptr)
 }
 
-element_size :: proc (h: Element_Handle = {}, loc := #caller_location) -> Size_Vec {
-	return element_get_or_curr(h, loc).size
-}
 element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
 	el := element_get_or_curr(h, loc)
 	return {el.screen_pos, el.rel_rect.size}
@@ -552,4 +549,50 @@ element_expand_width :: proc (h: Element_Handle, v: int, loc := #caller_location
 }
 element_expand_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	element_get_assert(h, loc).rel_rect.size.y = max(v, element_get_assert(h, loc).rel_rect.size.y)
+}
+
+element_pos :: proc {element_pos_vec, element_pos_axis}
+element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.pos
+}
+element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.pos[axis]
+}
+element_size :: proc {element_size_vec, element_size_axis}
+element_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size
+}
+element_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size[axis]
+}
+element_size_and_margin :: proc {element_size_and_margin_vec, element_size_and_margin_axis}
+element_size_and_margin_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size + lt(el.margin) + rb(el.margin)
+}
+element_size_and_margin_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size[axis] + lt(el.margin)[axis] + rb(el.margin)[axis]
+}
+element_size_and_margin_lt :: proc {element_size_and_margin_lt_vec, element_size_and_margin_lt_axis}
+element_size_and_margin_lt_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size + lt(el.margin)
+}
+element_size_and_margin_lt_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size[axis] + lt(el.margin)[axis]
+}
+element_size_and_margin_rb :: proc {element_size_and_margin_rb_vec, element_size_and_margin_rb_axis}
+element_size_and_margin_rb_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size + rb(el.margin)
+}
+element_size_and_margin_rb_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.rel_rect.size[axis] + rb(el.margin)[axis]
 }
