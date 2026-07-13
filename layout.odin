@@ -319,26 +319,13 @@ scrollbar_begin :: proc (loc := #caller_location) {
 
 	size_axis_fill(state.axis)
 	size_axis(perp(state.axis), 10)
-}
-scrollbar_end :: proc (loc := #caller_location) {
-	assert(typeid_of(Scroll_Area_Scrollbar) == element_curr().type, loc=loc)
-	element_pop()
-}
-@(deferred_in=scrollbar_end)
-scrollbar :: proc (loc := #caller_location) -> bool {
-	scrollbar_begin(loc)
-	return true
-}
 
-scrollbar_thumb_begin :: proc (loc := #caller_location) {
-	element_push(Scroll_Area_Scrollbar_Thumb, loc=loc)
-	size_fill()
-
-	layout_top_down(proc (el: ^Element) {
-		scrollbar := element_parent()
-		container := element_parent(scrollbar)
+	layout_top_down(proc (scrollbar: ^Element) {
+		container := element_parent()
 		content   := element_get_assert(container.child_first)
+		thumb     := element_get_assert(scrollbar.child_first)
 		state     := element_state(Scroll_Area_Container, container)
+		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
 		ax     := state.axis
 		scroll := state.scroll
@@ -353,9 +340,23 @@ scrollbar_thumb_begin :: proc (loc := #caller_location) {
 			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
 			size = int(oh * oh/ih)
 		}
-		element_set_pos(el, ax, pos)
-		element_set_size(el, ax, size)
+		element_set_pos(thumb, ax, pos)
+		element_set_size(thumb, ax, size)
 	})
+}
+scrollbar_end :: proc (loc := #caller_location) {
+	assert(typeid_of(Scroll_Area_Scrollbar) == element_curr().type, loc=loc)
+	element_pop()
+}
+@(deferred_in=scrollbar_end)
+scrollbar :: proc (loc := #caller_location) -> bool {
+	scrollbar_begin(loc)
+	return true
+}
+
+scrollbar_thumb_begin :: proc (loc := #caller_location) {
+	element_push(Scroll_Area_Scrollbar_Thumb, loc=loc)
+	size_fill()
 }
 scrollbar_thumb_end :: proc (loc := #caller_location) {
 	assert(typeid_of(Scroll_Area_Scrollbar_Thumb) == element_curr().type, loc=loc)
