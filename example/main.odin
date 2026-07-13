@@ -225,15 +225,14 @@ ui :: proc () {
 				px.v_stack()
 				px.width_fill()
 				px.margin(2)
-				px.padding(1)
-				px.background_color(k2.LIGHT_PURPLE)
+				px.background_color(k2.LIGHT_GRAY)
 
 				for _ in 0..<2 {
 					px.panel()
 					px.width_fill()
 					px.height(30)
-					px.margin(1)
-					px.background_color(k2.LIGHT_RED)
+					px.margin(2)
+					px.background_color(k2.LIGHT_YELLOW)
 				}
 			}
 

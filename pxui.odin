@@ -97,6 +97,8 @@ Element :: struct {
 		layout:       [Layout_Direction]Layout_Callback,
 
 		rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
+		size_set:     [2]bool,
+		size_running: [2]bool,
 		screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
 
 		draw:         Draw_Handle,
@@ -311,97 +313,90 @@ solve_layout :: proc () {
 	// Root is sized by the user like any other element.
 	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
 	root.rel_rect = {0, size_vec_to_pixel(root.size, 0)}
+	root.size_set = true
 
-	update_size(root.child_first)
-
-	update_size :: proc (h: Element_Handle) -> bool {
-		el     := element_get(h) or_return
-		parent := element_get_assert(el.parent)
-
-		default_top_down(el, parent)
-		update_size(el.child_first)
-
-		default_bottom_up(el, parent)
-		update_size(el.next)
-
-		return true
+	it := hm.iterator_make(&ctx.elements)
+	for el, _ in hm.iterate(&it) {
+		_element_update_pos(el)
 	}
 
-	// Pre cb on root: trusted to size/position root.
-	call_layout(root, .Top_Down)
-	solve_siblings(root.child_first)
+	update_siblings(root.child_first)
 
-	call_layout :: proc (el: ^Element, phase: Layout_Direction) -> bool {
-		cb := el.layout[phase]
-		if cb == nil do return false
-		ctx.element_curr = el.handle
-		cb(el)
-		ctx.element_curr = ctx.element_root
-		return true
+	update_siblings :: proc (h: Element_Handle) {
+		h := h
+		for el in element_get(h) {
+			defer h = el.next
+
+			_element_get_size(el, .X)
+			_element_get_size(el, .Y)
+
+			update_siblings(el.child_first)
+		}
 	}
+}
 
-	solve_siblings :: proc (h: Element_Handle) -> bool {
-		el     := element_get(h) or_return
-		parent := element_get_assert(el.parent)
+@private
+_element_update_pos :: proc (el: ^Element) #no_bounds_check {
+	parent, has_parent := element_get(el.parent)
+	if !has_parent do return
 
-		// default_top_down(el, parent)
-		call_layout(el, .Top_Down)
-
-		solve_siblings(el.child_first)
-
-		call_layout(el, .Bottom_Up)
-		default_bottom_up(el, parent)
-
-		solve_siblings(el.next)
-
-		return true
+	pos := lt(parent.padding) + lt(el.margin)
+	for p, _ax in el.pos {
+		ax := Axis(_ax)
+		switch v in p {
+		case Fill, f32:
+			pos[ax] += int(v.(f32) or_else 1.0 * f32(element_size(parent, ax)))
+		case Content:
+			// skip - content pos doesn't mean anything
+		case int:
+			pos[ax] += v
+		}
 	}
+	element_set_pos(el, pos)
+}
 
-	default_top_down :: proc (el, parent: ^Element) {
+@private
+_element_get_size :: proc (el: ^Element, $AXIS: Axis, loc := #caller_location) -> int #no_bounds_check {
 
-		pos := lt(parent.padding) + lt(el.margin)
-		for p, _ax in el.pos {
-			ax := Axis(_ax)
-			switch v in p {
-			case Fill, f32:
-				pos[ax] += int(v.(f32) or_else 1.0 * f32(element_size(parent, ax)))
-			case Content:
-				// skip - content pos doesn't mean anything
-			case int:
-				pos[ax] += v
+	if !el.size_set[AXIS] && !el.size_running[AXIS] {
+
+		el.size_running[AXIS] = true
+		defer el.size_running[AXIS] = false
+
+		switch v in el.size[AXIS] {
+		case Fill, f32:
+			parent := element_get_assert(el.parent, loc)
+			percent := v.(f32) or_else 1.0
+			avail_size := element_size(parent, AXIS) -
+			              lt(parent.padding)[AXIS] - rb(parent.padding)[AXIS] -
+			              lt(el.padding)[AXIS] - rb(el.padding)[AXIS] -
+			              lt(el.margin)[AXIS] - rb(el.margin)[AXIS]
+			element_set_size(el, AXIS, int(f32(avail_size) * percent) +
+			                           lt(el.padding)[AXIS] + rb(el.padding)[AXIS])
+		case Content:
+			child_id := el.child_first
+			for child in element_get(child_id) {
+				defer child_id = child.next
+
+				element_expand_size(el, AXIS, element_size_and_margin(child, AXIS) +
+				                              lt(el.padding)[AXIS] + rb(el.padding)[AXIS])
 			}
+		case int:
+			element_set_size(el, AXIS, v)
 		}
-		element_set_pos(el, pos)
 
-		for size, _ax in el.size {
-			ax := Axis(_ax)
-			switch v in size {
-			case Fill, f32:
-				percent := v.(f32) or_else 1.0
-				avail_size := element_size(parent, ax) -
-				              lt(parent.padding)[ax] - rb(parent.padding)[ax] -
-				              lt(el.padding)[ax] - rb(el.padding)[ax] -
-				              lt(el.margin)[ax] - rb(el.margin)[ax]
-				element_set_size(el, ax, int(f32(avail_size) * percent) +
-				                         lt(el.padding)[ax] + rb(el.padding)[ax])
-			case Content:
-				// skip - done in bottom-up step
-			case int:
-				element_set_size(el, ax, v)
-			}
+		for cb in el.layout {
+			if cb == nil do continue
+			prev_el := ctx.element_curr
+			ctx.element_curr = el.handle
+			cb(el)
+			ctx.element_curr = prev_el
 		}
+
+		assert(el.size_set[AXIS], loc=loc)
 	}
 
-	default_bottom_up :: proc (el, parent: ^Element) {
-		// Update parent rect by own size
-		for s, _ax in parent.size {
-			ax := Axis(_ax)
-			_ = s.(Content) or_continue
-			element_expand_size(parent, ax, element_size(el, ax) +
-			                                lt(el.margin)[ax] + rb(el.margin)[ax] +
-			                                lt(parent.padding)[ax] + rb(parent.padding)[ax])
-		}
-	}
+	return el.rel_rect.size[AXIS]
 }
 
 update_screen_rect_and_mouse :: proc () {
@@ -536,30 +531,46 @@ element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 
 element_set_size :: proc {element_set_size_vec, element_set_size_axis}
 element_set_size_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size = v
+	el := element_get_assert(h, loc)
+	el.rel_rect.size = v
+	el.size_set = true
 }
 element_set_size_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size[axis] = v
+	el := element_get_assert(h, loc)
+	el.rel_rect.size[axis] = v
+	el.size_set[axis] = true
 }
 element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size.x = v
+	el := element_get_assert(h, loc)
+	el.rel_rect.size.x = v
+	el.size_set.x = true
 }
 element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size.y = v
+	el := element_get_assert(h, loc)
+	el.rel_rect.size.y = v
+	el.size_set.y = true
 }
 
 element_expand_size :: proc {element_expand_size_vec, element_expand_size_axis}
 element_expand_size_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size = la.max(v, element_get_assert(h, loc).rel_rect.size)
+	el := element_get_assert(h, loc)
+	el.rel_rect.size = la.max(v, el.rel_rect.size)
+	el.size_set = true
 }
 element_expand_size_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size[axis] = max(v, element_get_assert(h, loc).rel_rect.size[axis])
+	el := element_get_assert(h, loc)
+	el.rel_rect.size[axis] = max(v, el.rel_rect.size[axis])
+	el.size_set[axis] = true
 }
 element_expand_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size.x = max(v, element_get_assert(h, loc).rel_rect.size.x)
+	el := element_get_assert(h, loc)
+	el.rel_rect.size.x = max(v, el.rel_rect.size.x)
+	el.size_set.x = true
 }
 element_expand_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).rel_rect.size.y = max(v, element_get_assert(h, loc).rel_rect.size.y)
+	el := element_get_assert(h, loc)
+	el.rel_rect.size.y = max(v, el.rel_rect.size.y)
+	el.size_set.y = true
 }
 
 element_pos :: proc {element_pos_vec, element_pos_axis}
@@ -571,39 +582,41 @@ element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_loc
 	el := element_get_or_curr(h, loc)
 	return el.rel_rect.pos[axis]
 }
+
 element_size :: proc {element_size_vec, element_size_axis}
 element_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size
+	return {_element_get_size(el, .X, loc=loc), _element_get_size(el, .Y, loc=loc)}
 }
 element_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size[axis]
+	if axis == .X do return _element_get_size(el, .X, loc=loc)
+	else          do return _element_get_size(el, .Y, loc=loc)
 }
 element_size_and_margin :: proc {element_size_and_margin_vec, element_size_and_margin_axis}
 element_size_and_margin_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size + lt(el.margin) + rb(el.margin)
+	return element_size(h, loc) + lt(el.margin) + rb(el.margin)
 }
 element_size_and_margin_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size[axis] + lt(el.margin)[axis] + rb(el.margin)[axis]
+	return element_size_axis(h, axis, loc) + lt(el.margin)[axis] + rb(el.margin)[axis]
 }
 element_size_and_margin_lt :: proc {element_size_and_margin_lt_vec, element_size_and_margin_lt_axis}
 element_size_and_margin_lt_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size + lt(el.margin)
+	return element_size(h, loc) + lt(el.margin)
 }
 element_size_and_margin_lt_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size[axis] + lt(el.margin)[axis]
+	return element_size_axis(h, axis, loc) + lt(el.margin)[axis]
 }
 element_size_and_margin_rb :: proc {element_size_and_margin_rb_vec, element_size_and_margin_rb_axis}
 element_size_and_margin_rb_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size + rb(el.margin)
+	return element_size(h, loc) + rb(el.margin)
 }
 element_size_and_margin_rb_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	el := element_get_or_curr(h, loc)
-	return el.rel_rect.size[axis] + rb(el.margin)[axis]
+	return element_size_axis(h, axis, loc) + rb(el.margin)[axis]
 }
