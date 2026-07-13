@@ -359,36 +359,47 @@ solve_layout :: proc () {
 
 	default_top_down :: proc (el, parent: ^Element) {
 
-		pos := size_vec_to_pixel(el.pos,  parent.rel_rect.size)
+		pos := lt(parent.padding) + lt(el.margin)
+		for p, _ax in el.pos {
+			ax := Axis(_ax)
+			switch v in p {
+			case Fill, f32:
+				pos[ax] += int(v.(f32) or_else 1.0 * f32(element_size(parent, ax)))
+			case Content:
+				// skip - content pos doesn't mean anything
+			case int:
+				pos[ax] += v
+			}
+		}
+		element_set_pos(el, pos)
 
-		el.rel_rect.pos = lt(parent.padding) + lt(el.margin) + pos
-
-		for s, ax in el.size {
-			switch v in s {
+		for size, _ax in el.size {
+			ax := Axis(_ax)
+			switch v in size {
 			case Fill, f32:
 				percent := v.(f32) or_else 1.0
-				avail_size := parent.rel_rect.size[ax] -
+				avail_size := element_size(parent, ax) -
 				              lt(parent.padding)[ax] - rb(parent.padding)[ax] -
 				              lt(el.padding)[ax] - rb(el.padding)[ax] -
 				              lt(el.margin)[ax] - rb(el.margin)[ax]
-				el.rel_rect.size[ax] = int(f32(avail_size) * percent) +
-				                       lt(el.padding)[ax] + rb(el.padding)[ax]
+				element_set_size(el, ax, int(f32(avail_size) * percent) +
+				                         lt(el.padding)[ax] + rb(el.padding)[ax])
 			case Content:
 				// skip - done in bottom-up step
 			case int:
-				el.rel_rect.size[ax] = v
+				element_set_size(el, ax, v)
 			}
 		}
 	}
 
 	default_bottom_up :: proc (el, parent: ^Element) {
 		// Update parent rect by own size
-		for s, ax in parent.size {
+		for s, _ax in parent.size {
+			ax := Axis(_ax)
 			_ = s.(Content) or_continue
-			parent.rel_rect.size[ax] = max(parent.rel_rect.size[ax],
-			                               el.rel_rect.size[ax] +
-			                               lt(el.margin)[ax] + rb(el.margin)[ax] +
-			                               lt(parent.padding)[ax] + rb(parent.padding)[ax])
+			element_expand_size(parent, ax, element_size(el, ax) +
+			                                lt(el.margin)[ax] + rb(el.margin)[ax] +
+			                                lt(parent.padding)[ax] + rb(parent.padding)[ax])
 		}
 	}
 }
