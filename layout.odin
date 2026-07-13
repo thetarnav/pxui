@@ -207,6 +207,8 @@ _masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
 
+	c := c if c > 0 else 1
+
 	PERP :: Axis((int(AXIS) + 1) % 2)
 
 	cols := make([]int, c, context.temp_allocator)
