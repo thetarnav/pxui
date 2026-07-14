@@ -21,13 +21,20 @@ Insets   :: struct {l, t, r, b: int}
 
 Content :: struct {}
 Fill    :: struct {}
-Size :: union #no_nil {
+Sizing :: union #no_nil {
 	Content, // derive from content - default
 	Fill,    // fill available space
-	int,     // absolute
-	f32,     // relative
+	int,     // absolute - pixels
+	f32,     // relative - percents
 }
-Size_Vec :: [2]Size
+Sizing_2D :: [2]Sizing
+
+@rodata FILL    := Fill{}
+@rodata CONTENT := Content{}
+
+Placement :: struct {
+	pos, size, origin: Sizing_2D,
+}
 
 Axis :: enum {H=0, V=1,
               X=0, Y=1}
@@ -55,7 +62,7 @@ Context :: struct {
 	element_curr:      Element_Handle,
 	element_root:      Element_Handle,
 
-	draw_commands:     Draw_Commands,
+	draw_reqs:         [dynamic]Draw_Request,
 
 	using frame_input: Frame_Input,
 
@@ -92,7 +99,7 @@ Element :: struct {
 
 		margin:       Insets,
 		padding:      Insets,
-		pos, size:    Size_Vec,
+		using place:  Placement,
 
 		layout:       [Layout_Direction]Layout_Callback,
 
@@ -100,8 +107,6 @@ Element :: struct {
 		size_set:     [2]bool,
 		size_running: [2]bool,
 		screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
-
-		draw:         Draw_Handle,
 	},
 }
 
@@ -132,7 +137,7 @@ element_get :: proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #option
 }
 element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
 	el, ok := hm.get(&ctx.elements, handle)
-	fmt.assertf(ok, "Couldn't find element with the handle `%v`.", handle, loc=loc)
+	fmt.assertf(ok, "", handle, loc=loc)
 	return el
 }
 element_get_or_curr :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
@@ -285,7 +290,7 @@ frame_begin :: proc () {
 		el.frame = {}
 	}
 
-	clear(&ctx.draw_commands)
+	clear(&ctx.draw_reqs)
 }
 
 frame_end :: proc () {
@@ -443,22 +448,22 @@ is_clicked :: proc (h: Element_Handle = {}) -> bool {
 }
 
 
-size              :: proc (v: Size_Vec)         {element_curr().size = v}
-size_px           :: proc (v: Vec2i)            {element_curr().size = {v.x, v.y}}
-size_percent      :: proc (v: Vec2f)            {element_curr().size = {v.x, v.y}}
-size_fill         :: proc ()                    {element_curr().size = Fill{}}
-size_w            :: proc (w: Size)             {element_curr().size.x = w}
-size_w_px         :: proc (w: int)              {element_curr().size.x = w}
-size_w_percent    :: proc (w: f32)              {element_curr().size.x = w}
-size_w_fill       :: proc ()                    {element_curr().size.x = Fill{}}
-size_h            :: proc (h: Size)             {element_curr().size.y = h}
-size_h_px         :: proc (h: int)              {element_curr().size.y = h}
-size_h_percent    :: proc (h: f32)              {element_curr().size.y = h}
-size_h_fill       :: proc ()                    {element_curr().size.y = Fill{}}
-size_axis         :: proc (axis: Axis, v: Size) {element_curr().size[axis] = v}
-size_axis_px      :: proc (axis: Axis, v: int)  {element_curr().size[axis] = v}
-size_axis_percent :: proc (axis: Axis, v: f32)  {element_curr().size[axis] = v}
-size_axis_fill    :: proc (axis: Axis)          {element_curr().size[axis] = Fill{}}
+size              :: proc (v: Sizing_2D)          {element_curr().size = v}
+size_px           :: proc (v: Vec2i)              {element_curr().size = {v.x, v.y}}
+size_percent      :: proc (v: Vec2f)              {element_curr().size = {v.x, v.y}}
+size_fill         :: proc ()                      {element_curr().size = FILL}
+size_w            :: proc (w: Sizing)             {element_curr().size.x = w}
+size_w_px         :: proc (w: int)                {element_curr().size.x = w}
+size_w_percent    :: proc (w: f32)                {element_curr().size.x = w}
+size_w_fill       :: proc ()                      {element_curr().size.x = FILL}
+size_h            :: proc (h: Sizing)             {element_curr().size.y = h}
+size_h_px         :: proc (h: int)                {element_curr().size.y = h}
+size_h_percent    :: proc (h: f32)                {element_curr().size.y = h}
+size_h_fill       :: proc ()                      {element_curr().size.y = FILL}
+size_axis         :: proc (axis: Axis, v: Sizing) {element_curr().size[axis] = v}
+size_axis_px      :: proc (axis: Axis, v: int)    {element_curr().size[axis] = v}
+size_axis_percent :: proc (axis: Axis, v: f32)    {element_curr().size[axis] = v}
+size_axis_fill    :: proc (axis: Axis)            {element_curr().size[axis] = FILL}
 size_x            :: size_w
 size_x_px         :: size_w_px
 size_x_percent    :: size_w_percent

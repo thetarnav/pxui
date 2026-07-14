@@ -52,32 +52,28 @@ render_ui :: proc () {
 	tex_map: map[^px.Atlas]k2.Texture
 
 	for cmd in px.get_draw_commands(context.temp_allocator) {
-		// Scale up the dest rect—ui uses texture pixel size
-		src := Rect{Vec2(cmd.src.pos), Vec2(cmd.src.size)}
 		dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
 
-		// Draw color fill
-		if cmd.atlas == nil {
-			k2.draw_rect(k2_rect(dst), cmd.tint)
-			continue
-		}
+		switch v in cmd.var {
+		case px.Draw_Color:
+			// Draw color fill
+			k2.draw_rect(k2_rect(dst), v)
 
-		// Convert px.Atlas to k2.Texture
-		tex, in_map := tex_map[cmd.atlas]
-		if !in_map {
-			tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, cmd.atlas.pixels),
-			                                     **cmd.atlas.size, .RGBA_8_Norm)
-			tex_map[cmd.atlas] = tex
-		}
+		case px.Draw_Texture:
+			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}
 
-		// Draw texture
-		k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=cmd.tint)
+			// Convert px.Atlas to k2.Texture
+			tex, in_map := tex_map[v.atlas]
+			if !in_map {
+				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, v.atlas.pixels),
+				                                     **v.atlas.size, .RGBA_8_Norm)
+				tex_map[v.atlas] = tex
+			}
+
+			// Draw texture
+			k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=v.tint)
+		}
 	}
-
-	// ws := k2.get_screen_size() / PIXEL_SCALE
-	// k2.draw_rect_outline({0, 0, **ws}, 2, k2.RED)
-	//
-	// k2.draw_rect_outline(k2_rect_px(px.element_screen_rect(px.ctx.element_root)), 2, k2.GREEN)
 }
 
 ui :: proc () {
@@ -254,12 +250,11 @@ ui :: proc () {
 		}
 	}
 
-	px.draw({
-		variant = px.Draw_Color{k2.LIGHT_RED},
-		origin  = {1.0, 1.0},
-		pos     = {-10, -20},
-		size    = {14, 24},
-	})
+	px.draw_color({
+		origin = {1.0, 1.0},
+		pos    = {-10, -20},
+		size   = {14, 24},
+	}, k2.LIGHT_RED)
 }
 
 k2_rect :: proc (r: Rect) -> k2.Rect {

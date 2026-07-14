@@ -2,21 +2,21 @@ package pxui
 
 import la "core:math/linalg"
 
-Draw_Commands :: [dynamic]Draw_Plain
-
-Draw_Plain :: struct {
-	pos:     Size_Vec,
-	size:    Size_Vec,
-	origin:  Size_Vec,
-	element: Element_Handle,
-	variant: Draw_Variant,
+// Draw request relative to emiting element
+// Stored internally until layout is solved
+Draw_Request :: struct {
+	using place: Placement,
+	el:          Element_Handle,
+	var:         union {Draw_Texture, Draw_Nine_Slice, Draw_Color},
+}
+// Draw command with screen position
+// Output for the user renderer
+Draw_Command :: struct {
+	dst: Rect, // screen
+	var: union {Draw_Texture, Draw_Color},
 }
 
-Draw_Variant :: union {Draw_Texture, Draw_Nine_Slice, Draw_Color}
-
-Draw_Color :: struct {
-	color: Color,
-}
+Draw_Color :: Color
 Draw_Texture :: struct {
 	src:   Rect,
 	atlas: ^Atlas,
@@ -27,43 +27,40 @@ Draw_Nine_Slice :: struct {
 	insets: Insets,
 }
 
-Draw_Handle :: distinct int
-
-draw :: proc (tex: Draw_Plain) -> Draw_Handle {
-	tex := tex
-	tex.element = ctx.element_curr
-	append(&ctx.draw_commands, tex)
-	return Draw_Handle(len(ctx.draw_commands)-1)
+draw :: proc (req: Draw_Request, h: Element_Handle = {}) {
+	req := req
+	req.el = h if h != {} else ctx.element_curr
+	append(&ctx.draw_reqs, req)
 }
-
-draw_get :: proc (h: Draw_Handle) -> (^Draw_Plain) {
-	return &ctx.draw_commands[h]
+draw_color :: proc (place: Placement, color: Color, h: Element_Handle = {}) {
+	draw({place=place, var=color}, h)
 }
-
-Draw_Command :: struct {
-	using _: Draw_Texture,
-	dst: Rect,
+draw_tex :: proc (place: Placement, tex: Draw_Texture, h: Element_Handle = {}) {
+	draw({place=place, var=tex}, h)
+}
+draw_nine_slice :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {
+	draw({place=place, var=ns}, h)
 }
 
 @(private)
-draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, v: Draw_Texture, src, dst: Rect) {
+draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, src, dst: Rect) {
 	f, d := src.size, dst.size
 	for y := 0; y < d.y; y += f.y {
 	for x := 0; x < d.x; x += f.x {
 		clip := la.min(f, d - {x, y})
-		append(cmds, Draw_Command{tint=v.tint, atlas=v.atlas,
-		                          src={src.pos,          clip},
-		                          dst={dst.pos + {x, y}, clip}})
+		tex := tex
+		tex.src = {src.pos, clip}
+		append(cmds, Draw_Command{{dst.pos + {x, y}, clip}, tex})
 	}}
 }
 
 get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
-	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_commands) * 4, allocator)
+	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_reqs) * 4, allocator)
 	defer shrink(&cmds)
 
-	for c in ctx.draw_commands {
-		el := element_get_assert(c.element)
+	for c in ctx.draw_reqs {
+		el := element_get_assert(c.el)
 
 		dst: Rect
 		dst.size = size_vec_to_pixel(c.size, el.rel_rect.size)
@@ -71,12 +68,12 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		           size_vec_to_pixel(c.origin, el.rel_rect.size) +
 		           size_vec_to_pixel(c.pos, el.rel_rect.size)
 
-		switch v in c.variant {
+		switch v in c.var {
 		case Draw_Texture:
 			draw_tiled(&cmds, v, v.src, dst)
 
 		case Draw_Color:
-			append(&cmds, Draw_Command{tint=v.color, dst=dst})
+			append(&cmds, Draw_Command{dst, v})
 
 		case Draw_Nine_Slice:
 			l, t := v.insets.l, v.insets.t
@@ -97,10 +94,10 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			d := d2 - d1
 
 			// corners
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, lt}, dst={{d0.x, d0.y}, lt}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, rb}, dst={{d2.x, d0.y}, rb}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, lb}, dst={{d0.x, d2.y}, lb}})
-			append(&cmds, Draw_Command{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, rb}, dst={{d2.x, d2.y}, rb}})
+			append(&cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, lt}}, dst={{d0.x, d0.y}, lt}})
+			append(&cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, rb}}, dst={{d2.x, d0.y}, rb}})
+			append(&cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, lb}}, dst={{d0.x, d2.y}, lb}})
+			append(&cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, rb}}, dst={{d2.x, d2.y}, rb}})
 
 			// edges
 			draw_tiled(&cmds, v, src={{c1.x, c0.y}, {f.x, t}}, dst={{d1.x, d0.y}, {d.x, t}})
@@ -114,7 +111,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 	}
 
-	clear(&ctx.draw_commands)
+	clear(&ctx.draw_reqs)
 
 	return cmds[:]
 }

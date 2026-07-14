@@ -37,19 +37,13 @@ panel :: proc (id: u64 = 0, loc := #caller_location) -> bool {
 }
 
 nine_slice :: proc () {
-	draw({
-		variant = Draw_Nine_Slice{
-			atlas  = &panel_atlas,
-			tint   = 255,
-			src    = {0, panel_atlas.size},
-			insets = {l=4, t=4, r=4, b=4},
-		},
-		size = {1.0, 1.0},
+	draw_nine_slice({size=FILL}, {
+		atlas  = &panel_atlas,
+		tint   = 255,
+		src    = {0, panel_atlas.size},
+		insets = {l=4, t=4, r=4, b=4},
 	})
 }
 background_color :: proc (color: Color) {
-	draw({
-		variant = Draw_Color{color},
-		size    = {1.0, 1.0},
-	})
+	draw_color({size=FILL}, color)
 }

@@ -52,14 +52,10 @@ text :: proc (str: string, color: Color = 255) {
 
 		bounds = la.max(bounds, pos + size)
 
-		draw({
-			pos     = size_vec(pos),
-			size    = size_vec(size),
-			variant = Draw_Texture{
-				src   = {Vec2i(src.pos), Vec2i(src.size)},
-				tint  = color,
-				atlas = (^Atlas)(&default_font_atlas),
-			},
+		draw_tex({pos=size_vec(pos), size=size_vec(size)}, {
+			src   = {Vec2i(src.pos), Vec2i(src.size)},
+			tint  = color,
+			atlas = (^Atlas)(&default_font_atlas),
 		})
 	}
 

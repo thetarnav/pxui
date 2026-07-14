@@ -11,7 +11,7 @@ rb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.b}}
 
 // Convert a Size to a pixel value along one axis.
 // `ref` is the reference size in pixels (parent's content area along that axis).
-size_to_pixel :: proc (s: Size, ref: int) -> int {
+size_to_pixel :: proc (s: Sizing, ref: int) -> int {
 	switch v in s {
 	case Content: return 0
 	case Fill:    return ref
@@ -22,12 +22,12 @@ size_to_pixel :: proc (s: Size, ref: int) -> int {
 }
 
 // Convert a Size_Vec to a Vec2i of pixel values, using `ref` as the reference.
-size_vec_to_pixel :: proc (s: Size_Vec, ref: Vec2i) -> Vec2i {
+size_vec_to_pixel :: proc (s: Sizing_2D, ref: Vec2i) -> Vec2i {
 	return {size_to_pixel(s.x, ref.x), size_to_pixel(s.y, ref.y)}
 }
 
-vec2i_to_size :: proc (v: Vec2i) -> Size_Vec {return {v.x, v.y}}
-vec2f_to_size :: proc (v: Vec2f) -> Size_Vec {return {v.x, v.y}}
+vec2i_to_size :: proc (v: Vec2i) -> Sizing_2D {return {v.x, v.y}}
+vec2f_to_size :: proc (v: Vec2f) -> Sizing_2D {return {v.x, v.y}}
 to_size       :: proc {vec2f_to_size, vec2i_to_size}
 size_vec      :: to_size
 vec_to_size   :: to_size
