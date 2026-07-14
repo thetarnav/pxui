@@ -338,7 +338,9 @@ scrollbar_begin :: proc (loc := #caller_location) {
 
 		pos:  int
 		size: int = 10
-		if ih > 0 && sh > 0 && oh > 0 {
+		if sh <= 0 {
+			size = int(oh)
+		} else if ih > 0 && oh > 0 {
 			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
 			size = int(oh * oh/ih)
 		}
