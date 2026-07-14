@@ -272,6 +272,10 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 	size_fill()
 	draw_scissor_begin({size=FILL})
 
+	if is_mouse_in() {
+		s.scroll += ctx.wheel_delta[axis]
+	}
+
 	layout_bottom_up(proc (outer: ^Element) {
 		s := element_state(Scroll_Area_Container,)
 		ax := s.axis
@@ -281,10 +285,7 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 		oh := element_size(outer, ax)
 		ih := element_size(content, ax)
 
-		if is_mouse_in() {
-			s.scroll += ctx.wheel_delta[ax]
-			s.scroll = clamp(s.scroll, -f32(ih-oh), 0)
-		}
+		s.scroll = clamp(s.scroll, -f32(ih-oh), 0)
 
 		element_set_pos(content, ax, int(s.scroll))
 	})
