@@ -62,10 +62,14 @@ render_ui :: proc () {
 			k2.draw_rect(dst, v)
 
 		case px.Draw_Scissor:
-			k2.set_scissor_rect(k2.rect_from_pos_size(
-				k2.world_to_screen({dst.x, dst.y}, camera),
-				k2.world_to_screen({dst.w, dst.h}, camera),
-			))
+			if v.reset {
+				k2.set_scissor_rect(nil)
+			} else {
+				k2.set_scissor_rect(k2.rect_from_pos_size(
+						k2.world_to_screen({dst.x, dst.y}, camera),
+						k2.world_to_screen({dst.w, dst.h}, camera),
+				))
+			}
 
 		case px.Draw_Texture:
 			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}

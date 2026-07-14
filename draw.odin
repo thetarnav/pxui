@@ -26,17 +26,18 @@ Draw_Nine_Slice :: struct {
 	using txt: Draw_Texture,
 	insets: Insets,
 }
-Draw_Scissor :: struct {}
+Draw_Scissor :: struct {reset: bool}
 
 draw :: proc (req: Draw_Request, h: Element_Handle = {}) {
 	req := req
 	req.el = h if h != {} else ctx.element_curr
 	append(&ctx.draw_reqs, req)
 }
-draw_color      :: proc (place: Placement, color: Color,        h: Element_Handle = {}) {draw({place=place, var=color},          h)}
-draw_tex        :: proc (place: Placement, tex: Draw_Texture,   h: Element_Handle = {}) {draw({place=place, var=tex},            h)}
-draw_nine_slice :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {draw({place=place, var=ns},             h)}
-draw_scissor    :: proc (place: Placement,                      h: Element_Handle = {}) {draw({place=place, var=Draw_Scissor{}}, h)}
+draw_color         :: proc (place: Placement, color: Color,        h: Element_Handle = {}) {draw({place=place, var=color},              h)}
+draw_tex           :: proc (place: Placement, tex: Draw_Texture,   h: Element_Handle = {}) {draw({place=place, var=tex},                h)}
+draw_nine_slice    :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {draw({place=place, var=ns},                 h)}
+draw_scissor_begin :: proc (place: Placement,                      h: Element_Handle = {}) {draw({place=place, var=Draw_Scissor{}},     h)}
+draw_scissor_end   :: proc (                                       h: Element_Handle = {}) {draw({place={},    var=Draw_Scissor{true}}, h)}
 
 @(private)
 draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, src, dst: Rect) {
@@ -55,6 +56,8 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_reqs) * 4, allocator)
 	defer shrink(&cmds)
 
+	scissors := make([dynamic]Rect, context.temp_allocator)
+
 	for c in ctx.draw_reqs {
 		el := element_get_assert(c.el)
 
@@ -72,7 +75,17 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			append(&cmds, Draw_Command{dst, v})
 
 		case Draw_Scissor:
-			append(&cmds, Draw_Command{dst, v})
+			if v.reset {
+				pop_safe(&scissors)
+				if len(scissors) > 0 {
+					append(&cmds, Draw_Command{scissors[len(scissors)-1], Draw_Scissor{false}})
+				} else {
+					append(&cmds, Draw_Command{{}, Draw_Scissor{true}})
+				}
+			} else {
+				append(&scissors, dst)
+				append(&cmds, Draw_Command{dst, v})
+			}
 
 		case Draw_Nine_Slice:
 			l, t := v.insets.l, v.insets.t
