@@ -7,13 +7,13 @@ import la "core:math/linalg"
 Draw_Request :: struct {
 	using place: Placement,
 	el:          Element_Handle,
-	var:         union {Draw_Texture, Draw_Nine_Slice, Draw_Color},
+	var:         union {Draw_Texture, Draw_Nine_Slice, Draw_Color, Draw_Scissor},
 }
 // Draw command with screen position
 // Output for the user renderer
 Draw_Command :: struct {
 	dst: Rect, // screen
-	var: union {Draw_Texture, Draw_Color},
+	var: union {Draw_Texture, Draw_Color, Draw_Scissor},
 }
 
 Draw_Color :: Color
@@ -26,21 +26,17 @@ Draw_Nine_Slice :: struct {
 	using txt: Draw_Texture,
 	insets: Insets,
 }
+Draw_Scissor :: struct {}
 
 draw :: proc (req: Draw_Request, h: Element_Handle = {}) {
 	req := req
 	req.el = h if h != {} else ctx.element_curr
 	append(&ctx.draw_reqs, req)
 }
-draw_color :: proc (place: Placement, color: Color, h: Element_Handle = {}) {
-	draw({place=place, var=color}, h)
-}
-draw_tex :: proc (place: Placement, tex: Draw_Texture, h: Element_Handle = {}) {
-	draw({place=place, var=tex}, h)
-}
-draw_nine_slice :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {
-	draw({place=place, var=ns}, h)
-}
+draw_color      :: proc (place: Placement, color: Color,        h: Element_Handle = {}) {draw({place=place, var=color},          h)}
+draw_tex        :: proc (place: Placement, tex: Draw_Texture,   h: Element_Handle = {}) {draw({place=place, var=tex},            h)}
+draw_nine_slice :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {draw({place=place, var=ns},             h)}
+draw_scissor    :: proc (place: Placement,                      h: Element_Handle = {}) {draw({place=place, var=Draw_Scissor{}}, h)}
 
 @(private)
 draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, src, dst: Rect) {
@@ -73,6 +69,9 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			draw_tiled(&cmds, v, v.src, dst)
 
 		case Draw_Color:
+			append(&cmds, Draw_Command{dst, v})
+
+		case Draw_Scissor:
 			append(&cmds, Draw_Command{dst, v})
 
 		case Draw_Nine_Slice:

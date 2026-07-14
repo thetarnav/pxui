@@ -12,12 +12,14 @@ PIXEL_SCALE :: 4
 Vec2 :: [2]f32
 Rect :: px.Rectf
 
+camera: k2.Camera
+
 main :: proc () {
 
 	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
 		options = {window_mode = .Windowed_Resizable})
 
-	camera := k2.Camera{zoom = PIXEL_SCALE}
+	camera = {zoom = PIXEL_SCALE}
 	k2.set_camera(camera)
 
 	px.init()
@@ -52,12 +54,18 @@ render_ui :: proc () {
 	tex_map: map[^px.Atlas]k2.Texture
 
 	for cmd in px.get_draw_commands(context.temp_allocator) {
-		dst := Rect{Vec2(cmd.dst.pos), Vec2(cmd.dst.size)}
+		dst := k2_rect_px(cmd.dst)
 
 		switch v in cmd.var {
 		case px.Draw_Color:
 			// Draw color fill
-			k2.draw_rect(k2_rect(dst), v)
+			k2.draw_rect(dst, v)
+
+		case px.Draw_Scissor:
+			k2.set_scissor_rect(k2.rect_from_pos_size(
+				k2.world_to_screen({dst.x, dst.y}, camera),
+				k2.world_to_screen({dst.w, dst.h}, camera),
+			))
 
 		case px.Draw_Texture:
 			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}
@@ -71,9 +79,11 @@ render_ui :: proc () {
 			}
 
 			// Draw texture
-			k2.draw_texture_fit(tex, k2_rect(src), k2_rect(dst), tint=v.tint)
+			k2.draw_texture_fit(tex, k2_rect(src), dst, tint=v.tint)
 		}
 	}
+
+	k2.set_scissor_rect(nil)
 }
 
 ui :: proc () {

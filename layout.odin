@@ -270,6 +270,7 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 	s.axis = axis
 
 	size_fill()
+	draw_scissor({size=FILL})
 
 	layout_bottom_up(proc (outer: ^Element) {
 		s := element_state(Scroll_Area_Container,)
