@@ -112,7 +112,7 @@ flex_update_layout :: proc (el: ^Element) {
 	else            do _flex_update_layout(el, .V)
 }
 flex_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
-	s, _, _ := element_push(Flex, id, loc)
+	s, _ := element_push(Flex, id, loc)
 	s.axis = axis
 	layout_bottom_up(flex_update_layout)
 }
@@ -186,7 +186,7 @@ rect_cut_update_layout :: proc (el: ^Element) {
 
 Rect_Cut :: struct {axis: Axis}
 rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
-	s, _, _ := element_push(Rect_Cut, id, loc)
+	s, _ := element_push(Rect_Cut, id, loc)
 	s.axis = axis
 	layout_top_down(rect_cut_update_layout)
 }
@@ -244,7 +244,7 @@ masonry_update_layout :: proc (el: ^Element) {
 
 Masonry :: struct {axis: Axis, cols: int}
 masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
-	s, _, _ := element_push(Masonry, id, loc)
+	s, _ := element_push(Masonry, id, loc)
 	s.axis = axis
 	s.cols = cols
 	layout_top_down(masonry_update_layout)
@@ -266,7 +266,7 @@ Scroll_Area_Scrollbar       :: struct {}
 Scroll_Area_Scrollbar_Thumb :: struct {}
 scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
-	s, _, _ := element_push(Scroll_Area_Container, id, loc)
+	s, _ := element_push(Scroll_Area_Container, id, loc)
 	s.axis = axis
 
 	size_fill()
@@ -301,8 +301,9 @@ scroll_area :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> b
 }
 
 scroll_content_begin :: proc (loc := #caller_location) {
-	_, el, _ := element_push(Scroll_Area_Content, loc=loc)
-	state := element_state(Scroll_Area_Container, el.parent, loc)
+	element_push(Scroll_Area_Content, loc=loc)
+	container := element_parent()
+	state := element_state(Scroll_Area_Container, container, loc)
 	size_axis_fill(perp(state.axis))
 }
 scroll_content_end :: proc (loc := #caller_location) {
@@ -316,8 +317,9 @@ scroll_content :: proc (loc := #caller_location) -> bool {
 }
 
 scrollbar_begin :: proc (loc := #caller_location) {
-	_, el, _ := element_push(Scroll_Area_Scrollbar, loc=loc)
-	state := element_state(Scroll_Area_Container, el.parent, loc)
+	element_push(Scroll_Area_Scrollbar, loc=loc)
+	container := element_parent()
+	state := element_state(Scroll_Area_Container, container, loc)
 
 	size_axis_fill(state.axis)
 	size_axis(perp(state.axis), 10)

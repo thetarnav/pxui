@@ -99,7 +99,7 @@ ui :: proc () {
 	@(deferred_none=px.element_pop)
 	counter :: proc (id: u64 = 0) -> ^int {
 		Counter :: struct {count: int}
-		state, _, _ := px.element_push(Counter)
+		state, _ := px.element_push(Counter)
 		hovered := px.is_hovered()
 		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else {230, 200, 160, 255})
 		if px.is_clicked() {

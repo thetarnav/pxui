@@ -210,10 +210,11 @@ element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Ele
 
 @private
 _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, loc := #caller_location) ->
-                      (state: rawptr, el: ^Element, init: bool)
+                      (state: rawptr, init: bool)
 {
 	hash   := element_hash(type, user_id)
 	parent := element_curr()
+	el: ^Element
 
 	search: {
 		// Search for matching child from previous frame
@@ -267,10 +268,10 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 }
 
 element_push :: #force_inline proc ($T: typeid, id: u64 = 0, loc := #caller_location) ->
-                                   (state: ^T, element: ^Element, init: bool) {
+                                   (state: ^T, init: bool) {
 	ptr: rawptr
-	ptr, element, init = _element_push(T, size_of(T), align_of(T), id, loc)
-	return (^T)(ptr), element, init
+	ptr, init = _element_push(T, size_of(T), align_of(T), id, loc)
+	return (^T)(ptr), init
 }
 
 element_pop :: proc () {
