@@ -221,15 +221,33 @@ ui :: proc () {
 		}
 
 		{
+			px.scroll_area()
+			px.width_fill()
+			px.height(120)
+			px.margin(4)
+			px.margin_right(16)
+			px.background_color(k2.LIGHT_BROWN)
+
+			defer {
+				px.scrollbar()
+				px.background_color({180, 140, 100, 255})
+
+				px.scrollbar_thumb()
+
+				px.panel()
+				px.size_fill()
+				px.margin(2)
+				px.background_color({230, 200, 160, 255})
+			}
+
+			px.scroll_content()
+
 			cols := 4
 			if      ws.x < 250 do cols = 3
 			else if ws.x > 400 do cols = 5
 			px.masonry(cols)
 			px.width_fill()
-			px.background_color(k2.LIGHT_BROWN)
 			px.padding(2)
-			px.margin(4)
-			px.margin_right(16)
 
 			{
 				px.v_stack()
