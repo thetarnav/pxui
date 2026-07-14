@@ -67,10 +67,11 @@ Context :: struct {
 	using frame_input: Frame_Input,
 
 	element_hover:     Element_Handle,
+	element_wheel:     Element_Handle,
 }
 ctx: Context
 
-Element_Flag  :: enum u8 {Non_Interactable}
+Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
 
 Layout_Direction :: enum {Top_Down, Bottom_Up}
@@ -410,7 +411,7 @@ update_screen_rect_and_mouse :: proc () {
 
 	_visit(root.child_first, check_mouse=true)
 
-	_visit :: proc (h: Element_Handle, check_mouse: bool) -> (hit: bool) {
+	_visit :: proc (h: Element_Handle, check_mouse: bool) -> bool {
 
 		el     := element_get(h) or_return
 		parent := element_get_assert(el.parent)
@@ -419,14 +420,16 @@ update_screen_rect_and_mouse :: proc () {
 		el.screen_pos = parent.screen_pos + el.rel_rect.pos
 
 		// Check mouse hover
-		if check_mouse &&
-		   .Non_Interactable not_in el.flags &&
-		   rect_contains({el.screen_pos, el.rel_rect.size}, ctx.mouse)
-		{
-			el.mouse_in = true
-			ctx.element_hover = h
-		} else {
-			el.mouse_in = false
+		el.mouse_in = check_mouse &&
+		               .Non_Interactable not_in el.flags &&
+		               rect_contains({el.screen_pos, el.rel_rect.size}, ctx.mouse)
+
+		if el.mouse_in {
+			ctx.element_hover = el
+		}
+
+		if el.mouse_in && .Capture_Wheel in el.flags {
+			ctx.element_wheel = el
 		}
 
 		_visit(el.child_first, check_mouse=el.mouse_in)
@@ -446,7 +449,32 @@ is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
 }
+is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
+	return element_get_or_curr(h).handle == ctx.element_wheel
+}
 
+wheel_delta :: proc (h: Element_Handle = {}) -> Vec2f {
+	return ctx.wheel_delta if is_wheel_in(h) else {}
+}
+wheel_delta_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h)[axis]
+}
+wheel_delta_x :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h).x
+}
+wheel_delta_y :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h).y
+}
+
+
+flag :: proc (f: Element_Flag, h: Element_Handle = {}) {
+	el := element_get_or_curr(h)
+	el.flags += {f}
+}
+flags :: proc (f: Element_Flags, h: Element_Handle = {}) {
+	el := element_get_or_curr(h)
+	el.flags += f
+}
 
 size              :: proc (v: Sizing_2D)          {element_curr().size = v}
 size_px           :: proc (v: Vec2i)              {element_curr().size = {v.x, v.y}}

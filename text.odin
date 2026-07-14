@@ -32,8 +32,7 @@ text :: proc (str: string, color: Color = 255) {
 	element_push(Text)
 	defer element_pop()
 
-	el := element_curr()
-	el.flags += {.Non_Interactable}
+	flag(.Non_Interactable)
 
 	Data :: struct {
 		color:  Color,

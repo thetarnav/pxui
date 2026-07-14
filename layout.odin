@@ -271,10 +271,9 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 
 	size_fill()
 	draw_scissor_begin({size=FILL})
+	flag(.Capture_Wheel)
 
-	if is_mouse_in() {
-		s.scroll += ctx.wheel_delta[axis]
-	}
+	s.scroll += wheel_delta_axis(axis)
 
 	layout_bottom_up(proc (outer: ^Element) {
 		s := element_state(Scroll_Area_Container,)
