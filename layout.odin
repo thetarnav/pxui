@@ -1,5 +1,6 @@
 package pxui
 
+import "core:fmt"
 import "core:math"
 import "core:slice"
 
@@ -262,8 +263,6 @@ masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_locatio
 
 Scroll_Area_Container       :: struct {axis: Axis, scroll: f32}
 Scroll_Area_Content         :: struct {}
-Scroll_Area_Scrollbar       :: struct {}
-Scroll_Area_Scrollbar_Thumb :: struct {}
 scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
 	s, _ := element_push(Scroll_Area_Container, id, loc)
@@ -316,13 +315,14 @@ scroll_content :: proc (loc := #caller_location) -> bool {
 	return true
 }
 
+Scroll_Area_Scrollbar       :: struct {dragging: bool, offset: int}
+Scroll_Area_Scrollbar_Thumb :: struct {}
 scrollbar_begin :: proc (loc := #caller_location) {
 	element_push(Scroll_Area_Scrollbar, loc=loc)
-	container := element_parent()
-	state := element_state(Scroll_Area_Container, container, loc)
+	container := element_state(Scroll_Area_Container, element_parent(), loc)
 
-	size_axis_fill(state.axis)
-	size_axis(perp(state.axis), 10)
+	size_axis_fill(container.axis)
+	size_axis(perp(container.axis), 10)
 
 	layout_top_down(proc (scrollbar: ^Element) {
 		container := element_parent()
@@ -330,9 +330,10 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		thumb     := element_get_assert(scrollbar.child_first)
 		state     := element_state(Scroll_Area_Container, container)
 		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
+		using scrollbar_state := element_state(Scroll_Area_Scrollbar, scrollbar)
 
 		ax     := state.axis
-		scroll := state.scroll
+		scroll := &state.scroll
 
 		oh := f32(element_size(container, ax))
 		ih := f32(element_size(content, ax))
@@ -343,11 +344,30 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		if sh <= 0 {
 			size = int(oh)
 		} else if ih > 0 && oh > 0 {
-			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll/(ih-oh))))
+			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll^/sh)))
 			size = int(oh * oh/ih)
 		}
 		element_set_pos(thumb, ax, pos)
 		element_set_size(thumb, ax, size)
+
+		if is_press_in(thumb) {
+			dragging = true
+			rect := element_screen_rect(thumb)
+			offset = ctx.mouse[ax] - rect.pos[ax] - rect.size[ax]/2
+		} else if is_press_in(scrollbar) {
+			dragging = true
+		}
+
+		if is_released() {
+			dragging = false
+		}
+
+		if dragging {
+			rect    := element_screen_rect(scrollbar)
+			// TODO: get prev frame screen pos as the current screen pos is zero
+			percent := clamp(f32(ctx.mouse[ax]-rect.pos[ax]) / oh, 0, 1)
+			scroll^  = percent * -f32(sh)
+		}
 	})
 }
 scrollbar_end :: proc (loc := #caller_location) {

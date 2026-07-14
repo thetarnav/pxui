@@ -410,7 +410,9 @@ update_screen_rect_and_mouse :: proc () {
 
 	root := element_get_assert(ctx.element_root)
 
-	_visit(root.child_first, check_mouse=true)
+	// Iterate in reverse order as
+	// later children are rendered on top of previous
+	_visit(root.child_last, check_mouse=true)
 
 	_visit :: proc (h: Element_Handle, check_mouse: bool) -> bool {
 
@@ -433,9 +435,9 @@ update_screen_rect_and_mouse :: proc () {
 			ctx.element_wheel = el
 		}
 
-		_visit(el.child_first, check_mouse=el.mouse_in)
+		_visit(el.child_last, check_mouse=el.mouse_in)
 
-		_visit(el.next, check_mouse=check_mouse && !el.mouse_in)
+		_visit(el.prev, check_mouse=check_mouse && !el.mouse_in)
 
 		return true
 	}
@@ -449,6 +451,18 @@ is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
 }
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
+}
+is_pressed :: proc (h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && ctx.mouse_pressed
+}
+is_click_in :: proc (h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && ctx.mouse_pressed
+}
+is_press_in :: proc (h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && ctx.mouse_pressed
+}
+is_released :: proc () -> bool {
+	return ctx.mouse_released
 }
 is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_wheel
