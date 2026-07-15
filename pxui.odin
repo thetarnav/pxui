@@ -681,3 +681,12 @@ element_size_and_margin_rb_axis :: proc (h: Element_Handle = {}, axis: Axis, loc
 	el := element_get_or_curr(h, loc)
 	return element_size_axis(h, axis, loc) + rb(el.margin)[axis]
 }
+
+element_width :: proc (h: Element_Handle = {}, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return _element_get_size(el, .X, loc=loc)
+}
+element_height :: proc (h: Element_Handle = {}, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return _element_get_size(el, .Y, loc=loc)
+}

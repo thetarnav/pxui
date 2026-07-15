@@ -9,8 +9,10 @@ import px "../"
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
-Vec2 :: [2]f32
-Rect :: px.Rectf
+Vec2  :: [2]f32
+Rect  :: px.Rectf
+RGBA  :: px.RGBA
+Color :: px.Color
 
 camera: k2.Camera
 
@@ -90,6 +92,8 @@ render_ui :: proc () {
 	k2.set_scissor_rect(nil)
 }
 
+COLOR_TEXT :: RGBA{230, 200, 160, 255}
+
 ui :: proc () {
 
 	// root size
@@ -101,7 +105,7 @@ ui :: proc () {
 		Counter :: struct {count: int}
 		state, _ := px.element_push(Counter)
 		hovered := px.is_hovered()
-		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else {230, 200, 160, 255})
+		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else COLOR_TEXT)
 		if px.is_clicked() {
 			state.count += 1
 		}
@@ -126,6 +130,7 @@ ui :: proc () {
 		px.panel()
 		px.size_fill()
 		px.margin(2)
+		// TODO: grabbed state (even when mouse is outside)
 		if px.is_hovered() {
 			px.background_color({250, 220, 180, 255})
 		} else {
@@ -154,13 +159,13 @@ ui :: proc () {
 
 				{
 					counter()
-					px.padding(2, 1)
+					px.padding(3, 1)
 					px.margin_right(1)
 				}
 
 				{
 					counter()
-					px.padding(3, 2)
+					px.padding(4, 2)
 				}
 			}
 
@@ -169,7 +174,7 @@ ui :: proc () {
 				px.nine_slice()
 
 				count := counter()
-				px.padding(6, 2, 6, 5)
+				px.padding(6, 4)
 				count^ += 1
 			}
 		}
@@ -183,7 +188,8 @@ ui :: proc () {
 
 			{
 				counter()
-				px.padding(3, 0, 3, 3)
+				px.padding(2)
+				px.margin_right(2)
 			}
 
 			{
@@ -288,6 +294,14 @@ ui :: proc () {
 				}
 			}
 		}
+
+		px.panel()
+		px.width_fill()
+		px.height(200)
+
+px.paragraph(`I brought it up because that's how it works in other languages so I'm used to always knowing what is a function from the highlight alone.
+You can even see the static highlighting on github colors it as a function.
+When lsp sets a property token it overwrites the function token from treesitter/textmate.`, k2.BROWN)
 	}
 
 	px.draw_color({
