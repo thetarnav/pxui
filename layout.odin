@@ -323,6 +323,18 @@ scrollbar_begin :: proc (loc := #caller_location) {
 	size_axis_fill(container.axis)
 	size_axis(perp(container.axis), 10)
 
+	get_thumb_pos_and_size :: proc (oh, ih: int, scroll: f32) -> (pos, size: int) {
+		if ih <= oh {
+			size = oh
+		} else if ih > 0 && oh > 0 {
+			pos  = int(math.ceil(f32(oh) * (1 - f32(oh)/f32(ih)) * (-scroll / (f32(ih)-f32(oh)))))
+			size = int(f32(oh) * f32(oh)/f32(ih))
+		} else {
+			size = 10
+		}
+		return
+	}
+
 	layout_top_down(proc (scrollbar: ^Element) {
 		container := element_parent()
 		content   := element_get_assert(container.child_first)
@@ -331,22 +343,15 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
 		ax     := state.axis
-		scroll := &state.scroll
+		scroll := state.scroll
 
-		oh := f32(element_size(container, ax))
-		ih := f32(element_size(content, ax))
-		sh := ih-oh
+		oh := element_size(container, ax)
+		ih := element_size(content, ax)
 
-		pos:  int
-		size: int = 10
-		if sh <= 0 {
-			size = int(oh)
-		} else if ih > 0 && oh > 0 {
-			pos  = int(math.ceil(oh * (1 - oh/ih) * (-scroll^/sh)))
-			size = int(oh * oh/ih)
-		}
-		element_set_pos(thumb, ax, pos)
-		element_set_size(thumb, ax, size)
+		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll)
+
+		element_set_pos(thumb, ax, thumb_pos)
+		element_set_size(thumb, ax, thumb_size)
 	})
 
 	effect(proc (scrollbar: ^Element) {
@@ -360,26 +365,29 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		ax     := state.axis
 		scroll := &state.scroll
 
-		oh := f32(element_size(container, ax))
-		ih := f32(element_size(content, ax))
-		sh := ih-oh
+		oh := element_size(container, ax)
+		ih := element_size(content, ax)
+
+		scrollbar_pos := element_screen_pos(scrollbar)
+		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll^)
 
 		if is_press_in(thumb) {
 			dragging = true
-			rect := element_screen_rect(thumb)
-			offset = ctx.mouse[ax] - rect.pos[ax] - rect.size[ax]/2
+			offset   = ctx.mouse[ax] - scrollbar_pos[ax] - thumb_pos - thumb_size/2
 		} else if is_press_in(scrollbar) {
 			dragging = true
 		}
 
 		if is_released() {
 			dragging = false
+			offset   = 0
 		}
 
 		if dragging {
-			rect    := element_screen_rect(scrollbar)
-			percent := clamp(f32(ctx.mouse[ax] - rect.pos[ax] - int(oh-sh)/2) / sh, 0, 1)
-			scroll^  = percent * -f32(sh)
+			h := f32(oh-thumb_size)
+			p := f32(ctx.mouse[ax]) - f32(scrollbar_pos[ax]) - f32(oh)/2 - f32(offset)
+			percent := math.remap_clamped(p, -h/2, h/2, 0, 1)
+			scroll^  = percent * -f32(ih-oh)
 		}
 	})
 }

@@ -201,6 +201,10 @@ element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_locati
 	return (^T)(el.data_ptr)
 }
 
+element_screen_pos :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+	el := element_get_or_curr(h, loc)
+	return el.screen_pos
+}
 element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
 	el := element_get_or_curr(h, loc)
 	return {el.screen_pos, el.rel_rect.size}
