@@ -25,7 +25,7 @@ Sizing :: union #no_nil {
 	Content, // derive from content - default
 	Fill,    // fill available space
 	int,     // absolute - pixels
-	f32,     // relative - percents
+	f32,     // relative - percent
 }
 Sizing_2D :: [2]Sizing
 
@@ -74,8 +74,9 @@ ctx: Context
 Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
 
+Element_Callback :: proc (^Element)
+
 Layout_Direction :: enum {Top_Down, Bottom_Up}
-Layout_Callback  :: proc (^Element)
 
 Element :: struct {
 	type:         typeid,               // data_ptr type
@@ -102,7 +103,8 @@ Element :: struct {
 		padding:      Insets,
 		using place:  Placement,
 
-		layout:       [Layout_Direction]Layout_Callback,
+		layout:       [Layout_Direction]Element_Callback,
+		effect:       Element_Callback,
 
 		rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
 		size_set:     [2]bool,
@@ -298,19 +300,19 @@ frame_begin :: proc () {
 frame_end :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
+	solve_layout()
+
+	update_screen_rect_and_mouse()
+
 	it := hm.iterator_make(&ctx.elements)
 	for el, handle in hm.iterate(&it) {
 		if el._found || handle == ctx.element_root {
-			el._found = false
+			_call_element_callback(el, el.effect)
 		} else {
 			free(el.data_ptr)
 			hm.remove(&ctx.elements, handle)
 		}
 	}
-
-	solve_layout()
-
-	update_screen_rect_and_mouse()
 }
 
 solve_layout :: proc () {
@@ -340,6 +342,15 @@ solve_layout :: proc () {
 			update_siblings(el.child_first)
 		}
 	}
+}
+
+@private
+_call_element_callback :: proc (el: ^Element, cb: Element_Callback) {
+	if cb == nil do return
+	prev_el := ctx.element_curr
+	ctx.element_curr = el.handle
+	cb(el)
+	ctx.element_curr = prev_el
 }
 
 @private
@@ -393,11 +404,7 @@ _element_get_size :: proc (el: ^Element, $AXIS: Axis, loc := #caller_location) -
 		}
 
 		for cb in el.layout {
-			if cb == nil do continue
-			prev_el := ctx.element_curr
-			ctx.element_curr = el.handle
-			cb(el)
-			ctx.element_curr = prev_el
+			_call_element_callback(el, cb)
 		}
 
 		assert(el.size_set[AXIS], loc=loc)
@@ -559,8 +566,10 @@ padding_right      :: padding_r
 padding_top        :: padding_t
 
 
-layout_top_down  :: proc (cb: Layout_Callback) {element_curr().layout[.Top_Down]  = cb}
-layout_bottom_up :: proc (cb: Layout_Callback) {element_curr().layout[.Bottom_Up] = cb}
+layout_top_down  :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).layout[.Top_Down]  = cb}
+layout_bottom_up :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).layout[.Bottom_Up] = cb}
+
+effect :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).effect = cb}
 
 
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}

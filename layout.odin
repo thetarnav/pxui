@@ -1,6 +1,5 @@
 package pxui
 
-import "core:fmt"
 import "core:math"
 import "core:slice"
 
@@ -330,7 +329,6 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		thumb     := element_get_assert(scrollbar.child_first)
 		state     := element_state(Scroll_Area_Container, container)
 		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
-		using scrollbar_state := element_state(Scroll_Area_Scrollbar, scrollbar)
 
 		ax     := state.axis
 		scroll := &state.scroll
@@ -349,6 +347,22 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		}
 		element_set_pos(thumb, ax, pos)
 		element_set_size(thumb, ax, size)
+	})
+
+	effect(proc (scrollbar: ^Element) {
+		container := element_parent()
+		content   := element_get_assert(container.child_first)
+		thumb     := element_get_assert(scrollbar.child_first)
+		state     := element_state(Scroll_Area_Container, container)
+		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
+		using scrollbar_state := element_state(Scroll_Area_Scrollbar, scrollbar)
+
+		ax     := state.axis
+		scroll := &state.scroll
+
+		oh := f32(element_size(container, ax))
+		ih := f32(element_size(content, ax))
+		sh := ih-oh
 
 		if is_press_in(thumb) {
 			dragging = true
