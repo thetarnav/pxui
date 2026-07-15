@@ -260,8 +260,8 @@ masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_locatio
 }
 
 
-Scroll_Area_Container       :: struct {axis: Axis, scroll: f32}
-Scroll_Area_Content         :: struct {}
+Scroll_Area_Container :: struct {axis: Axis, scroll: f32}
+Scroll_Area_Content   :: struct {}
 scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
 	s, _ := element_push(Scroll_Area_Container, id, loc)

@@ -126,7 +126,11 @@ ui :: proc () {
 		px.panel()
 		px.size_fill()
 		px.margin(2)
-		px.background_color({230, 200, 160, 255})
+		if px.is_hovered() {
+			px.background_color({250, 220, 180, 255})
+		} else {
+			px.background_color({230, 200, 160, 255})
+		}
 	}
 
 	{
@@ -237,7 +241,11 @@ ui :: proc () {
 				px.panel()
 				px.size_fill()
 				px.margin(2)
-				px.background_color({230, 200, 160, 255})
+				if px.is_hovered() {
+					px.background_color({250, 220, 180, 255})
+				} else {
+					px.background_color({230, 200, 160, 255})
+				}
 			}
 
 			px.scroll_content()
