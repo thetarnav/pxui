@@ -378,8 +378,7 @@ scrollbar_begin :: proc (loc := #caller_location) {
 
 		if dragging {
 			rect    := element_screen_rect(scrollbar)
-			// TODO: get prev frame screen pos as the current screen pos is zero
-			percent := clamp(f32(ctx.mouse[ax]-rect.pos[ax]) / oh, 0, 1)
+			percent := clamp(f32(ctx.mouse[ax] - rect.pos[ax] - int(oh-sh)/2) / sh, 0, 1)
 			scroll^  = percent * -f32(sh)
 		}
 	})
