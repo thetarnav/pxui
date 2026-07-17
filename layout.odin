@@ -450,3 +450,10 @@ scrollbar_thumb :: proc (loc := #caller_location) -> bool {
 	scrollbar_thumb_begin(loc)
 	return true
 }
+
+scrollbar_is_dragging :: proc () -> bool {
+	el        := element_curr()
+	scrollbar := element_parent() if el.type == Scroll_Area_Scrollbar_Thumb else el
+	s         := element_state(Scroll_Area_Scrollbar, scrollbar)
+	return s.dragging
+}

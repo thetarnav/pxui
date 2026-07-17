@@ -125,12 +125,13 @@ ui :: proc () {
 		px.background_color({180, 140, 100, 255})
 
 		px.scrollbar_thumb()
+		grabbed := px.scrollbar_is_dragging()
 
 		px.panel()
 		px.size_fill()
 		px.margin(2)
 		// TODO: grabbed state (even when mouse is outside)
-		if px.is_hovered() {
+		if px.is_hovered() || grabbed {
 			px.background_color({250, 220, 180, 255})
 		} else {
 			px.background_color({230, 200, 160, 255})
