@@ -16,23 +16,24 @@ _stack_update_layout :: proc (el: ^Element, $AX: Axis) {
 
 		// Position each child below previous
 		element_set_pos(child, AX, element_pos(prev, AX) +
-		                           element_size_and_margin_rb(prev)[AX] +
+		                           element_size_and_margin_rb(prev, AX) +
 		                           lt(child.margin)[AX])
 	}
 
 	// Increase element rect
 	element_expand_size(el, AX, element_pos(prev, AX) +
-	                            element_size_and_margin_rb(prev)[AX] +
+	                            element_size_and_margin_rb(prev, AX) +
 	                            rb(el.padding)[AX])
 }
 
 V_Stack :: struct {}
-v_stack_layout_post :: proc (el: ^Element) {
+v_stack_update_layout :: proc () {
+	el := element_curr()
 	_stack_update_layout(el, .Y)
 }
 v_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
 	element_push(V_Stack, id, loc)
-	layout_bottom_up(v_stack_layout_post)
+	layout(.V, v_stack_update_layout)
 }
 v_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash, loc=loc)
@@ -45,12 +46,13 @@ v_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
 }
 
 H_Stack :: struct {}
-h_stack_update_layout :: proc (el: ^Element) {
+h_stack_update_layout :: proc () {
+	el := element_curr()
 	_stack_update_layout(el, .X)
 }
 h_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
 	element_push(H_Stack, id, loc)
-	layout_bottom_up(h_stack_update_layout)
+	layout(.H, h_stack_update_layout)
 }
 h_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash, loc=loc)
@@ -106,15 +108,16 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 }
 
 Flex :: struct {axis: Axis}
-flex_update_layout :: proc (el: ^Element) {
-	s := element_state(Flex, el.handle)
+flex_update_layout :: proc () {
+	el := element_curr()
+	s  := element_state(Flex, el)
 	if s.axis == .H do _flex_update_layout(el, .H)
 	else            do _flex_update_layout(el, .V)
 }
 flex_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
 	s, _ := element_push(Flex, id, loc)
 	s.axis = axis
-	layout_bottom_up(flex_update_layout)
+	layout(axis, flex_update_layout)
 }
 flex_end :: proc () {
 	assert(typeid_of(Flex) == element_curr().type)
@@ -137,9 +140,10 @@ flex_v :: proc (id: u64 = 0, loc := #caller_location) -> bool {
 }
 
 
-rect_cut_update_layout :: proc (el: ^Element) {
+rect_cut_update_layout :: proc () {
 
-	s  := element_state(Rect_Cut, el.handle)
+	el := element_curr()
+	s  := element_state(Rect_Cut, el)
 	ax := s.axis
 
 	// Find out how much space is taken by non-fill elements
@@ -188,7 +192,7 @@ Rect_Cut :: struct {axis: Axis}
 rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
 	s, _ := element_push(Rect_Cut, id, loc)
 	s.axis = axis
-	layout_top_down(rect_cut_update_layout)
+	layout_axis(axis, rect_cut_update_layout)
 }
 rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash, loc=loc)
@@ -202,7 +206,7 @@ rect_cut :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool
 
 
 @private
-_masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
+_masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -227,8 +231,6 @@ _masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
 		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * col_w} +
 		                       lt(child.margin) + rb(el.padding))
 
-		element_set_size(child, PERP, col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP])
-
 		cols[min_idx] += element_size_and_margin(child)[AXIS]
 	}
 
@@ -236,18 +238,50 @@ _masonry_update_layout :: proc (el: ^Element, c: int, $AXIS: Axis) {
 	                              lt(el.padding)[AXIS] +
 	                              rb(el.padding)[AXIS])
 }
-masonry_update_layout :: proc (el: ^Element) {
-	s := element_state(Masonry, el.handle)
-	if s.axis == .H do _masonry_update_layout(el, s.cols, .H)
-	else            do _masonry_update_layout(el, s.cols, .V)
+@private
+_masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
+
+	_, has_children := element_get(el.child_first)
+	if !has_children do return
+
+	c := c if c > 0 else 1
+
+	PERP :: Axis((int(AXIS) + 1) % 2)
+
+	space_w := element_size(el, PERP) -
+	           lt(el.padding)[PERP] -
+	           rb(el.padding)[PERP]
+	col_w := space_w / c // TODO: what to do about the flored pixel fraction (it grows space after)
+
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		defer child_id = child.next
+
+		element_set_size(child, PERP, col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP])
+	}
 }
 
 Masonry :: struct {axis: Axis, cols: int}
 masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+	bounds_check_axis(axis, loc)
+
 	s, _ := element_push(Masonry, id, loc)
 	s.axis = axis
 	s.cols = cols
-	layout_top_down(masonry_update_layout)
+
+	layout(axis, proc () {
+		el := element_curr()
+		s  := element_state(Masonry, el)
+		if s.axis == .H do _masonry_layout_axis(el, s.cols, .H)
+		else            do _masonry_layout_axis(el, s.cols, .V)
+	}, deps={perp(axis)})
+
+	layout(perp(axis), proc () {
+		el := element_curr()
+		s  := element_state(Masonry, el)
+		if s.axis == .H do _masonry_layout_perp(el, s.cols, .H)
+		else            do _masonry_layout_perp(el, s.cols, .V)
+	})
 }
 masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)
@@ -273,19 +307,20 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 
 	s.scroll += wheel_delta_axis(axis)
 
-	layout_bottom_up(proc (outer: ^Element) {
-		s := element_state(Scroll_Area_Container,)
-		ax := s.axis
+	layout_axis(axis, proc () {
+		area := element_curr()
+		s    := element_state(Scroll_Area_Container,)
+		ax   := s.axis
 
-		content := element_get_assert(outer.child_first)
+		content := element_get_assert(area.child_first)
 
-		oh := element_size(outer, ax)
+		oh := element_size(area, ax)
 		ih := element_size(content, ax)
 
 		s.scroll = clamp(s.scroll, -f32(ih-oh), 0)
 
 		element_set_pos(content, ax, int(s.scroll))
-	})
+	}, deps={axis, perp(axis)})
 }
 scroll_area_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Scroll_Area_Container), id) == element_curr().hash, loc=loc)
@@ -335,7 +370,8 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		return
 	}
 
-	layout_top_down(proc (scrollbar: ^Element) {
+	layout_axis(container.axis, proc () {
+		scrollbar := element_curr()
 		container := element_parent()
 		content   := element_get_assert(container.child_first)
 		thumb     := element_get_assert(scrollbar.child_first)
@@ -354,7 +390,8 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		element_set_size(thumb, ax, thumb_size)
 	})
 
-	effect(proc (scrollbar: ^Element) {
+	effect(proc () {
+		scrollbar := element_curr()
 		container := element_parent()
 		content   := element_get_assert(container.child_first)
 		thumb     := element_get_assert(scrollbar.child_first)

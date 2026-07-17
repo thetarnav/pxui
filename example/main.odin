@@ -296,12 +296,13 @@ ui :: proc () {
 		}
 
 		px.panel()
+		px.padding(12, 8)
 		px.width_fill()
-		px.height(200)
 
-px.paragraph(`I brought it up because that's how it works in other languages so I'm used to always knowing what is a function from the highlight alone.
-You can even see the static highlighting on github colors it as a function.
-When lsp sets a property token it overwrites the function token from treesitter/textmate.`, k2.BROWN)
+		px.paragraph(`PXUI is a pixel-art focused and aseprite-inpired Odin UI library.
+Currently offering an immediate-mode API, layout, text and texture primitives
+as well as React-like layout/effect "hooks"—used to implement all builtin components.
+Can be used with any rendering backend—see example/ for use with karl2d.`, k2.BROWN)
 	}
 
 	px.draw_color({

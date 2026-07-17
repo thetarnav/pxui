@@ -1,10 +1,12 @@
 package pxui
 
+import "core:os"
 import "core:io"
 import "core:strings"
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
+import "core:container/topological_sort"
 import la "core:math/linalg"
 import hm "core:container/handle_map"
 
@@ -38,6 +40,8 @@ Placement :: struct {
 
 Axis :: enum {H=0, V=1,
               X=0, Y=1}
+
+Axis_Set :: bit_set[Axis]
 
 Atlas :: struct {
 	pixels: []RGBA,
@@ -74,10 +78,6 @@ ctx: Context
 Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
 
-Element_Callback :: proc (^Element)
-
-Layout_Direction :: enum {Top_Down, Bottom_Up}
-
 Element :: struct {
 	type:         typeid,               // data_ptr type
 	id:           u64,
@@ -103,12 +103,11 @@ Element :: struct {
 		padding:      Insets,
 		using place:  Placement,
 
-		layout:       [Layout_Direction]Element_Callback,
-		effect:       Element_Callback,
+		layout:       [2]struct {cb: proc (), deps: Axis_Set},
+		effect:       proc (),
 
 		rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
 		size_set:     [2]bool,
-		size_running: [2]bool,
 		screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
 	},
 }
@@ -304,22 +303,27 @@ frame_begin :: proc () {
 frame_end :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
-	solve_layout()
-
-	update_screen_rect_and_mouse()
-
 	it := hm.iterator_make(&ctx.elements)
+
 	for el, handle in hm.iterate(&it) {
-		if el._found || handle == ctx.element_root {
-			_call_element_callback(el, el.effect)
-		} else {
+		if !el._found && handle != ctx.element_root {
 			free(el.data_ptr)
 			hm.remove(&ctx.elements, handle)
 		}
 	}
+
+	topological_solve()
+
+	update_screen_rect_and_mouse()
+
+	for el, _ in hm.iterate(&it) {
+		_call_effect(el)
+	}
 }
 
-solve_layout :: proc () {
+topological_solve :: proc () {
+
+	context.allocator = context.temp_allocator
 
 	root := element_get_assert(ctx.element_root)
 
@@ -333,27 +337,118 @@ solve_layout :: proc () {
 		_element_update_pos(el)
 	}
 
-	update_siblings(root.child_first)
+	Key :: struct {el: ^Element, axis: Axis}
+	sorter: topological_sort.Sorter(Key)
 
-	update_siblings :: proc (h: Element_Handle) {
-		h := h
-		for el in element_get(h) {
-			defer h = el.next
+	for el, _ in hm.iterate(&it) {
+		for axis in Axis {
+			topological_sort.add_key(&sorter, Key{el, axis})
 
-			_element_get_size(el, .X)
-			_element_get_size(el, .Y)
+			#partial switch s in el.size[axis] {
+			case Fill, f32:
+				parent := element_get_assert(el.parent)
+				topological_sort.add_dependency(&sorter, Key{el, axis}, Key{parent, axis})
+			case Content:
+				child_id := el.child_first
+				for child in element_get(child_id) {
+					defer child_id = child.next
 
-			update_siblings(el.child_first)
+					#partial switch _ in child.size[axis] {
+					case Fill, f32: continue // skip cyclic deps
+					}
+
+					topological_sort.add_dependency(&sorter, Key{el, axis}, Key{child, axis})
+				}
+			}
+
+			// Custom layouts can depend on other axis
+			if el.layout[axis].cb != nil {
+				if perp(axis) in el.layout[axis].deps {
+					topological_sort.add_dependency(&sorter, Key{el, axis}, Key{el, perp(axis)})
+				}
+				if axis in el.layout[axis].deps && el.size[axis] != CONTENT {
+					child_id := el.child_first
+					for child in element_get(child_id) {
+						defer child_id = child.next
+
+						#partial switch _ in child.size[axis] {
+						case Fill, f32: continue // skip cyclic deps
+						}
+
+						topological_sort.add_dependency(&sorter, Key{el, axis}, Key{child, axis})
+					}
+				}
+			}
 		}
 	}
+
+	sorted, cycled := topological_sort.sort(&sorter)
+
+	if len(cycled) > 0 {
+		w := io.to_writer(os.to_writer(os.stdout))
+		fmt.wprintln(w, "Cycled:")
+		for key in cycled {
+			fmt.wprint(w, "\t")
+			element_display_writer(w, key.el)
+			fmt.wprintln(w, ":", key.axis == .X ? "X" : "Y")
+		}
+	}
+
+	for key in sorted {
+		el, axis := key.el, key.axis
+
+		if !el.size_set[axis] {
+			switch v in el.size[axis] {
+			case Fill, f32:
+				parent := element_get_assert(el.parent)
+				percent := v.(f32) or_else 1.0
+				avail_size := element_size(parent, axis) -
+				              lt(parent.padding)[axis] - rb(parent.padding)[axis] -
+				              lt(el.padding)[axis] - rb(el.padding)[axis] -
+				              lt(el.margin)[axis] - rb(el.margin)[axis]
+				element_set_size(el, axis, int(f32(avail_size) * percent) +
+				                           lt(el.padding)[axis] + rb(el.padding)[axis])
+			case Content:
+				child_id := el.child_first
+				for child in element_get(child_id) {
+					defer child_id = child.next
+
+					#partial switch _ in child.size[axis] {
+					case Fill, f32: continue // skip cyclic deps
+					}
+
+					element_expand_size(el, axis, element_size_and_margin(child, axis) +
+					                              lt(el.padding)[axis] + rb(el.padding)[axis])
+				}
+			case int:
+				element_set_size(el, axis, v)
+			}
+		}
+
+		_call_layout(el, axis)
+
+		el.size_set[axis] = true
+	}
+
+	return
 }
 
 @private
-_call_element_callback :: proc (el: ^Element, cb: Element_Callback) {
+_call_layout :: proc (el: ^Element, axis: Axis) {
+	layout := el.layout[axis]
+	if layout.cb == nil do return
+	prev_el := ctx.element_curr
+	ctx.element_curr = el.handle
+	layout.cb()
+	ctx.element_curr = prev_el
+}
+@private
+_call_effect :: proc (el: ^Element) {
+	cb := el.effect
 	if cb == nil do return
 	prev_el := ctx.element_curr
 	ctx.element_curr = el.handle
-	cb(el)
+	cb()
 	ctx.element_curr = prev_el
 }
 
@@ -379,41 +474,7 @@ _element_update_pos :: proc (el: ^Element) #no_bounds_check {
 
 @private
 _element_get_size :: proc (el: ^Element, $AXIS: Axis, loc := #caller_location) -> int #no_bounds_check {
-
-	if !el.size_set[AXIS] && !el.size_running[AXIS] {
-
-		el.size_running[AXIS] = true
-		defer el.size_running[AXIS] = false
-
-		switch v in el.size[AXIS] {
-		case Fill, f32:
-			parent := element_get_assert(el.parent, loc)
-			percent := v.(f32) or_else 1.0
-			avail_size := element_size(parent, AXIS) -
-			              lt(parent.padding)[AXIS] - rb(parent.padding)[AXIS] -
-			              lt(el.padding)[AXIS] - rb(el.padding)[AXIS] -
-			              lt(el.margin)[AXIS] - rb(el.margin)[AXIS]
-			element_set_size(el, AXIS, int(f32(avail_size) * percent) +
-			                           lt(el.padding)[AXIS] + rb(el.padding)[AXIS])
-		case Content:
-			child_id := el.child_first
-			for child in element_get(child_id) {
-				defer child_id = child.next
-
-				element_expand_size(el, AXIS, element_size_and_margin(child, AXIS) +
-				                              lt(el.padding)[AXIS] + rb(el.padding)[AXIS])
-			}
-		case int:
-			element_set_size(el, AXIS, v)
-		}
-
-		for cb in el.layout {
-			_call_element_callback(el, cb)
-		}
-
-		assert(el.size_set[AXIS], loc=loc)
-	}
-
+	assert(el.size_set[AXIS] == true, loc=loc)
 	return el.rel_rect.size[AXIS]
 }
 
@@ -570,10 +631,13 @@ padding_right      :: padding_r
 padding_top        :: padding_t
 
 
-layout_top_down  :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).layout[.Top_Down]  = cb}
-layout_bottom_up :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).layout[.Bottom_Up] = cb}
+layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}) {
+	deps := deps if deps != {} else {axis}
+	element_get_or_curr(h).layout[axis] = {cb, deps}
+}
+layout :: proc {layout_axis}
 
-effect :: proc (cb: Element_Callback, h: Element_Handle = {}) {element_get_or_curr(h).effect = cb}
+effect :: proc (cb: proc (), h: Element_Handle = {}) {element_get_or_curr(h).effect = cb}
 
 
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}

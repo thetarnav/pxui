@@ -64,75 +64,79 @@ paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	s.str, _ = strings.clone(str, context.temp_allocator, loc)
 	s.color  = color
 
-	layout_bottom_up(proc (el: ^Element) {
-		using s := element_state(Paragraph)
+	layout(.Y, _paragraph_layout, deps={.X})
+}
 
-		mw := element_width()
-		sw := space_width()
-		lh := line_height()
-		lw: f32
+@private
+_paragraph_layout :: proc () {
+	el := element_curr()
+	using s := element_state(Paragraph)
 
-		current := make([dynamic]u8, context.temp_allocator)
+	mw := element_width()
+	sw := space_width()
+	lh := line_height()
+	lw: f32
 
-		cursor:    Vec2f // top-left of the next line to draw
-		extra_gap: f32   // extra vertical space inserted between lines
+	current := make([dynamic]u8, context.temp_allocator)
 
-		i, n := 0, len(str)
-		for i < n {
+	cursor:    Vec2f // top-left of the next line to draw
+	extra_gap: f32   // extra vertical space inserted between lines
 
-			// Read one word (non-space, non-newline).
-			word_start := i
-			for i < n && str[i] != ' ' && str[i] != '\n' {
-				i += 1
-			}
-			word := str[word_start:i]
+	i, n := 0, len(str)
+	for i < n {
 
-			// Hard newline: flush the line with the current word, then start fresh.
-			if i < n && str[i] == '\n' {
-				append(&current, word)
-				if len(current) > 0 {
-					draw_text(string(current[:]), color, cursor)
-					cursor.y += lh + extra_gap
-					clear(&current)
-				}
-				lw = 0
-				i += 1
-				continue
-			}
+		// Read one word (non-space, non-newline).
+		word_start := i
+		for i < n && str[i] != ' ' && str[i] != '\n' {
+			i += 1
+		}
+		word := str[word_start:i]
 
-			// Skip spaces (they belong to the inter-word gap, not the next word).
-			for i < n && str[i] == ' ' {
-				i += 1
-			}
-
-			if len(current) == 0 {
-				// First word on a line — always fits (single oversized word goes on
-				// its own line; the wrap step below catches the next one).
-				append(&current, word)
-				lw = measure_text(default_font, word).x
-			} else if lw + sw + measure_text(default_font, word).x > f32(mw) {
-				// Adding this word would overflow the line: emit what we have, start
-				// a new line with the word.
+		// Hard newline: flush the line with the current word, then start fresh.
+		if i < n && str[i] == '\n' {
+			append(&current, word)
+			if len(current) > 0 {
 				draw_text(string(current[:]), color, cursor)
 				cursor.y += lh + extra_gap
 				clear(&current)
-				append(&current, word)
-				lw = measure_text(default_font, word).x
-			} else {
-				// Fits on the current line.
-				append(&current, ' ')
-				append(&current, word)
-				lw += sw + measure_text(default_font, word).x
 			}
+			lw = 0
+			i += 1
+			continue
 		}
 
-		if len(current) > 0 {
+		// Skip spaces (they belong to the inter-word gap, not the next word).
+		for i < n && str[i] == ' ' {
+			i += 1
+		}
+
+		if len(current) == 0 {
+			// First word on a line — always fits (single oversized word goes on
+			// its own line; the wrap step below catches the next one).
+			append(&current, word)
+			lw = measure_text(default_font, word).x
+		} else if lw + sw + measure_text(default_font, word).x > f32(mw) {
+			// Adding this word would overflow the line: emit what we have, start
+			// a new line with the word.
 			draw_text(string(current[:]), color, cursor)
 			cursor.y += lh + extra_gap
+			clear(&current)
+			append(&current, word)
+			lw = measure_text(default_font, word).x
+		} else {
+			// Fits on the current line.
+			append(&current, ' ')
+			append(&current, word)
+			lw += sw + measure_text(default_font, word).x
 		}
+	}
 
-		height(int(cursor.y))
-	})
+	if len(current) > 0 {
+		draw_text(string(current[:]), color, cursor)
+		cursor.y += lh + extra_gap
+	}
+
+	element_set_height(el, int(cursor.y))
 }
 
 draw_text :: proc (str: string, color: Color, origin: Vec2f = {0, 0}, cursor: ^Vec2f = nil) -> Vec2i {

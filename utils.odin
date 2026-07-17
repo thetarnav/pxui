@@ -1,8 +1,15 @@
 package pxui
 
+import "base:runtime"
 import la "core:math/linalg"
 
 perp :: #force_inline proc "contextless" (a: Axis) -> Axis {return Axis((int(a) + 1) % 2)}
+axis_perp :: perp
+
+bounds_check_axis :: proc (a: Axis, loc := #caller_location) {
+	runtime.bounds_check_error_loc(loc, int(a), 2)
+}
+axis_bounds_check :: bounds_check_axis
 
 lt :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.t}}
 lb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.l, i.b}}
