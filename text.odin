@@ -94,6 +94,7 @@ _paragraph_layout :: proc () {
 
 		// Hard newline: flush the line with the current word, then start fresh.
 		if i < n && str[i] == '\n' {
+			append(&current, ' ')
 			append(&current, word)
 			if len(current) > 0 {
 				draw_text(string(current[:]), color, cursor)
