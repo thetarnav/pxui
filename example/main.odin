@@ -101,9 +101,9 @@ ui :: proc () {
 	px.size_px(ws)
 
 	@(deferred_none=px.element_pop)
-	counter :: proc (id: u64 = 0) -> ^int {
+	counter :: proc (id: u64 = 0, loc := #caller_location) -> ^int {
 		Counter :: struct {count: int}
-		state, _ := px.element_push(Counter)
+		state, _ := px.element_push(Counter, id, loc=loc)
 		hovered := px.is_hovered()
 		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else COLOR_TEXT)
 		if px.is_clicked() {
@@ -113,8 +113,7 @@ ui :: proc () {
 	}
 
 	px.panel()
-	px.margin(4)
-	px.padding(10)
+	px.padding(6, 12)
 	px.width_fill()
 	px.height_fill()
 	px.nine_slice()
@@ -140,6 +139,7 @@ ui :: proc () {
 
 	{
 		px.scroll_content()
+		px.padding_l(12)
 
 		px.v_stack()
 		px.width_fill()

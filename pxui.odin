@@ -605,6 +605,8 @@ margin_t          :: proc (v: int)          {element_curr().margin.t = v}
 margin_b          :: proc (v: int)          {element_curr().margin.b = v}
 margin_l          :: proc (v: int)          {element_curr().margin.l = v}
 margin_r          :: proc (v: int)          {element_curr().margin.r = v}
+margin_h          :: proc (h: int)          {margin_l(h); margin_r(h)}
+margin_v          :: proc (v: int)          {margin_t(v); margin_b(v)}
 margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
 margin_dirs       :: margin_directions
 margin_bottom     :: margin_b
@@ -612,6 +614,8 @@ margin_bot        :: margin_b
 margin_left       :: margin_l
 margin_right      :: margin_r
 margin_top        :: margin_t
+margin_x          :: margin_h
+margin_y          :: margin_v
 
 padding_set        :: proc (v: Insets)       {element_curr().padding = v}
 padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
@@ -622,6 +626,8 @@ padding_t          :: proc (v: int)          {element_curr().padding.t = v}
 padding_b          :: proc (v: int)          {element_curr().padding.b = v}
 padding_l          :: proc (v: int)          {element_curr().padding.l = v}
 padding_r          :: proc (v: int)          {element_curr().padding.r = v}
+padding_h          :: proc (h: int)          {padding_l(h); padding_r(h)}
+padding_v          :: proc (v: int)          {padding_t(v); padding_b(v)}
 padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
 padding_dirs       :: padding_directions
 padding_bottom     :: padding_b
@@ -629,6 +635,8 @@ padding_bot        :: padding_b
 padding_left       :: padding_l
 padding_right      :: padding_r
 padding_top        :: padding_t
+padding_x          :: padding_h
+padding_y          :: padding_v
 
 
 layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}) {
