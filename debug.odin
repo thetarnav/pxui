@@ -6,11 +6,11 @@ import "core:strings"
 
 debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
-	root := element_get_assert(ctx.element_root)
+	root := element_root()
 	screen := root.screen_pos + root.rel_rect.size
 
 	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
-	display(ctx.element_root, pixels, screen.x)
+	display(root, pixels, screen.x)
 
 	sb := strings.builder_make(allocator)
 	for p, i in pixels {

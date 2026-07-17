@@ -302,7 +302,7 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 	s.axis = axis
 
 	size_fill()
-	draw_scissor_begin({size=FILL})
+	draw_scissor({size=FILL})
 	flag(.Capture_Wheel)
 
 	s.scroll += wheel_delta_axis(axis)
@@ -324,7 +324,6 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 }
 scroll_area_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Scroll_Area_Container), id) == element_curr().hash, loc=loc)
-	draw_scissor_end()
 	element_pop()
 }
 @(deferred_in=scroll_area_end)

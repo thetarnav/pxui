@@ -109,6 +109,9 @@ Element :: struct {
 		rel_rect:     Rect,           // pos and size in pixels starting at parent pos (calculated in frame_end, available in layout callbacks)
 		size_set:     [2]bool,
 		screen_pos:   Vec2i,          // pos on screen/world (calculated in frame_end after layout solve, available for draw commands)
+
+		draw_first:   Draw_Request_Handle,
+		draw_last:    Draw_Request_Handle,
 	},
 }
 
@@ -288,6 +291,9 @@ element_pop :: proc () {
 element_curr :: proc () -> ^Element {
 	return element_get_assert(ctx.element_curr)
 }
+element_root :: proc () -> ^Element {
+	return element_get_assert(ctx.element_root)
+}
 
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
@@ -325,7 +331,7 @@ topological_solve :: proc () {
 
 	context.allocator = context.temp_allocator
 
-	root := element_get_assert(ctx.element_root)
+	root := element_root()
 
 	// Root is sized by the user like any other element.
 	// Percentages on the root resolve against 0 (i.e. zero) since it has no parent.
@@ -480,7 +486,7 @@ _element_get_size :: proc (el: ^Element, $AXIS: Axis, loc := #caller_location) -
 
 update_screen_rect_and_mouse :: proc () {
 
-	root := element_get_assert(ctx.element_root)
+	root := element_root()
 
 	// Iterate in reverse order as
 	// later children are rendered on top of previous
