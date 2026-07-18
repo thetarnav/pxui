@@ -10,20 +10,18 @@ _stack_update_layout :: proc (el: ^Element, $AX: Axis) {
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
 
+	cursor := element_bounds(prev, AX)
+
 	child_id := prev.next
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		// Position each child below previous
-		element_set_pos(child, AX, element_pos(prev, AX) +
-		                           element_size_and_margin_rb(prev, AX) +
-		                           lt(child.margin)[AX])
+		// Each child's bounds follow the previous child's bounds.
+		element_set_pos(child, AX, cursor)
+		cursor += element_bounds(child, AX)
 	}
 
-	// Increase element rect
-	element_expand_size(el, AX, element_pos(prev, AX) +
-	                            element_size_and_margin_rb(prev, AX) +
-	                            rb(el.padding)[AX])
+	element_set_inner_bounds(el, AX, cursor)
 }
 
 V_Stack :: struct {}
@@ -73,12 +71,14 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
 
-	max_size := element_size(el, AXIS) +
-	            -rb(el.padding)[AXIS]
+	// Max size on the axis = inner bounds (area available to children).
+	max_size := element_inner_bounds(el, AXIS)
 
+	// Position first child at the start of the reference plane.
+	element_set_pos(prev, {AXIS = 0, PERP = 0})
 	cursor: Vec2i
-	cursor[PERP] = lt(el.padding)[PERP]
-	cursor[AXIS] = element_pos(prev, AXIS) + element_size_and_margin_rb(prev)[AXIS]
+	cursor[PERP] = 0
+	cursor[AXIS] = element_bounds(prev, AXIS)
 
 	row_size: int
 
@@ -86,25 +86,19 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		cursor[AXIS] += lt(child.margin)[AXIS]
-		if cursor[AXIS] + element_size_and_margin_rb(child)[AXIS] > max_size {
-			cursor[AXIS] = lt(el.padding)[AXIS] + lt(child.margin)[AXIS]
+		if cursor[AXIS] + element_bounds(child, AXIS) > max_size {
+			cursor[AXIS] = 0
 			cursor[PERP] += row_size
 			row_size = 0
 		}
 
-		element_set_pos(child, {AXIS = cursor[AXIS],
-		                        PERP = cursor[PERP] + lt(child.margin)[PERP]})
+		element_set_pos(child, {AXIS = cursor[AXIS], PERP = cursor[PERP]})
 
-		cursor[AXIS] += element_size_and_margin_rb(child)[AXIS]
-		row_size = max(row_size, element_size_and_margin(child)[PERP])
+		cursor[AXIS] += element_bounds(child, AXIS)
+		row_size = max(row_size, element_bounds(child, PERP))
 	}
 
-	// Increase element rect
-	element_expand_size(el, PERP, element_pos(prev, PERP) +
-	                              element_size(prev, PERP) +
-	                              rb(prev.margin)[PERP] +
-	                              rb(el.padding)[PERP])
+	element_set_inner_bounds(el, PERP, cursor[PERP] + element_bounds(prev, PERP))
 }
 
 Flex :: struct {axis: Axis}
@@ -146,10 +140,8 @@ rect_cut_update_layout :: proc () {
 	s  := element_state(Rect_Cut, el)
 	ax := s.axis
 
-	// Find out how much space is taken by non-fill elements
-	// and how many elements need to share the remaining space
-	space_taken := rb(el.padding)[ax] +
-	               lt(el.padding)[ax]
+	// space_taken = total outer bounds of non-Fill children.
+	space_taken: int
 	fills: int
 
 	child_id := el.child_first
@@ -159,10 +151,8 @@ rect_cut_update_layout :: proc () {
 		if _, is_fill := child.size[ax].(Fill); is_fill {
 			fills += 1
 		} else {
-			space_taken += element_size(child, ax)
+			space_taken += element_bounds(child, ax)
 		}
-		space_taken += rb(child.margin)[ax] +
-		               lt(child.margin)[ax]
 	}
 
 	prev: ^Element
@@ -170,20 +160,20 @@ rect_cut_update_layout :: proc () {
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		// All fill-children divide the remaining space equally
+		// All fill-children divide the remaining space equally.
 		if _, is_fill := child.size[ax].(Fill); is_fill {
-			space := (element_size(el, ax) - space_taken)/fills
+			space := (element_inner_bounds(el, ax) - space_taken) / fills
 			space_taken += space
 			fills -= 1
 			element_set_size(child, ax, space)
 		}
 
 		if prev != nil {
-			// Position each child below previous
-			element_set_pos(child, ax, element_pos(prev, ax) +
-			                           element_size(prev, ax) +
-			                           rb(prev.margin)[ax] +
-			                           lt(child.margin)[ax])
+			// Position each child after previous (bounds).
+			element_set_pos(child, ax, element_pos(prev, ax) + element_bounds(prev, ax))
+		} else {
+			// First child at the start of the reference plane.
+			element_set_pos(child, ax, 0)
 		}
 	}
 }
@@ -217,10 +207,7 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	cols := make([]int, c, context.temp_allocator)
 
-	space_w := element_size(el, PERP) -
-	           lt(el.padding)[PERP] -
-	           rb(el.padding)[PERP]
-	col_w := space_w / c // TODO: what to do about the flored pixel fraction (it grows space after)
+	col_w := element_inner_bounds(el, PERP) / c // TODO: what to do about the flored pixel fraction (it grows space after)
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
@@ -228,15 +215,12 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 		min_idx := slice.min_index(cols) or_break
 
-		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * col_w} +
-		                       lt(child.margin) + rb(el.padding))
+		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * col_w})
 
-		cols[min_idx] += element_size_and_margin(child)[AXIS]
+		cols[min_idx] += element_bounds(child, AXIS)
 	}
 
-	element_expand_size(el, AXIS, slice.max(cols) +
-	                              lt(el.padding)[AXIS] +
-	                              rb(el.padding)[AXIS])
+	element_set_inner_bounds(el, AXIS, slice.max(cols))
 }
 @private
 _masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
@@ -248,16 +232,13 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
 
-	space_w := element_size(el, PERP) -
-	           lt(el.padding)[PERP] -
-	           rb(el.padding)[PERP]
-	col_w := space_w / c // TODO: what to do about the flored pixel fraction (it grows space after)
+	col_w := element_inner_bounds(el, PERP) / c
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
 		defer child_id = child.next
 
-		element_set_size(child, PERP, col_w - lt(child.margin)[PERP] - rb(child.margin)[PERP])
+		element_set_size(child, PERP, col_w)
 	}
 }
 
@@ -314,8 +295,8 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 
 		content := element_get_assert(area.child_first)
 
-		oh := element_size(area, ax)
-		ih := element_size(content, ax)
+		oh := element_inner_bounds(area, ax)
+		ih := element_bounds(content, ax)
 
 		s.scroll = clamp(s.scroll, -f32(ih-oh), 0)
 
@@ -380,8 +361,8 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		ax     := state.axis
 		scroll := state.scroll
 
-		oh := element_size(container, ax)
-		ih := element_size(content, ax)
+		oh := element_inner_bounds(container, ax)
+		ih := element_bounds(content, ax)
 
 		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll)
 
@@ -401,8 +382,8 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		ax     := state.axis
 		scroll := &state.scroll
 
-		oh := element_size(container, ax)
-		ih := element_size(content, ax)
+		oh := element_inner_bounds(container, ax)
+		ih := element_bounds(content, ax)
 
 		scrollbar_pos := element_screen_pos(scrollbar)
 		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll^)

@@ -96,15 +96,17 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	visit_element_before :: proc (el: ^Element) {
 		using data := (^Data)(context.user_ptr)^
 
+		box_size := element_box_size(el)
+
 		req_id := el.draw_first
 		for req in draw_get(req_id) {
 			defer req_id = req.next
 
 			dst: Rect
-			dst.size = size_vec_to_pixel(req.size, el.rel_rect.size)
+			dst.size = size_vec_to_pixel(req.size, box_size)
 			dst.pos  = el.screen_pos +
-			           size_vec_to_pixel(req.origin, el.rel_rect.size) +
-			           size_vec_to_pixel(req.pos, el.rel_rect.size)
+			           size_vec_to_pixel(req.origin, box_size) +
+			           size_vec_to_pixel(req.pos, box_size)
 
 			switch v in req.var {
 			case Draw_Texture:

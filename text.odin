@@ -72,7 +72,7 @@ _paragraph_layout :: proc () {
 	el := element_curr()
 	using s := element_state(Paragraph)
 
-	mw := element_width()
+	mw := element_inner_bounds(el, Axis.X)
 	sw := space_width()
 	lh := line_height()
 	lw: f32

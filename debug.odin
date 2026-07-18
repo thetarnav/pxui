@@ -3,11 +3,12 @@ package pxui
 import "core:io"
 import "core:os"
 import "core:strings"
+import "core:fmt"
 
 debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
 	root := element_root()
-	screen := root.screen_pos + root.rel_rect.size
+	screen := root.screen_pos + element_box_size(root)
 
 	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
 	display(root, pixels, screen.x)
@@ -29,9 +30,9 @@ debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
 	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
 
-		el := element_get(h) or_return
-		pos := el.screen_pos
-		size := el.rel_rect.size
+		el   := element_get(h) or_return
+		pos  := el.screen_pos
+		size := element_box_size(el)
 
 		for xi in 0..<size.x {
 			p := pos + {xi, 0}
@@ -98,4 +99,15 @@ debug_tree_display_write :: proc (w: io.Writer, root: Element_Handle, info: Debu
 debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
 	w := io.to_writer(os.to_writer(os.stdout))
 	debug_tree_display_write(w, root, info)
+}
+
+// TODO: all strings should allocate or none—otherwise you cannot free
+sizing_to_string :: proc (s: Sizing, allocator := context.allocator) -> string {
+	switch v in s {
+	case Content: return "Content"
+	case Fill:    return "Fill"
+	case int:     return fmt.aprintf("%d", v, allocator=allocator)
+	case f32:     return fmt.aprintf("%g", v, allocator=allocator)
+	}
+	return "?"
 }
