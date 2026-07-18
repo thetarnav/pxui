@@ -336,7 +336,7 @@ topological_solve :: proc () {
 	sorter: topological_sort.Sorter(Key)
 
 	for el, _ in hm.iterate(&it) {
-		for axis in Axis {
+		#unroll for axis in Axis {
 			topological_sort.add_key(&sorter, Key{el, axis})
 
 			#partial switch s in el.size[axis] {
