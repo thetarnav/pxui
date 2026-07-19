@@ -33,16 +33,22 @@ size_vec_to_pixel :: proc (s: Sizing_2D, ref: Vec2i) -> Vec2i {
 	return {size_to_pixel(s.x, ref.x), size_to_pixel(s.y, ref.y)}
 }
 
-vec2i_to_size :: proc (v: Vec2i) -> Sizing_2D {return {v.x, v.y}}
-vec2f_to_size :: proc (v: Vec2f) -> Sizing_2D {return {v.x, v.y}}
+vec2i_to_size :: proc (v: Vec2i) -> Sizing_2D {return {**v}}
+vec2f_to_size :: proc (v: Vec2f) -> Sizing_2D {return {**v}}
 to_size       :: proc {vec2f_to_size, vec2i_to_size}
-size_vec      :: to_size
-vec_to_size   :: to_size
+rect_to_placement  :: proc (v: Rect)  -> Placement {return {pos={**v.pos}, size={**v.size}}}
+rectf_to_placement :: proc (v: Rectf) -> Placement {return {pos={**v.pos}, size={**v.size}}}
+to_placement       :: proc {rect_to_placement, rectf_to_placement}
 
 @require_results
-rect :: #force_inline proc "contextless" (s, e: Vec2i) -> Rect {
+rect_vec :: #force_inline proc "contextless" (s, e: Vec2i) -> Rect {
     return {s, la.max(e-s, 0)}
 }
+@require_results
+rect_from_f :: #force_inline proc "contextless" (rect: Rectf) -> Rect {
+    return {Vec2i(rect.pos), Vec2i(rect.size)}
+}
+rect :: proc {rect_vec, rect_from_f}
 rect_end :: #force_inline proc "contextless" (rect: Rect) -> (end: Vec2i) {
 	return rect.pos + rect.size
 }

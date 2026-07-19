@@ -8,14 +8,16 @@ import la "core:math/linalg"
 Draw_Request :: struct {
 	using place: Placement,
 	next:        Draw_Request_Handle,
-	var:         union {Draw_Texture, Draw_Nine_Slice, Draw_Color, Draw_Scissor},
+	var:         Draw_Variant,
 }
 // Draw command with screen position
 // Output for the user renderer
 Draw_Command :: struct {
 	dst: Rect, // screen
-	var: union {Draw_Texture, Draw_Color, Draw_Scissor},
+	var: Draw_Variant,
 }
+
+Draw_Variant :: union {Draw_Texture, Draw_Color, Draw_Scissor}
 
 Draw_Request_Handle :: distinct int
 
@@ -24,10 +26,6 @@ Draw_Texture :: struct {
 	src:   Rect,
 	atlas: ^Atlas,
 	tint:  Color,
-}
-Draw_Nine_Slice :: struct {
-	using txt: Draw_Texture,
-	insets:    Insets,
 }
 Draw_Scissor :: struct {reset: bool}
 
@@ -49,27 +47,25 @@ draw_get :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) {
 	return &ctx.draw_reqs[idx], true
 }
 
-draw_color      :: proc (place: Placement, color: Color,        h: Element_Handle = {}) {draw({place=place, var=color},          h)}
-draw_tex        :: proc (place: Placement, tex: Draw_Texture,   h: Element_Handle = {}) {draw({place=place, var=tex},            h)}
-draw_nine_slice :: proc (place: Placement, ns: Draw_Nine_Slice, h: Element_Handle = {}) {draw({place=place, var=ns},             h)}
-draw_scissor    :: proc (place: Placement,                      h: Element_Handle = {}) {draw({place=place, var=Draw_Scissor{}}, h)}
+draw_color   :: proc (place: Placement, color: Color,      h: Element_Handle = {}) {draw({place=place, var=color},          h)}
+draw_tex     :: proc (place: Placement, tex: Draw_Texture, h: Element_Handle = {}) {draw({place=place, var=tex},            h)}
+draw_scissor :: proc (place: Placement,                    h: Element_Handle = {}) {draw({place=place, var=Draw_Scissor{}}, h)}
 
 @(private)
-draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, src, dst: Rect) {
-	f, d := src.size, dst.size
+_draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, dst: Rect) {
+	f, d := tex.src.size, dst.size
 	for y := 0; y < d.y; y += f.y {
 	for x := 0; x < d.x; x += f.x {
 		clip := la.min(f, d - {x, y})
 		tex := tex
-		tex.src = {src.pos, clip}
+		tex.src.size = clip
 		append(cmds, Draw_Command{{dst.pos + {x, y}, clip}, tex})
 	}}
 }
 
 get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
-	// TODO: shrink the init cap after nine-slice is removed from core-or make it a slice
-	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_reqs) * 4, allocator)
+	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_reqs) * 2, allocator)
 	defer shrink(&cmds)
 
 	Scrissor :: struct {rect: Rect, el: ^Element}
@@ -105,12 +101,12 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			dst: Rect
 			dst.size = size_vec_to_pixel(req.size, box_size)
 			dst.pos  = el.screen_pos +
-			           size_vec_to_pixel(req.origin, box_size) +
+			           -size_vec_to_pixel(req.origin, dst.size) +
 			           size_vec_to_pixel(req.pos, box_size)
 
 			switch v in req.var {
 			case Draw_Texture:
-				draw_tiled(cmds, v, v.src, dst)
+				_draw_tiled(cmds, v, dst)
 
 			case Draw_Color:
 				append(cmds, Draw_Command{dst, v})
@@ -119,39 +115,6 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 				rect := rect_intersetcion(dst, slice.last(scissors[:]).rect) if len(scissors) > 0 else dst
 				append(scissors, Scrissor{rect, el})
 				append(cmds, Draw_Command{rect, v})
-
-			case Draw_Nine_Slice:
-				l, t := v.insets.l, v.insets.t
-				r, b := v.insets.r, v.insets.b
-				lt, lb, rb := Vec2i{l, t}, Vec2i{l, b}, Vec2i{r, b}
-				s  := v.src.size
-				ds := dst.size
-
-				c0 := v.src.pos
-				c1 := v.src.pos + lt
-				c2 := v.src.pos + s - rb
-
-				d0 := dst.pos
-				d1 := dst.pos + lt
-				d2 := dst.pos + ds - rb
-
-				f := c2 - c1
-				d := d2 - d1
-
-				// corners
-				append(cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c0.x, c0.y}, lt}}, dst={{d0.x, d0.y}, lt}})
-				append(cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c2.x, c0.y}, rb}}, dst={{d2.x, d0.y}, rb}})
-				append(cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c0.x, c2.y}, lb}}, dst={{d0.x, d2.y}, lb}})
-				append(cmds, Draw_Command{var=Draw_Texture{tint=v.tint, atlas=v.atlas, src={{c2.x, c2.y}, rb}}, dst={{d2.x, d2.y}, rb}})
-
-				// edges
-				draw_tiled(cmds, v, src={{c1.x, c0.y}, {f.x, t}}, dst={{d1.x, d0.y}, {d.x, t}})
-				draw_tiled(cmds, v, src={{c1.x, c2.y}, {f.x, b}}, dst={{d1.x, d2.y}, {d.x, b}})
-				draw_tiled(cmds, v, src={{c0.x, c1.y}, {l, f.y}}, dst={{d0.x, d1.y}, {l, d.y}})
-				draw_tiled(cmds, v, src={{c2.x, c1.y}, {r, f.y}}, dst={{d2.x, d1.y}, {r, d.y}})
-
-				// fill
-				draw_tiled(cmds, v, src={c1, f}, dst={d1, d})
 			}
 		}
 	}

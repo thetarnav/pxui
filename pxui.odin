@@ -20,6 +20,8 @@ Rect     :: struct {using pos: Vec2i, size: Vec2i}
 Rectf    :: struct {using pos: Vec2f, size: Vec2f}
 Insets   :: struct {l, t, r, b: int}
 
+WHITE :: Color{255, 255, 255, 255}
+
 Content :: struct {}
 Fill    :: struct {}
 Sizing :: union #no_nil {
