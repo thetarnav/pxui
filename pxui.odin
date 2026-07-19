@@ -399,7 +399,7 @@ topological_solve :: proc () {
 		if !el.size_set[axis] {
 			switch v in el.size[axis] {
 			case Fill, f32:
-				element_set_size(el, axis, size_to_pixel(v, element_inner_bounds(el.parent, axis)))
+				element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(el.parent, axis)))
 			case Content:
 				child_id := el.child_first
 				for child in element_get(child_id) {
@@ -413,7 +413,7 @@ topological_solve :: proc () {
 					}
 				}
 			case int:
-				element_set_size(el, axis, v + lt(el.margin)[axis] + rb(el.margin)[axis])
+				element_set_bounds(el, axis, v + lt(el.margin)[axis] + rb(el.margin)[axis])
 			}
 		}
 
@@ -628,28 +628,6 @@ element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	element_get_assert(h, loc).ref_pos.y = v
 }
 
-element_set_size :: proc {element_set_size_vec, element_set_size_axis}
-element_set_size_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
-	el := element_get_assert(h, loc)
-	el.ref_size = v
-	el.size_set = true
-}
-element_set_size_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
-	el := element_get_assert(h, loc)
-	el.ref_size[axis] = v
-	el.size_set[axis] = true
-}
-element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	el := element_get_assert(h, loc)
-	el.ref_size.x = v
-	el.size_set.x = true
-}
-element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	el := element_get_assert(h, loc)
-	el.ref_size.y = v
-	el.size_set.y = true
-}
-
 element_pos :: proc {element_pos_vec, element_pos_axis}
 element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
@@ -700,6 +678,28 @@ element_inner_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_locatio
 }
 element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_inner_bounds(h, loc)[axis]
+}
+
+element_set_bounds :: proc {element_set_bounds_vec, element_set_bounds_axis}
+element_set_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
+	el := element_get_assert(h, loc)
+	el.ref_size = v
+	el.size_set = true
+}
+element_set_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	el := element_get_assert(h, loc)
+	el.ref_size[axis] = v
+	el.size_set[axis] = true
+}
+element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	el := element_get_assert(h, loc)
+	el.ref_size.x = v
+	el.size_set.x = true
+}
+element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
+	el := element_get_assert(h, loc)
+	el.ref_size.y = v
+	el.size_set.y = true
 }
 
 // element_set_inner_bounds sets the element's inner bounds (area for children). The outer bounds

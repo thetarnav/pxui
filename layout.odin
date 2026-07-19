@@ -165,7 +165,7 @@ rect_cut_update_layout :: proc () {
 			space := (element_inner_bounds(el, ax) - space_taken) / fills
 			space_taken += space
 			fills -= 1
-			element_set_size(child, ax, space)
+			element_set_bounds(child, ax, space)
 		}
 
 		if prev != nil {
@@ -238,7 +238,7 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
 	for child in element_get(child_id) {
 		defer child_id = child.next
 
-		element_set_size(child, PERP, col_w)
+		element_set_bounds(child, PERP, col_w)
 	}
 }
 
@@ -367,7 +367,7 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll)
 
 		element_set_pos(thumb, ax, thumb_pos)
-		element_set_size(thumb, ax, thumb_size)
+		element_set_bounds(thumb, ax, thumb_size)
 	})
 
 	effect(proc () {
