@@ -114,8 +114,7 @@ ui :: proc () {
 
 	px.panel()
 	px.padding(6, 12)
-	px.width_fill()
-	px.height_fill()
+	px.size_fill()
 	px.nine_slice()
 
 	px.scroll_area()
@@ -316,11 +315,13 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 		}
 	}
 
-	px.draw_color({
-		origin = {1.0, 1.0},
-		pos    = {-10, -20},
-		size   = {14, 24},
-	}, k2.LIGHT_RED)
+	px.panel()
+	px.origin_left(0.5)
+	px.origin_top(0.5)
+	px.left(0.5)
+	px.top(0.5)
+	px.size(14, 24)
+	px.background_color(k2.LIGHT_RED)
 }
 
 k2_rect :: proc (r: Rect) -> k2.Rect {

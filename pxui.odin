@@ -330,7 +330,6 @@ topological_solve :: proc () {
 
 	// Root has no parent; its ref_size comes from the user-set size only.
 	// Percentages on the root resolve against 0 (i.e. zero).
-	root.ref_pos  = 0
 	root.ref_size = size_vec_to_pixel(root.size, 0)
 	root.size_set = true
 
@@ -460,7 +459,9 @@ update_screen_rect_and_mouse :: proc () {
 		el.screen_pos = parent.screen_pos +
 		                lt(parent.padding) +
 		                el.ref_pos +
-		                lt(el.margin)
+		                lt(el.margin) +
+		                -size_vec_to_pixel(el.origin, element_box_size(el)) +
+	 	                size_vec_to_pixel(el.pos, el.ref_size)
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
 		              rect_contains(element_screen_rect(el), ctx.mouse)
@@ -529,10 +530,11 @@ flags :: proc (f: Element_Flags, h: Element_Handle = {}) {
 	el.flags += f
 }
 
-size              :: proc (v: Sizing_2D)          {element_curr().size = v}
+size_set          :: proc (v: Sizing_2D)          {element_curr().size = v}
 size_px           :: proc (v: Vec2i)              {element_curr().size = {v.x, v.y}}
 size_percent      :: proc (v: Vec2f)              {element_curr().size = {v.x, v.y}}
 size_fill         :: proc ()                      {element_curr().size = FILL}
+size_hv           :: proc (h, v: Sizing)          {element_curr().size = {h, v}}
 size_w            :: proc (w: Sizing)             {element_curr().size.x = w}
 size_w_px         :: proc (w: int)                {element_curr().size.x = w}
 size_w_percent    :: proc (w: f32)                {element_curr().size.x = w}
@@ -545,6 +547,7 @@ size_axis         :: proc (axis: Axis, v: Sizing) {element_curr().size[axis] = v
 size_axis_px      :: proc (axis: Axis, v: int)    {element_curr().size[axis] = v}
 size_axis_percent :: proc (axis: Axis, v: f32)    {element_curr().size[axis] = v}
 size_axis_fill    :: proc (axis: Axis)            {element_curr().size[axis] = FILL}
+size              :: proc {size_set, size_hv}
 size_x            :: size_w
 size_x_px         :: size_w_px
 size_x_percent    :: size_w_percent
@@ -561,6 +564,20 @@ height            :: size_h
 height_px         :: size_h_px
 height_percent    :: size_h_percent
 height_fill       :: size_h_fill
+
+origin_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).origin = v}
+origin_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).origin[axis] = v}
+origin_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.x = v}
+origin_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.y = v}
+origin      :: proc {origin_set, origin_axis}
+
+pos_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).pos = v}
+pos_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).pos[axis] = v}
+pos_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.x = v}
+pos_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.y = v}
+left     :: pos_left
+top      :: pos_top
+pos      :: proc {pos_set, pos_axis}
 
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
