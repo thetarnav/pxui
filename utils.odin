@@ -41,7 +41,7 @@ vec_to_size   :: to_size
 
 @require_results
 rect :: #force_inline proc "contextless" (s, e: Vec2i) -> Rect {
-    return {s, e-s}
+    return {s, la.max(e-s, 0)}
 }
 rect_end :: #force_inline proc "contextless" (rect: Rect) -> (end: Vec2i) {
 	return rect.pos + rect.size
