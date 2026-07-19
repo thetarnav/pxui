@@ -66,11 +66,16 @@ rect_inset :: #force_inline proc "contextless" (rect: Rect, by: Vec2i) -> Rect {
 @require_results
 rect_extend :: #force_inline proc "contextless" (r: Rect, by: Vec2i) -> Rect {
 	return rect(la.min(r.pos, by),
-	            la.min(rect_end(r), by))
+	            la.max(rect_end(r), by))
 }
 @require_results
 rect_union :: #force_inline proc "contextless" (a, b: Rect) -> Rect {
 	return rect(la.min(a.pos, b.pos),
+	            la.max(rect_end(a), rect_end(b)))
+}
+@require_results
+rect_intersetcion :: #force_inline proc "contextless" (a, b: Rect) -> Rect {
+	return rect(la.max(a.pos, b.pos),
 	            la.min(rect_end(a), rect_end(b)))
 }
 @require_results

@@ -116,8 +116,9 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 				append(cmds, Draw_Command{dst, v})
 
 			case Draw_Scissor:
-				append(scissors, Scrissor{dst, el})
-				append(cmds, Draw_Command{dst, v})
+				rect := rect_intersetcion(dst, slice.last(scissors[:]).rect) if len(scissors) > 0 else dst
+				append(scissors, Scrissor{rect, el})
+				append(cmds, Draw_Command{rect, v})
 
 			case Draw_Nine_Slice:
 				l, t := v.insets.l, v.insets.t
