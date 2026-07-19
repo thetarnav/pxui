@@ -117,6 +117,22 @@ ui :: proc () {
 	px.size_fill()
 	px.nine_slice()
 
+	px.panel()
+	px.size_fill()
+	px.background_color(k2.WHITE)
+
+	// Centered cross
+	for ax in px.Axis {
+		px.panel()
+		px.origin_left(0.5)
+		px.origin_top(0.5)
+		px.left(0.5)
+		px.top(0.5)
+		px.size_axis(ax, 4)
+		px.size_axis(px.perp(ax), 20)
+		px.background_color(k2.LIGHT_GREEN)
+	}
+
 	px.scroll_area()
 
 	defer {
@@ -143,7 +159,6 @@ ui :: proc () {
 
 		px.v_stack()
 		px.width_fill()
-		px.background_color(k2.WHITE)
 
 		{
 			px.h_stack()
@@ -314,14 +329,6 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 			px.text("END OF PAGE")
 		}
 	}
-
-	px.panel()
-	px.origin_left(0.5)
-	px.origin_top(0.5)
-	px.left(0.5)
-	px.top(0.5)
-	px.size(14, 24)
-	px.background_color(k2.LIGHT_RED)
 }
 
 k2_rect :: proc (r: Rect) -> k2.Rect {
