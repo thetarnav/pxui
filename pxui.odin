@@ -196,6 +196,10 @@ element_display_string :: proc (h: Element_Handle = {}, allocator := context.all
 	return strings.to_string(sb), n > 0
 }
 element_display :: proc {element_display_write, element_display_writer, element_display_builder, element_display_string}
+element_print :: proc (h: Element_Handle = {}, loc := #caller_location) {
+	w := io.to_writer(os.to_writer(os.stdout))
+	element_display_writer(w, h, loc=loc)
+}
 
 element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
 	el := element_get_or_curr(h, loc)
