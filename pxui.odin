@@ -461,7 +461,7 @@ update_screen_rect_and_mouse :: proc () {
 		                el.ref_pos +
 		                lt(el.margin) +
 		                -size_vec_to_pixel(el.origin, element_box_size(el)) +
-	 	                size_vec_to_pixel(el.pos, el.ref_size)
+	 	                size_vec_to_pixel(el.pos, element_inner_bounds(parent))
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
 		              rect_contains(element_screen_rect(el), ctx.mouse)
