@@ -203,10 +203,35 @@ element_print :: proc (h: Element_Handle = {}, loc := #caller_location) {
 	element_display_writer(w, h, loc=loc)
 }
 
-element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+element_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
 	el := element_get_or_curr(h, loc)
-	assert(el.type == typeid_of(T), loc=loc)
-	return (^T)(el.data_ptr)
+	if el.type == typeid_of(T) {
+		return (^T)(el.data_ptr), true
+	}
+	return nil, false
+}
+element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	s, ok := element_state_safe(T, h, loc)
+	assert(ok, "Element doesn't match desired state type", loc)
+	return s
+}
+element_parent_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	el := element_get_or_curr(h, loc)
+	return element_state(T, element_parent(el, loc), loc)
+}
+element_lookup_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
+	h := ctx.element_curr if h == {} else h
+	for el in element_get(h) {
+		defer h = el.parent
+		s := element_state_safe(T, el, loc) or_continue
+		return s, true
+	}
+	return nil, false
+}
+element_lookup_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	s, ok := element_lookup_state_safe(T, h, loc)
+	assert(ok, "No element matching desired state type up the tree", loc)
+	return s
 }
 
 element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
@@ -657,19 +682,29 @@ element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_loc
 	return el.ref_pos[axis]
 }
 
-element_screen_pos :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+element_screen_pos :: proc {element_screen_pos_vec, element_screen_pos_axis}
+element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
 	return el.screen_pos
 }
+element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+	el := element_get_or_curr(h, loc)
+	return el.screen_pos[axis]
+}
+
 element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
 	el := element_get_or_curr(h, loc)
 	return {el.screen_pos, element_box_size(h, loc)}
 }
 
 // element_box_size returns the element's box size (excluding margin). This is what gets drawn.
-element_box_size :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
+element_box_size :: proc {element_box_size_vec, element_box_size_axis}
+element_box_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
 	return el.ref_size - lt(el.margin) - rb(el.margin)
+}
+element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
+	return element_box_size(h, loc)[axis]
 }
 
 // element_bounds returns the element's outer bounds (including margin). This is the space the

@@ -403,8 +403,7 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		if dragging {
 			h := f32(oh-thumb_size)
 			p := f32(ctx.mouse[ax]) - f32(scrollbar_pos[ax]) - f32(oh)/2 - f32(offset)
-			percent := math.remap_clamped(p, -h/2, h/2, 0, 1)
-			scroll^  = percent * -f32(ih-oh)
+			scroll^ = -math.remap_clamped(p, -h/2, h/2, 0, f32(ih-oh))
 		}
 	})
 }
