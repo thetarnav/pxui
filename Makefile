@@ -1,8 +1,14 @@
-.PHONY: run check test test-verbose clean
+.PHONY: run run-karl2d run-cli check test test-verbose clean
 
-# Build and run the kitchen-sink example.
-run:
-	odin run example
+# Build and run the kitchen-sink example with the karl2d frontend.
+run: run-karl2d
+
+run-karl2d:
+	odin run example/karl2d
+
+# Build and run the CLI/readline frontend for debugging.
+run-cli:
+	odin run example/cli
 
 # Check the library alone.
 check:
@@ -22,4 +28,4 @@ test-one:
 	odin test . -out:build/test -define:ODIN_TEST_NAMES=$(TEST_NAME) -define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true -define:ODIN_TEST_THREADS=1
 
 clean:
-	rm -f example/assets/panel.tga pxui_example
+	rm -f pxui_example pxui_cli pxui_karl2d

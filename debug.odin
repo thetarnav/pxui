@@ -111,3 +111,11 @@ sizing_to_string :: proc (s: Sizing, allocator := context.allocator) -> string {
 	}
 	return "?"
 }
+
+debug_tree_dump :: proc (path: string, root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
+	f, err := os.open(path, {.Write, .Create, .Trunc})
+	if err != nil do return
+	defer os.close(f)
+	w := io.to_writer(os.to_writer(f))
+	debug_tree_display_write(w, root, info)
+}

@@ -1,118 +1,85 @@
-// Pixui example — a small kitchen-sink UI rendered with karl2d.
+// Pixui example — application code. No rendering backend dependency.
+// The application is driven by `init()`, `frame()`, and `shutdown()`.
+// Input state (mouse, keyboard, window size) is provided through `frame()` parameters.
 
 package example
 
-import "core:slice"
-import k2 "shared:karl2d"
 import px "../"
 
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
 Vec2  :: [2]f32
+Vec2i :: [2]int
 Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
 
-camera: k2.Camera
-
-main :: proc () {
-
-	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
-		options = {window_mode = .Windowed_Resizable})
-
-	camera = {zoom = PIXEL_SCALE}
-	k2.set_camera(camera)
-
-	px.init()
-
-	for k2.update() {
-		defer k2.reset_frame_allocator()
-		defer free_all(context.temp_allocator)
-
-		k2.clear({30, 30, 40, 255})
-		px.frame_begin()
-
-		px.ctx.mouse          = px.Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
-		px.ctx.mouse_pressed  = k2.mouse_button_went_down(.Left)
-		px.ctx.mouse_released = k2.mouse_button_went_up(.Left)
-		px.ctx.mouse_held     = k2.mouse_button_is_held(.Left)
-		px.ctx.wheel_delta    = {0, k2.get_mouse_wheel_delta() * 10} // no x delta in k2 :(
-
-		ui()
-		px.frame_end()
-
-		render_ui()
-		k2.present()
-	}
-
-	px.shutdown()
-	k2.shutdown()
-}
-
-render_ui :: proc () {
-
-	@static
-	tex_map: map[^px.Atlas]k2.Texture
-
-	for cmd in px.get_draw_commands(context.temp_allocator) {
-		dst := k2_rect_px(cmd.dst)
-
-		switch v in cmd.var {
-		case px.Draw_Color:
-			// Draw color fill
-			k2.draw_rect(dst, v)
-
-		case px.Draw_Scissor:
-			if v.reset {
-				k2.set_scissor_rect(nil)
-			} else {
-				k2.set_scissor_rect(k2.rect_from_pos_size(
-						k2.world_to_screen({dst.x, dst.y}, camera),
-						k2.world_to_screen({dst.w, dst.h}, camera),
-				))
-			}
-
-		case px.Draw_Texture:
-			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}
-
-			// Convert px.Atlas to k2.Texture
-			tex, in_map := tex_map[v.atlas]
-			if !in_map {
-				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, v.atlas.pixels),
-				                                     **v.atlas.size, .RGBA_8_Norm)
-				tex_map[v.atlas] = tex
-			}
-
-			// Draw texture
-			k2.draw_texture_fit(tex, k2_rect(src), dst, tint=v.tint)
-		}
-	}
-
-	k2.set_scissor_rect(nil)
-}
-
-COLOR_TEXT :: RGBA{230, 200, 160, 255}
+// Color palette (independent of any rendering backend).
+// Kept pale to match the original karl2d aesthetic.
+COLOR_TEXT          :: RGBA{210, 180, 160, 255}
+COLOR_WHITE         :: RGBA{255, 255, 255, 255}
+COLOR_BLACK         :: RGBA{0, 0, 0, 255}
+COLOR_BROWN         :: RGBA{139, 90, 43, 255}
+COLOR_LIGHT_GREEN   :: RGBA{180, 220, 180, 255}
+COLOR_LIGHT_GRAY    :: RGBA{200, 200, 200, 255}
+COLOR_LIGHT_BROWN   :: RGBA{210, 190, 160, 255}
+COLOR_LIGHT_YELLOW  :: RGBA{240, 230, 180, 255}
+COLOR_LIGHT_PURPLE  :: RGBA{210, 200, 230, 255}
+COLOR_LIGHT_BLUE    :: RGBA{170, 190, 220, 255}
+COLOR_LIGHT_RED     :: RGBA{230, 140, 140, 255}
+COLOR_DARK_GREEN    :: RGBA{34, 120, 60, 255}
+COLOR_DARK_GRAY     :: RGBA{60, 60, 70, 255}
 
 // ─── Input component state ───────────────────────────────────────────────
-// These are driven by the input components in the demo section below.
+// These are driven by the input components in the demo.
 show_cross       : bool = true
-inner_pad        : int  = 0     // controlled by a slider
-inner_color_idx  : int  = 0     // 0 = white, 1 = gray, 2 = blue, controlled by a radio
-cross_size_f     : f32  = 20    // controlled by a slider, used as the cross arm length
+inner_pad        : int  = 0
+inner_color_idx  : int  = 0
+cross_size_f     : f32  = 20
 
-ui :: proc () {
+// ─── Lifecycle ──────────────────────────────────────────────────────────
+
+init :: proc () -> bool {
+	px.init()
+	return true
+}
+
+frame :: proc (
+	mouse: Vec2i,
+	mouse_pressed, mouse_released, mouse_held: bool,
+	wheel_delta: Vec2,
+	ws: Vec2i,
+) -> bool {
+	px.frame_begin()
+	px.ctx.mouse          = mouse
+	px.ctx.mouse_pressed  = mouse_pressed
+	px.ctx.mouse_released = mouse_released
+	px.ctx.mouse_held     = mouse_held
+	px.ctx.wheel_delta    = wheel_delta
+
+	ui(ws)
+	px.frame_end()
+	return true
+}
+
+shutdown :: proc () {
+	px.shutdown()
+}
+
+// ─── UI definition ─────────────────────────────────────────────────────
+
+ui :: proc (ws: Vec2i) {
 
 	// root size
-	ws := px.Vec2i(k2.get_screen_size() / PIXEL_SCALE)
 	px.size_px(ws)
 
 	@(deferred_none=px.element_pop)
-	counter :: proc (id: u64 = 0, loc := #caller_location) -> ^int {
+	counter :: proc (color := COLOR_TEXT, id: u64 = 0, loc := #caller_location) -> ^int {
 		Counter :: struct {count: int}
 		state, _ := px.element_push(Counter, id, loc=loc)
 		hovered := px.is_hovered()
-		px.textf("Count: %v", state.count, color=k2.BLACK if hovered else COLOR_TEXT)
+		px.textf("Count: %v", state.count, color=COLOR_BLACK if hovered else color)
 		if px.is_clicked() {
 			state.count += 1
 		}
@@ -133,8 +100,8 @@ ui :: proc () {
 		px.panel()
 		px.size_fill()
 		switch inner_color_idx {
-		case 0: px.background_color(k2.WHITE)
-		case 1: px.background_color(k2.LIGHT_GRAY)
+		case 0: px.background_color(COLOR_WHITE)
+		case 1: px.background_color(COLOR_LIGHT_GRAY)
 		case 2: px.background_color({200, 200, 220, 255})
 		}
 
@@ -147,7 +114,7 @@ ui :: proc () {
 			px.top(0.5)
 			px.size_axis(ax, 4)
 			px.size_axis(px.perp(ax), int(cross_size_f))
-			px.background_color(k2.LIGHT_GREEN)
+			px.background_color(COLOR_LIGHT_GREEN)
 		}
 	}
 
@@ -215,7 +182,7 @@ ui :: proc () {
 		{
 			px.rect_cut(.H)
 			px.width(1.0)
-			px.background_color(k2.LIGHT_BROWN)
+			px.background_color(COLOR_DARK_GRAY)
 			px.padding(4)
 			px.margin(4)
 
@@ -227,14 +194,14 @@ ui :: proc () {
 
 			{
 				px.panel()
-				px.background_color(k2.LIGHT_YELLOW)
+				px.background_color(COLOR_LIGHT_YELLOW)
 				px.margin_right(3)
 				px.size_fill()
 			}
 
 			{
 				px.panel()
-				px.background_color(k2.LIGHT_PURPLE)
+				px.background_color(COLOR_LIGHT_PURPLE)
 				px.margin_right(3)
 				px.width(20)
 				px.height_fill()
@@ -242,7 +209,7 @@ ui :: proc () {
 
 			{
 				px.panel()
-				px.background_color(k2.LIGHT_BLUE)
+				px.background_color(COLOR_LIGHT_BLUE)
 				px.size_fill()
 			}
 		}
@@ -250,13 +217,13 @@ ui :: proc () {
 		{
 			px.flex_h()
 			px.width_fill()
-			px.background_color(k2.LIGHT_BROWN)
+			px.background_color(COLOR_DARK_GRAY)
 			px.padding(2)
 			px.margin(4)
 
 			for i in 0..<10 {
 				px.panel()
-				px.background_color(k2.LIGHT_RED)
+				px.background_color(COLOR_LIGHT_RED)
 				px.margin(2)
 				px.width((i % 5) * 10 + 16)
 				px.height(14)
@@ -269,7 +236,7 @@ ui :: proc () {
 			px.height(120)
 			px.margin(4)
 			px.margin_right(16)
-			px.background_color(k2.LIGHT_BROWN)
+			px.background_color(COLOR_LIGHT_BROWN)
 
 			defer {
 				px.scrollbar()
@@ -300,14 +267,14 @@ ui :: proc () {
 				px.v_stack()
 				px.width_fill()
 				px.margin(2)
-				px.background_color(k2.LIGHT_GRAY)
+				px.background_color({100, 100, 100, 255})
 
 				for _ in 0..<2 {
 					px.panel()
 					px.width_fill()
 					px.height(30)
 					px.margin(2)
-					px.background_color(k2.LIGHT_YELLOW)
+					px.background_color(COLOR_LIGHT_YELLOW)
 				}
 			}
 
@@ -316,11 +283,11 @@ ui :: proc () {
 				px.width_fill()
 				px.margin(2)
 				px.padding(1)
-				px.background_color(k2.LIGHT_YELLOW)
+				px.background_color(COLOR_LIGHT_YELLOW)
 
 				for j in 0..<2 {
 					px.panel()
-					px.background_color(k2.LIGHT_RED)
+					px.background_color(COLOR_LIGHT_RED)
 					px.width_fill()
 					px.height((i % 5) * 10 + 16 + j * 16)
 					px.margin(1)
@@ -336,14 +303,14 @@ ui :: proc () {
 			px.paragraph(`PXUI is a pixel-art focused and aseprite-inspired Odin UI library.
 Currently offering an immediate-mode API, layout, text and texture primitives
 as well as React-like layout/effect "hooks"—used to implement all builtin components.
-Can be used with any rendering backend—see example/ for use with karl2d.`, k2.BROWN)
+Can be used with any rendering backend—see example/ for use with karl2d.`, COLOR_BROWN)
 		}
 
 		{
 			px.panel()
 			px.margin(2)
 			px.padding(8, 2)
-			px.background_color(k2.BROWN)
+			px.background_color(COLOR_BROWN)
 			px.text("END OF PAGE")
 		}
 
@@ -369,7 +336,7 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 					px.panel()
 					px.size_px({12, 12})
 					px.margin_right(4)
-					px.background_color(k2.WHITE if show_cross else {60, 60, 70, 255})
+					px.background_color(COLOR_WHITE if show_cross else COLOR_DARK_GRAY)
 				}
 
 				px.panel()
@@ -396,7 +363,7 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 					case 1: name = "gray"
 					case 2: name = "blue"
 					}
-					px.text(name, color=k2.WHITE if inner_color_idx == i else COLOR_TEXT)
+					px.text(name, color=COLOR_WHITE if inner_color_idx == i else COLOR_TEXT)
 				}
 			}
 
@@ -405,12 +372,12 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 			 	px.slider(&cross_size_f, 4, 100)
 			 	px.width_fill()
 			 	px.height(20)
-			 	px.background_color(k2.WHITE)
+			 	px.background_color(COLOR_WHITE)
 
 			 	px.slider_thumb()
 			 	px.height_fill()
 				px.width(20)
-			 	px.background_color(k2.LIGHT_RED)
+			 	px.background_color(COLOR_LIGHT_RED)
 			}
 
 			 // Vertical slider demo: show that the slider works on either axis.
@@ -418,21 +385,13 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, k2.
 			 	px.slider(&cross_size_f, min=4, max=60, axis=.V)
 				px.width(20)
 			 	px.height(80)
-			 	px.background_color(k2.WHITE)
+			 	px.background_color(COLOR_WHITE)
 
 			 	px.slider_thumb()
 				px.width_fill()
 				px.height(20)
-			 	px.background_color(k2.LIGHT_BLUE)
+			 	px.background_color(COLOR_LIGHT_BLUE)
 			}
 		}
 	}
 }
-
-k2_rect :: proc (r: Rect) -> k2.Rect {
-	return k2.Rect{**r.pos, **r.size}
-}
-k2_rect_px :: proc (r: px.Rect) -> k2.Rect {
-	return k2.Rect{**Vec2(r.pos), **Vec2(r.size)}
-}
-
