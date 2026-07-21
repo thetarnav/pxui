@@ -33,10 +33,10 @@ COLOR_DARK_GRAY     :: RGBA{60, 60, 70, 255}
 
 // ─── Input component state ───────────────────────────────────────────────
 // These are driven by the input components in the demo.
-show_cross       : bool = true
-inner_pad        : int  = 0
-inner_color_idx  : int  = 0
-cross_size_f     : f32  = 20
+show_cross:      bool = true
+inner_color_idx: int  = 0
+cross_size_f:    f32  = 20
+selected_tab:    int  = 0
 
 // ─── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -60,6 +60,7 @@ frame :: proc (
 
 	ui(ws)
 	px.frame_end()
+
 	return true
 }
 
@@ -79,31 +80,54 @@ ui :: proc (ws: Vec2i) {
 	px.size_fill()
 	px.nine_slice()
 
-	// Inner panel: padding controlled by the slider, color by the radio.
+	px.rect_cut(.V)
+	px.size_fill()
+
+	{// Tabs
+		px.radio_group(&selected_tab)
+		px.height(20)
+		px.width_fill()
+
+		px.h_stack()
+		px.size_fill()
+		px.background_color(COLOR_LIGHT_GRAY)
+		px.margin_bottom(4)
+		px.padding(1)
+
+		for i in 0..<3 {
+			px.radio(i)
+			px.height_fill()
+			px.background_color(COLOR_DARK_GRAY)
+			px.margin(1)
+			px.padding(4, 0)
+
+			px.panel()
+			px.top(0.5)
+			px.origin_top(0.5)
+
+			px.textf("Tab {}", i)
+		}
+	}
+
 	px.panel()
 	px.size_fill()
-	px.padding(inner_pad)
-	{
-		// Visualize the padding change.
-		px.panel()
-		px.size_fill()
-		switch inner_color_idx {
-		case 0: px.background_color(COLOR_WHITE)
-		case 1: px.background_color(COLOR_LIGHT_GRAY)
-		case 2: px.background_color({200, 200, 220, 255})
-		}
 
-		// Centered cross (toggled by the checkbox, sized by the slider).
-		if show_cross do for ax in px.Axis {
-			px.panel()
-			px.origin_left(0.5)
-			px.origin_top(0.5)
-			px.left(0.5)
-			px.top(0.5)
-			px.size_axis(ax, 4)
-			px.size_axis(px.perp(ax), int(cross_size_f))
-			px.background_color(COLOR_LIGHT_GREEN)
-		}
+	switch inner_color_idx {
+	case 0: px.background_color(COLOR_WHITE)
+	case 1: px.background_color(COLOR_LIGHT_GRAY)
+	case 2: px.background_color({200, 200, 220, 255})
+	}
+
+	// Centered cross (toggled by the checkbox, sized by the slider).
+	if show_cross do for ax in px.Axis {
+		px.panel()
+		px.origin_left(0.5)
+		px.origin_top(0.5)
+		px.left(0.5)
+		px.top(0.5)
+		px.size_axis(ax, 4)
+		px.size_axis(px.perp(ax), int(cross_size_f))
+		px.background_color(COLOR_LIGHT_GREEN)
 	}
 
 	px.scroll_area()
@@ -129,5 +153,8 @@ ui :: proc (ws: Vec2i) {
 	px.scroll_content()
 	px.padding_l(12)
 
-	page_one(ws)
+	switch selected_tab {
+	case 0: page_one(ws)
+	case:   page_two()
+	}
 }
