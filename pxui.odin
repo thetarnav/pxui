@@ -334,10 +334,29 @@ frame_end :: proc () {
 	it := hm.iterator_make(&ctx.elements)
 
 	for el, handle in hm.iterate(&it) {
-		if !el._found && handle != ctx.element_root {
-			free(el.data_ptr)
-			hm.remove(&ctx.elements, handle)
+		if el._found || handle == ctx.element_root do continue
+
+		// Unlink from siblings
+		if prev, has_prev := element_get(el.prev); has_prev && prev.next == el.handle {
+			prev.next = el.next
 		}
+		if next, has_next := element_get(el.next); has_next && next.prev == el.handle {
+			next.prev = el.prev
+		}
+
+		// Unlink from parent
+		if parent, has_parent := element_get(el.parent); has_parent {
+			if parent.child_first == el.handle {
+				parent.child_first = el.next
+			}
+			if parent.child_last == el.handle {
+				parent.child_last = el.prev
+			}
+		}
+
+		// Free self
+		free(el.data_ptr)
+		hm.remove(&ctx.elements, handle)
 	}
 
 	topological_solve()
