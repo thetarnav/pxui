@@ -62,6 +62,7 @@ page_one :: proc (
 		px.background_color(COLOR_DARK_GRAY)
 		px.padding(4)
 		px.margin(4)
+		px.opacity(0.5)
 
 		{
 			counter()

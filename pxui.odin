@@ -112,6 +112,12 @@ Element :: struct {
 		screen_pos:   Vec2i,           // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
 		size_set:     [2]bool,
 
+		// 0 = fully opaque (default)
+		// 1 = fully transparent
+		//
+		// The element's subtree is rendered to an offscreen surface and composited back with this alpha
+		transparency: f32,
+
 		draw_first:   Draw_Request_Handle,
 		draw_last:    Draw_Request_Handle,
 	},
@@ -574,6 +580,14 @@ flag :: proc (f: Element_Flag, h: Element_Handle = {}) {
 flags :: proc (f: Element_Flags, h: Element_Handle = {}) {
 	el := element_get_or_curr(h)
 	el.flags += f
+}
+
+transparency :: proc (alpha: f32 = 0, h: Element_Handle = {}, loc := #caller_location) {
+	assert(0 <= alpha && alpha <= 1, loc=loc)
+	element_get_or_curr(h, loc).transparency = alpha
+}
+opacity :: proc (alpha: f32 = 1, h: Element_Handle = {}, loc := #caller_location) {
+	transparency(1-alpha, h, loc)
 }
 
 size_set          :: proc (v: Sizing_2D)          {element_curr().size = v}

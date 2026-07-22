@@ -17,17 +17,23 @@ Draw_Command :: struct {
 	var: Draw_Variant,
 }
 
-Draw_Variant :: union {Draw_Texture, Draw_Color, Draw_Scissor}
+Draw_Variant :: union {
+	Draw_Texture,
+	Draw_Color,
+	Draw_Scissor,
+	Draw_Layer,
+}
 
 Draw_Request_Handle :: distinct int
 
-Draw_Color :: Color
+Draw_Color   :: Color
 Draw_Texture :: struct {
 	src:   Rect,
 	atlas: ^Atlas,
 	tint:  Color,
 }
 Draw_Scissor :: struct {reset: bool}
+Draw_Layer   :: struct {opacity: f32}
 
 draw :: proc (req: Draw_Request, h: Element_Handle = {}) {
 	el := element_get_or_curr(h)
@@ -94,6 +100,11 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 		box_size := element_box_size(el)
 
+		if el.transparency > 0 {
+			dst := element_screen_rect(el)
+			append(cmds, Draw_Command{dst, Draw_Layer{opacity = 1-el.transparency}})
+		}
+
 		req_id := el.draw_first
 		for req in draw_get(req_id) {
 			defer req_id = req.next
@@ -115,6 +126,9 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 				rect := rect_intersetcion(dst, slice.last(scissors[:]).rect) if len(scissors) > 0 else dst
 				append(scissors, Scrissor{rect, el})
 				append(cmds, Draw_Command{rect, v})
+
+			case Draw_Layer:
+				// emitted before draw requests
 			}
 		}
 	}
@@ -122,6 +136,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 	visit_element_after :: proc (el: ^Element) {
 		using data := (^Data)(context.user_ptr)^
 
+		// End scissor
 		if len(scissors) > 0 && slice.last(scissors[:]).el == el {
 			pop_safe(scissors)
 			if len(scissors) > 0 {
@@ -129,6 +144,12 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 			} else {
 				append(cmds, Draw_Command{{}, Draw_Scissor{true}})
 			}
+		}
+
+		// Close layer
+		if el.transparency > 0 {
+			dst := element_screen_rect(el)
+			append(cmds, Draw_Command{dst, Draw_Layer{opacity=1}})
 		}
 	}
 

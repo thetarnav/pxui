@@ -119,15 +119,25 @@ ui :: proc (ws: Vec2i) {
 	}
 
 	// Centered cross (toggled by the checkbox, sized by the slider).
-	if show_cross do for ax in px.Axis {
+	defer if show_cross {
 		px.panel()
+		px.flag(.Non_Interactable)
 		px.origin_left(0.5)
 		px.origin_top(0.5)
 		px.left(0.5)
 		px.top(0.5)
-		px.size_axis(ax, 4)
-		px.size_axis(px.perp(ax), int(cross_size_f))
-		px.background_color(COLOR_LIGHT_GREEN)
+		px.opacity(0.5)
+
+		for ax in px.Axis {
+			px.panel()
+			px.origin_left(0.5)
+			px.origin_top(0.5)
+			px.left(0.5)
+			px.top(0.5)
+			px.size_axis(ax, 4)
+			px.size_axis(px.perp(ax), int(cross_size_f))
+			px.background_color(COLOR_DARK_GREEN)
+		}
 	}
 
 	px.scroll_area()
