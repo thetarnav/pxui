@@ -46,17 +46,11 @@ init :: proc () -> bool {
 }
 
 frame :: proc (
-	mouse: Vec2i,
-	mouse_pressed, mouse_released, mouse_held: bool,
-	wheel_delta: Vec2,
-	ws: Vec2i,
+	input: px.Frame_Input,
+	ws:    Vec2i,
 ) -> bool {
 	px.frame_begin()
-	px.ctx.mouse          = mouse
-	px.ctx.mouse_pressed  = mouse_pressed
-	px.ctx.mouse_released = mouse_released
-	px.ctx.mouse_held     = mouse_held
-	px.ctx.wheel_delta    = wheel_delta
+	px.ctx.frame_input = input
 
 	ui(ws)
 	px.frame_end()
@@ -162,6 +156,9 @@ ui :: proc (ws: Vec2i) {
 
 	px.scroll_content()
 	px.padding_l(12)
+
+	px.panel(id=u64(selected_tab))
+	px.width_fill()
 
 	switch selected_tab {
 	case 0: page_one(ws)

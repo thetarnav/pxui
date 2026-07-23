@@ -21,8 +21,8 @@ camera: k2.Camera
 
 main :: proc () {
 
-	k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
-		options = {window_mode = .Windowed_Resizable})
+	_ = k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
+	            options = {window_mode = .Windowed_Resizable})
 
 	camera = root_camera
 	k2.set_camera(camera)
@@ -39,12 +39,15 @@ main :: proc () {
 		mouse := app.Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
 
 		continue_frame := app.frame(
-			mouse          = mouse,
-			mouse_pressed  = k2.mouse_button_went_down(.Left),
-			mouse_released = k2.mouse_button_went_up(.Left),
-			mouse_held     = k2.mouse_button_is_held(.Left),
-			wheel_delta    = {0, f32(k2.get_mouse_wheel_delta() * 10)},
-			ws             = ws,
+			ws    = ws,
+			input = {
+				mouse          = mouse,
+				mouse_pressed  = k2.mouse_button_went_down(.Left),
+				mouse_released = k2.mouse_button_went_up(.Left),
+				mouse_held     = k2.mouse_button_is_held(.Left),
+				wheel_delta    = {0, f32(k2.get_mouse_wheel_delta() * 10)},
+				time           = int(k2.get_time() * 1000),
+			},
 		)
 		if !continue_frame do break
 

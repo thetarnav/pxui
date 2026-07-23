@@ -57,6 +57,8 @@ Frame_Input :: struct {
 	mouse_held:     bool,
 
 	wheel_delta:    Vec2f,
+
+	time:           int,
 }
 
 Context :: struct {
@@ -69,6 +71,8 @@ Context :: struct {
 
 	draw_reqs:         [dynamic]Draw_Request,
 
+	animations:        [dynamic]Animation,
+
 	using frame_input: Frame_Input,
 
 	element_hover:     Element_Handle,
@@ -78,6 +82,34 @@ ctx: Context
 
 Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
+
+Element_Frame_Data :: struct {
+	_found:       bool,             // was the element present in this frame?
+	flags:        Element_Flags,
+
+	margin:       Insets,
+	padding:      Insets,
+	using place:  Placement,
+
+	layout:       [2]struct {cb: proc (), deps: Axis_Set},
+	effect:       proc (),
+
+	// 0 = fully opaque (default)
+	// 1 = fully transparent
+	//
+	// The element's subtree is rendered to an offscreen surface and composited back with this alpha
+	transparency: f32,
+
+	draw_first:   Draw_Request_Handle,
+	draw_last:    Draw_Request_Handle,
+
+	ref_pos:      Vec2i,           // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
+	ref_size:     Vec2i,           // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
+	screen_pos:   Vec2i,           // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
+	size_set:     [2]bool,
+
+	mouse_in:     bool,
+}
 
 Element :: struct {
 	type:         typeid,               // data_ptr type
@@ -92,35 +124,10 @@ Element :: struct {
 	child_last:   Element_Handle,       // can be zero—no children
 	next, prev:   Element_Handle,       // can be zero—siblings
 
-	using prev_frame: struct {
-		mouse_in:     bool,
-	},
+	animations:   [Animate_Property]^Animation,
 
-	using frame: struct {
-		_found:       bool,             // was the element present in this frame?
-		flags:        Element_Flags,
-
-		margin:       Insets,
-		padding:      Insets,
-		using place:  Placement,
-
-		layout:       [2]struct {cb: proc (), deps: Axis_Set},
-		effect:       proc (),
-
-		ref_pos:      Vec2i,           // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
-		ref_size:     Vec2i,           // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
-		screen_pos:   Vec2i,           // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
-		size_set:     [2]bool,
-
-		// 0 = fully opaque (default)
-		// 1 = fully transparent
-		//
-		// The element's subtree is rendered to an offscreen surface and composited back with this alpha
-		transparency: f32,
-
-		draw_first:   Draw_Request_Handle,
-		draw_last:    Draw_Request_Handle,
-	},
+	prev_frame:  Element_Frame_Data,
+	using frame: Element_Frame_Data,
 }
 
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
@@ -328,10 +335,13 @@ frame_begin :: proc () {
 
 	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
+		el.prev_frame = el.frame
 		el.frame = {}
 	}
 
 	clear(&ctx.draw_reqs)
+
+	animations_update()
 }
 
 frame_end :: proc () {
@@ -537,7 +547,7 @@ is_hovered :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_hover
 }
 is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
-	return element_get_or_curr(h).mouse_in
+	return element_get_or_curr(h).prev_frame.mouse_in
 }
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
@@ -707,33 +717,34 @@ element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 element_pos :: proc {element_pos_vec, element_pos_axis}
 element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_pos
+	return el.ref_pos if el._found else el.prev_frame.ref_pos
 }
 element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	el := element_get_or_curr(h, loc)
-	return el.ref_pos[axis]
+	return element_pos(h, loc)[axis]
 }
 
 element_screen_pos :: proc {element_screen_pos_vec, element_screen_pos_axis}
 element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.screen_pos
+	return el.screen_pos if el._found else el.prev_frame.screen_pos
 }
 element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	el := element_get_or_curr(h, loc)
-	return el.screen_pos[axis]
+	return element_screen_pos(h, loc)[axis]
 }
 
 element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
-	el := element_get_or_curr(h, loc)
-	return {el.screen_pos, element_box_size(h, loc)}
+	return {element_screen_pos(h, loc), element_box_size(h, loc)}
 }
 
 // element_box_size returns the element's box size (excluding margin). This is what gets drawn.
 element_box_size :: proc {element_box_size_vec, element_box_size_axis}
 element_box_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_size - lt(el.margin) - rb(el.margin)
+	if el._found { // TODO: margins shouldn't be a part of ref_size
+		return el.ref_size - lt(el.margin) - rb(el.margin)
+	} else {
+		return el.prev_frame.ref_size - lt(el.prev_frame.margin) - rb(el.prev_frame.margin)
+	}
 }
 element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	return element_box_size(h, loc)[axis]
@@ -744,11 +755,10 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 element_bounds :: proc {element_bounds_vec, element_bounds_axis}
 element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_size
+	return el.ref_size if el._found else el.prev_frame.ref_size
 }
 element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	el := element_get_or_curr(h, loc)
-	return el.ref_size[axis]
+	return element_bounds(h, loc)[axis]
 }
 
 // element_inner_bounds returns the size of the reference plane (inner area) available to children.
@@ -756,11 +766,19 @@ element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_
 element_inner_bounds :: proc {element_inner_bounds_vec, element_inner_bounds_axis}
 element_inner_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_size -
-	       lt(el.margin) -
-	       rb(el.margin) -
-	       lt(el.padding) -
-	       rb(el.padding)
+	if el._found {
+		return el.ref_size -
+		       lt(el.margin) -
+		       rb(el.margin) -
+		       lt(el.padding) -
+		       rb(el.padding)
+	} else {
+		return el.prev_frame.ref_size -
+		       lt(el.prev_frame.margin) -
+		       rb(el.prev_frame.margin) -
+		       lt(el.prev_frame.padding) -
+		       rb(el.prev_frame.padding)
+	}
 }
 element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_inner_bounds(h, loc)[axis]
@@ -797,6 +815,7 @@ element_set_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #calle
 }
 element_set_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
+	// TODO: handle prev frame data
 	el.ref_size[axis] = v +
 	                    lt(el.margin)[axis] +
 	                    rb(el.margin)[axis] +
@@ -813,6 +832,7 @@ element_expand_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #ca
 }
 element_expand_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
+	// TODO: handle prev frame data
 	el.ref_size[axis] = max(el.ref_size[axis],
 	                        v +
 	                        lt(el.margin)[axis] +
