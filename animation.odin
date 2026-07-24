@@ -47,8 +47,6 @@ animations_update :: proc () {
 		t := f32(ctx.time - a.start_t) / f32(a.transition.time)
 		t = ease.ease(a.transition.ease, t)
 
-		fmt.println(t, e, s)
-
 		ptr^ = int(math.lerp(f32(s), f32(e), t))
 	}
 }

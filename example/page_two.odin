@@ -7,7 +7,7 @@ page_two :: proc () {
 	px.v_stack()
 	px.width_fill()
 
-	s, _ := px.element_push(struct {on: bool})
+	s, init := px.element_push(struct {on: bool})
 	px.element_pop()
 
 	px.text("Hello", color=COLOR_BLACK)
@@ -25,6 +25,9 @@ page_two :: proc () {
 		px.panel()
 		px.background_color(COLOR_LIGHT_GREEN)
 		px.height(20)
+		if init {
+			px.width(200)
+		}
 		if s.on {
 			px.animate(.width, 100)
 		} else {
