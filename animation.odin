@@ -1,6 +1,5 @@
 package pxui
 
-import "core:fmt"
 import "core:math"
 import "core:math/ease"
 
@@ -21,8 +20,6 @@ Transition :: struct {
 Animate_Property :: enum {width, height, left, top}
 
 animations_update :: proc () {
-
-	fmt.println("animmations updata")
 
 	#reverse for &a, i in ctx.animations {
 
@@ -90,7 +87,7 @@ animation_property_get :: proc (h: Element_Handle, prop: Animate_Property) -> in
 
 animate :: proc (prop: Animate_Property, size: Sizing, h: Element_Handle = {}, loc := #caller_location) {
 
-	el  := element_get_or_curr(h, loc)
+	el := element_get_or_curr(h, loc)
 
 	a := el.animations[prop]
 	if a == nil {
