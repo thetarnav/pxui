@@ -96,7 +96,7 @@ Element_Frame_Data :: struct {
 	layout:       [2]struct {cb: proc (), deps: Axis_Set},
 	effect:       proc (),
 
-	animations:   [Animate_Property]Animation_Handle,
+	animations:   [Animation_Property]Animation_Handle,
 
 	// 0 = fully opaque (default)
 	// 1 = fully transparent
@@ -449,8 +449,8 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 						}
 
 						// Update animations
-						for a in el.animations {
-							animation_update(a)
+						for a, prop in el.animations {
+							animation_update(a, el, prop)
 						}
 
 						child_id := el.child_first

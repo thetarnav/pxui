@@ -41,6 +41,7 @@ page_two :: proc () {
 			px.clip_outside()
 			px.height(20)
 			px.margin(2)
+
 			if init {
 				px.width(200)
 			} else if s.on {
@@ -53,7 +54,15 @@ page_two :: proc () {
 			px.flag(.Non_Interactable)
 			px.origin({0.5, 0.5})
 			px.pos({0.5, 0.5})
-			px.opacity(0.8)
+
+			if init {
+				px.opacity(0)
+			} else if s.on {
+				px.animate(.opacity, 1.0)
+			} else {
+				px.animate(.opacity, 0.0)
+			}
+
 			px.text("Woooo...")
 		}
 	}
