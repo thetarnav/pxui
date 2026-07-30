@@ -437,15 +437,18 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 						el.transparency = el.prev_frame.transparency
 
 						// Copy draw requests from previous frame
-						if el.draw_frame_end != {} {
+						// Ignoring the ones from layout/effect callbacks
+						if el.prev_frame.draw_frame_end != {} {
 							draw_id := el.prev_frame.draw_first
 							for d in draw_get_prev(draw_id) {
 								draw(d^, el)
-								if draw_id == el.draw_frame_end do break // Don't copy draw calls from layout/effects
+								if draw_id == el.prev_frame.draw_frame_end do break
 								draw_id = d.next
 							}
+							el.draw_frame_end = el.draw_last
 						}
 
+						// Update animations
 						for a in el.animations {
 							animation_update(a)
 						}
