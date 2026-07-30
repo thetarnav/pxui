@@ -2,15 +2,19 @@ package pxui
 
 import "core:math"
 import "core:math/ease"
+import hm "core:container/handle_map"
 
-Animation :: struct #all_or_none {
-	prop:       Animate_Property,
-	el:         Element_Handle,
-	start_t:    int,
-	start_v:    int,
-	end_v:      Sizing,
-	transition: Transition,
+
+Animation :: struct {
+	using handle: Animation_Handle,
+	prop:         Animate_Property,
+	el:           Element_Handle,
+	start_t:      int,
+	start_v:      int,
+	end_v:        Sizing,
+	transition:   Transition,
 }
+Animation_Handle :: struct {idx, gen: u32}
 
 Transition :: struct {
 	time: int,
@@ -19,33 +23,37 @@ Transition :: struct {
 
 Animate_Property :: enum {width, height, left, top}
 
-animations_update :: proc () {
+animation_update :: proc (h: Animation_Handle) -> (ok: bool) {
 
-	#reverse for &a, i in ctx.animations {
+	a := hm.get(&ctx.animations, h) or_return
 
-		// Get prev-frame start value after animation is created/reset
-		if a.start_v == 0 {
-			// add 1 to start as 0 means "needs start reset"
-			a.start_v = animation_property_get(a.el, a.prop)+1 // TODO: what about negative values?
-			a.start_t = ctx.time
-		}
+	el     := element_get(a.el) or_return
+	parent := element_get(el.parent) or_return
 
-		ptr := animation_property_ptr(a.el, a.prop)
-		s   := a.start_v-1
-		e   := size_to_pixel(a.end_v, element_inner_bounds(element_parent(a.el), animation_property_axis(a.prop)))
+	s := a.start_v-1
+	e := size_to_pixel(a.end_v, element_inner_bounds(parent, animation_property_axis(a.prop)))
 
-		if ctx.time >= a.transition.time + a.start_t || s == e {
-			unordered_remove(&ctx.animations, i)
-			element_get(a.el).animations[a.prop] = nil
-			ptr^ = a.end_v
-			continue
-		}
-
-		t := f32(ctx.time - a.start_t) / f32(a.transition.time)
-		t = ease.ease(a.transition.ease, t)
-
-		ptr^ = int(math.lerp(f32(s), f32(e), t))
+	if ctx.time >= a.transition.time + a.start_t || s == e {
+		animation_property_set(el, a.prop, e)
+		animation_remove(a)
+		return false // remove animation
 	}
+
+	t := f32(ctx.time - a.start_t) / f32(a.transition.time)
+	t = ease.ease(a.transition.ease, t)
+
+	animation_property_set(el, a.prop, int(math.lerp(f32(s), f32(e), t)))
+
+	return true
+}
+
+animation_remove :: proc (h: Animation_Handle, loc := #caller_location) -> bool {
+	a := hm.get(&ctx.animations, h) or_return
+	hm.remove(&ctx.animations, a)
+	if el, has_el := element_get(a.el); has_el {
+		el.animations[a.prop] = {}
+	}
+	return true
 }
 
 animation_property_ptr :: proc (h: Element_Handle, prop: Animate_Property) -> ^Sizing {
@@ -66,19 +74,18 @@ animation_property_axis :: proc (prop: Animate_Property) -> Axis {
 	}
 	unreachable()
 }
-animation_property_set :: proc (h: Element_Handle, prop: Animate_Property, v: int) {
+animation_property_set :: proc (h: Element_Handle, prop: Animate_Property, v: Sizing) {
 	switch prop {
 	case .width:  element_get(h).size.x = v
 	case .height: element_get(h).size.y = v
 	case .left:   element_get(h).pos.x = v
 	case .top:    element_get(h).pos.y = v
 	}
-	unreachable()
 }
 animation_property_get :: proc (h: Element_Handle, prop: Animate_Property) -> int {
 	switch prop {
-	case .width:  return element_box_size(h)[0]
-	case .height: return element_box_size(h)[1]
+	case .width:  return element_box_size(h, Axis.X)
+	case .height: return element_box_size(h, Axis.Y)
 	case .left:   return element_screen_pos(h)[0]
 	case .top:    return element_screen_pos(h)[1]
 	}
@@ -89,21 +96,28 @@ animate :: proc (prop: Animate_Property, size: Sizing, h: Element_Handle = {}, l
 
 	el := element_get_or_curr(h, loc)
 
-	a := el.animations[prop]
-	if a == nil {
-		append_nothing(&ctx.animations, loc)
-		a = &ctx.animations[len(ctx.animations)-1]
-		el.animations[prop] = a
+	a, has_animation := hm.get(&ctx.animations, el.prev_frame.animations[prop])
 
-		a.prop       = prop
-		a.el         = el
-		a.transition = { // TODO: custom transition
-			time = 200,
-			ease = .Linear,
-		}
-	} else if a.end_v != size {
-		a.start_v = 0 // Reset animation on end value change
+	if !has_animation {
+		ah := hm.add(&ctx.animations, Animation{
+			prop       = prop,
+			el         = el,
+			transition = { // TODO: custom transition
+				time = 200,
+				ease = .Linear,
+			},
+		})
+
+		a, has_animation = hm.get(&ctx.animations, ah)
+		assert(has_animation)
 	}
 
-	a.end_v = size
+	if a.end_v != size {
+		a.end_v = size
+		a.start_v = animation_property_get(el, a.prop)+1 // TODO: what about negative values?
+		a.start_t = ctx.time
+	}
+
+	el.animations[prop] = a
+	animation_update(a)
 }

@@ -1,5 +1,6 @@
 package pxui
 
+import "core:slice"
 import "core:os"
 import "core:io"
 import "core:strings"
@@ -69,9 +70,10 @@ Context :: struct {
 	element_curr:      Element_Handle,
 	element_root:      Element_Handle,
 
+	draw_reqs_prev:    []Draw_Request, // Used for memoized elements; copied from draw_reqs at the start of a frame
 	draw_reqs:         [dynamic]Draw_Request,
 
-	animations:        [dynamic]Animation,
+	animations:        hm.Dynamic_Handle_Map(Animation, Animation_Handle),
 
 	using frame_input: Frame_Input,
 
@@ -84,7 +86,7 @@ Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
 
 Element_Frame_Data :: struct {
-	_found:       bool,             // was the element present in this frame?
+	_found:       bool,             // was the element present in this frame? TODO: could use frame count
 	flags:        Element_Flags,
 
 	margin:       Insets,
@@ -93,6 +95,8 @@ Element_Frame_Data :: struct {
 
 	layout:       [2]struct {cb: proc (), deps: Axis_Set},
 	effect:       proc (),
+
+	animations:   [Animate_Property]Animation_Handle,
 
 	// 0 = fully opaque (default)
 	// 1 = fully transparent
@@ -124,13 +128,22 @@ Element :: struct {
 	child_last:   Element_Handle,       // can be zero—no children
 	next, prev:   Element_Handle,       // can be zero—siblings
 
-	animations:   [Animate_Property]^Animation,
+	memos:        [dynamic]Memo,
+	memo_curr:    Maybe(^Memo),
+	memo:         Maybe(^Memo),
 
-	prev_frame:  Element_Frame_Data,
-	using frame: Element_Frame_Data,
+	prev_frame:   Element_Frame_Data,
+	using frame:  Element_Frame_Data,
 }
-
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
+
+Memo :: struct {
+	id:       u64,
+	data_id:  u64,
+	_found:   bool, // TODO: could use frame count
+	el_first: Element_Handle,
+	el_last:  Element_Handle,
+}
 
 init :: proc (allocator := context.allocator) -> (err: mem.Allocator_Error) {
 
@@ -256,7 +269,7 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
                       (state: rawptr, init: bool)
 {
 	hash   := element_hash(type, user_id)
-	parent := element_curr()
+	parent := element_curr(loc)
 	el: ^Element
 
 	search: {
@@ -284,6 +297,7 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 			hash     = hash,
 			id       = user_id,
 			loc      = loc,
+			memos    = make([dynamic]Memo, allocator=ctx.allocator),
 			parent   = parent.handle,
 			data_ptr = raw_data(bytes),
 		})
@@ -307,10 +321,23 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 	state            = el.data_ptr
 	assert(type_size == 0 || state != nil)
 
+	// Add to memo if called in one
+	el.memo = parent.memo_curr
+	if memo, has_memo := el.memo.?; has_memo {
+		if _, has_first := element_get(memo.el_first); !has_first {
+			memo.el_first = el
+		}
+		memo.el_last = el
+	}
+
+	for &m in el.memos {
+		m._found = false
+	}
+
 	return
 }
 
-element_push :: #force_inline proc ($T: typeid, id: u64 = 0, loc := #caller_location) ->
+element_push :: #force_inline proc ($T: typeid, #any_int id: u64 = 0, loc := #caller_location) ->
                                    (state: ^T, init: bool) {
 	ptr: rawptr
 	ptr, init = _element_push(T, size_of(T), align_of(T), id, loc)
@@ -323,12 +350,135 @@ element_pop :: proc () {
 	ctx.element_curr = parent.handle
 }
 
-element_curr :: proc () -> ^Element {
-	return element_get_assert(ctx.element_curr)
+_element_destroy :: proc (el: ^Element) {
+
+	if parent, has_parent := element_get(el.parent); has_parent && parent._found {
+		// Unlink from siblings
+		if prev, has_prev := element_get(el.prev); has_prev && prev.next == el.handle {
+			prev.next = el.next
+		}
+		if next, has_next := element_get(el.next); has_next && next.prev == el.handle {
+			next.prev = el.prev
+		}
+		// Unlink from parent
+		if parent.child_first == el.handle {
+			parent.child_first = el.next
+		}
+		if parent.child_last == el.handle {
+			parent.child_last = el.prev
+		}
+	}
+
+	// Free data
+	delete(el.memos)
+	free(el.data_ptr)
+
+	// Remove pending animations
+	for a in el.animations {
+		// TODO: animations should also be removed when they end
+		hm.remove(&ctx.animations, a)
+	}
+
+	// Free self
+	hm.remove(&ctx.elements, el)
 }
-element_root :: proc () -> ^Element {
-	return element_get_assert(ctx.element_root)
+
+element_curr :: proc (loc := #caller_location) -> ^Element {
+	return element_get_assert(ctx.element_curr, loc)
 }
+element_root :: proc (loc := #caller_location) -> ^Element {
+	return element_get_assert(ctx.element_root, loc)
+}
+
+
+memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #caller_location) -> (changed: bool) {
+
+	el := element_curr(loc)
+	assert(el.memo_curr == nil, loc=loc)
+
+	memo: ^Memo
+	memo_search: {
+		for &m in el.memos do if !m._found && m.id == memo_id {
+			memo = &m
+
+			changed = memo.data_id != data_id
+
+			if changed {
+				// Data changes invalidates stored elements
+				// and they need to be collected again
+				memo.el_first = {}
+				memo.el_last  = {}
+			} else {
+				// Add memoized children elements to current element
+
+				child_id := memo.el_first
+				for child in element_get(child_id) {
+
+					visit(child)
+					visit :: proc (h: Element_Handle) -> bool {
+						el := element_get(h) or_return
+
+						el._found = true
+
+						// Copy prev frame data TODO: separate prev_frame user data and calculated data
+						el.flags        = el.prev_frame.flags
+						el.margin       = el.prev_frame.margin
+						el.padding      = el.prev_frame.padding
+						el.place        = el.prev_frame.place
+						el.layout       = el.prev_frame.layout
+						el.animations   = el.prev_frame.animations
+						el.transparency = el.prev_frame.transparency
+
+						draw_id := el.prev_frame.draw_first
+						for d in draw_get_prev(draw_id) {
+							defer draw_id = d.next
+							draw(d^, el) // Copy draw requests from previous frame
+						}
+
+						for a in el.animations {
+							animation_update(a)
+						}
+
+						child_id := el.child_first
+						for child in element_get(child_id) {
+							visit(child)
+							child_id = child.next
+						}
+
+						return true
+					}
+
+					if child_id == memo.el_last do break
+					child_id = child.next
+				}
+			}
+
+			break memo_search
+		}
+
+		append(&el.memos, Memo{id=memo_id}, loc)
+		memo = &el.memos[len(el.memos)-1]
+
+		changed = true
+	}
+
+	memo._found  = true
+	memo.data_id = data_id
+
+	el.memo_curr = memo
+
+	return
+}
+memo_end :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #caller_location) {
+	el := element_curr(loc)
+	assert(el.memo_curr != nil, loc=loc)
+	el.memo_curr = nil
+}
+@(deferred_in=memo_end)
+memo :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #caller_location) -> bool {
+	return memo_begin(data_id, memo_id, loc)
+}
+
 
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
@@ -339,9 +489,9 @@ frame_begin :: proc () {
 		el.frame = {}
 	}
 
+	// TODO: instead of copying could use two dynamic arrays and frame count % 2
+	ctx.draw_reqs_prev = slice.clone(ctx.draw_reqs[:], context.temp_allocator)
 	clear(&ctx.draw_reqs)
-
-	animations_update()
 }
 
 frame_end :: proc () {
@@ -351,27 +501,7 @@ frame_end :: proc () {
 
 	for el, handle in hm.iterate(&it) {
 		if el._found || handle == ctx.element_root do continue
-
-		if parent, has_parent := element_get(el.parent); has_parent && parent._found {
-			// Unlink from siblings
-			if prev, has_prev := element_get(el.prev); has_prev && prev.next == el.handle {
-				prev.next = el.next
-			}
-			if next, has_next := element_get(el.next); has_next && next.prev == el.handle {
-				next.prev = el.prev
-			}
-			// Unlink from parent
-			if parent.child_first == el.handle {
-				parent.child_first = el.next
-			}
-			if parent.child_last == el.handle {
-				parent.child_last = el.prev
-			}
-		}
-
-		// Free self
-		free(el.data_ptr)
-		hm.remove(&ctx.elements, handle)
+		_element_destroy(el)
 	}
 
 	topological_solve()
@@ -739,15 +869,16 @@ element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) ->
 // element_box_size returns the element's box size (excluding margin). This is what gets drawn.
 element_box_size :: proc {element_box_size_vec, element_box_size_axis}
 element_box_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
-	el := element_get_or_curr(h, loc)
-	if el._found { // TODO: margins shouldn't be a part of ref_size
-		return el.ref_size - lt(el.margin) - rb(el.margin)
-	} else {
-		return el.prev_frame.ref_size - lt(el.prev_frame.margin) - rb(el.prev_frame.margin)
-	}
+	return {element_box_size(h, Axis.X, loc), element_box_size(h, Axis.Y, loc)}
 }
 element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
-	return element_box_size(h, loc)[axis]
+	axis_bounds_check(axis, loc)
+	el := element_get_or_curr(h, loc)
+	if el.size_set[axis] { // TODO: margins shouldn't be a part of ref_size
+		return el.ref_size[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
+	} else {
+		return el.prev_frame.ref_size[axis] - lt(el.prev_frame.margin)[axis] - rb(el.prev_frame.margin)[axis]
+	}
 }
 
 // element_bounds returns the element's outer bounds (including margin). This is the space the
@@ -765,23 +896,24 @@ element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_
 // This is the outer bounds minus margin and padding.
 element_inner_bounds :: proc {element_inner_bounds_vec, element_inner_bounds_axis}
 element_inner_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
-	el := element_get_or_curr(h, loc)
-	if el._found {
-		return el.ref_size -
-		       lt(el.margin) -
-		       rb(el.margin) -
-		       lt(el.padding) -
-		       rb(el.padding)
-	} else {
-		return el.prev_frame.ref_size -
-		       lt(el.prev_frame.margin) -
-		       rb(el.prev_frame.margin) -
-		       lt(el.prev_frame.padding) -
-		       rb(el.prev_frame.padding)
-	}
+	return {element_inner_bounds(h, Axis.X, loc), element_inner_bounds(h, Axis.Y, loc)}
 }
-element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	return element_inner_bounds(h, loc)[axis]
+element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
+	axis_bounds_check(axis, loc)
+	el := element_get_or_curr(h, loc)
+	if el.size_set[axis] {
+		return el.ref_size[axis] -
+		       lt(el.margin)[axis] -
+		       rb(el.margin)[axis] -
+		       lt(el.padding)[axis] -
+		       rb(el.padding)[axis]
+	} else {
+		return el.prev_frame.ref_size[axis] -
+		       lt(el.prev_frame.margin)[axis] -
+		       rb(el.prev_frame.margin)[axis] -
+		       lt(el.prev_frame.padding)[axis] -
+		       rb(el.prev_frame.padding)[axis]
+	}
 }
 
 element_set_bounds :: proc {element_set_bounds_vec, element_set_bounds_axis}

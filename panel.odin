@@ -68,3 +68,7 @@ nine_slice :: proc () {
 background_color :: proc (color: Color) {
 	draw_color({size=FILL}, color)
 }
+
+clip_outside :: proc (h: Element_Handle = {}) {
+	draw_scissor({size=FILL}, h)
+}

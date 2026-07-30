@@ -47,10 +47,17 @@ draw :: proc (req: Draw_Request, h: Element_Handle = {}) {
 	}
 	el.draw_last = req_id
 }
-draw_get :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) {
+// Gets draw request from current frame's buffer
+draw_get :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) #no_bounds_check {
 	idx := int(h)-1
 	if idx < 0 || idx >= len(ctx.draw_reqs) do return
 	return &ctx.draw_reqs[idx], true
+}
+// Gets draw request from previous frame's buffer
+draw_get_prev :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) #no_bounds_check {
+	idx := int(h)-1
+	if idx < 0 || idx >= len(ctx.draw_reqs_prev) do return
+	return &ctx.draw_reqs_prev[idx], true
 }
 
 draw_color   :: proc (place: Placement, color: Color,      h: Element_Handle = {}) {draw({place=place, var=color},          h)}
@@ -82,8 +89,6 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 	root := element_root()
 	visit_siblings(root.child_first)
-
-	clear(&ctx.draw_reqs)
 
 	visit_siblings :: proc (h: Element_Handle) {
 		h := h
