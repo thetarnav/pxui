@@ -106,6 +106,7 @@ Element_Frame_Data :: struct {
 
 	draw_first:   Draw_Request_Handle,
 	draw_last:    Draw_Request_Handle,
+	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
 
 	ref_pos:      Vec2i,           // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
 	ref_size:     Vec2i,           // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
@@ -345,6 +346,11 @@ element_push :: #force_inline proc ($T: typeid, #any_int id: u64 = 0, loc := #ca
 }
 
 element_pop :: proc () {
+
+	// Mark end of draw requests called before callbacks (need to be copied for memoized elements)
+	el := element_curr()
+	el.draw_frame_end = el.draw_last
+
 	// switch current element to parent
 	parent := element_parent()
 	ctx.element_curr = parent.handle
@@ -426,13 +432,18 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 						el.padding      = el.prev_frame.padding
 						el.place        = el.prev_frame.place
 						el.layout       = el.prev_frame.layout
+						el.effect       = el.prev_frame.effect
 						el.animations   = el.prev_frame.animations
 						el.transparency = el.prev_frame.transparency
 
-						draw_id := el.prev_frame.draw_first
-						for d in draw_get_prev(draw_id) {
-							defer draw_id = d.next
-							draw(d^, el) // Copy draw requests from previous frame
+						// Copy draw requests from previous frame
+						if el.draw_frame_end != {} {
+							draw_id := el.prev_frame.draw_first
+							for d in draw_get_prev(draw_id) {
+								draw(d^, el)
+								if draw_id == el.draw_frame_end do break // Don't copy draw calls from layout/effects
+								draw_id = d.next
+							}
 						}
 
 						for a in el.animations {

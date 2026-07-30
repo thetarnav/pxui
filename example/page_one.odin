@@ -173,7 +173,7 @@ page_one :: proc (
 		}
 	}
 
-	{
+	if px.memo(1) {
 		px.panel()
 		px.padding(12, 8)
 		px.width_fill()
