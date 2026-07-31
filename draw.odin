@@ -3,15 +3,20 @@ package pxui
 import "core:slice"
 import la "core:math/linalg"
 
-// Draw request relative to emiting element
-// Stored internally until layout is solved
+// Draw request relative to emiting element.
+// Stored internally until layout is solved.
+// Can be emitted from frame immediately
+//  or from layout/effect callbacks.
 Draw_Request :: struct {
 	using place: Placement,
 	next:        Draw_Request_Handle,
 	var:         Draw_Variant,
 }
-// Draw command with screen position
-// Output for the user renderer
+// Index to ctx.draw_reqs
+Draw_Request_Handle :: distinct int
+
+// Draw command with screen position.
+// Output for the user renderer.
 Draw_Command :: struct {
 	dst: Rect, // screen
 	var: Draw_Variant,
@@ -24,7 +29,6 @@ Draw_Variant :: union {
 	Draw_Layer,
 }
 
-Draw_Request_Handle :: distinct int
 
 Draw_Color   :: Color
 Draw_Texture :: struct {
