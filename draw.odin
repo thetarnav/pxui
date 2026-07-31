@@ -29,7 +29,6 @@ Draw_Variant :: union {
 	Draw_Layer,
 }
 
-
 Draw_Color   :: Color
 Draw_Texture :: struct {
 	src:   Rect,
@@ -58,7 +57,7 @@ draw_get :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) #no_
 	return &ctx.draw_reqs[idx], true
 }
 // Gets draw request from previous frame's buffer
-draw_get_prev :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) #no_bounds_check {
+draw_get_last_frame :: proc (h: Draw_Request_Handle) -> (req: ^Draw_Request, ok: bool) #no_bounds_check {
 	idx := int(h)-1
 	if idx < 0 || idx >= len(ctx.draw_reqs_prev) do return
 	return &ctx.draw_reqs_prev[idx], true

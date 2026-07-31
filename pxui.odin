@@ -85,7 +85,8 @@ ctx: Context
 Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
 Element_Flags :: bit_set[Element_Flag]
 
-Element_Frame_Data :: struct {
+// Element data user sets during frame or callbacks
+Element_Frame_Input :: struct {
 	_found:       bool,             // was the element present in this frame? TODO: could use frame count
 	flags:        Element_Flags,
 
@@ -103,38 +104,48 @@ Element_Frame_Data :: struct {
 	//
 	// The element's subtree is rendered to an offscreen surface and composited back with this alpha
 	transparency: f32,
-
-	draw_first:   Draw_Request_Handle,
-	draw_last:    Draw_Request_Handle,
-	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
-
-	ref_pos:      Vec2i,           // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
-	ref_size:     Vec2i,           // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
-	screen_pos:   Vec2i,           // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
-	size_set:     [2]bool,
-
-	mouse_in:     bool,
 }
 
+// Element data derived from inputs, layout, etc.
+Element_Frame_Derived :: struct {
+	draw_first:     Draw_Request_Handle,
+	draw_last:      Draw_Request_Handle,
+	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
+
+	ref_pos:        Vec2i,   // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
+	ref_size:       Vec2i,   // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
+	screen_pos:     Vec2i,   // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
+	size_set:       [2]bool,
+
+	mouse_in:       bool,
+}
+
+Element_Frame_Data :: struct {
+	using input:   Element_Frame_Input,
+	using derived: Element_Frame_Derived,
+}
+
+// Internal state for each element node.
+// Stored in `ctx.elements`
 Element :: struct {
-	type:         typeid,               // data_ptr type
-	id:           u64,
-	loc:          Source_Code_Location, // element_push call location
-	hash:         u64,                  // type + user id
-	data_ptr:     rawptr,               // ptr to user component state
+	type:          typeid,               // data_ptr type
+	id:            u64,
+	loc:           Source_Code_Location, // element_push call location
+	hash:          u64,                  // type + user id
+	data_ptr:      rawptr,               // ptr to user component state
 
-	using handle: Element_Handle,       // self
-	parent:       Element_Handle,       // can be zero—root
-	child_first:  Element_Handle,       // can be zero—no children
-	child_last:   Element_Handle,       // can be zero—no children
-	next, prev:   Element_Handle,       // can be zero—siblings
+	using handle:  Element_Handle,       // self
+	parent:        Element_Handle,       // can be zero—root
+	child_first:   Element_Handle,       // can be zero—no children
+	child_last:    Element_Handle,       // can be zero—no children
+	next, prev:    Element_Handle,       // can be zero—siblings
 
-	memos:        [dynamic]Memo,
-	memo_curr:    Maybe(^Memo),
-	memo:         Maybe(^Memo),
+	memos:         [dynamic]Memo,
+	memo_curr:     Maybe(^Memo),
+	memo:          Maybe(^Memo),
 
-	prev_frame:   Element_Frame_Data,
-	using frame:  Element_Frame_Data,
+	last_frame:    Element_Frame_Data,
+	using frame:   Element_Frame_Data,
 }
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
 
@@ -405,6 +416,7 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 	memo: ^Memo
 	memo_search: {
 		for &m in el.memos do if !m._found && m.id == memo_id {
+			// Found matching memo
 			memo = &m
 
 			changed = memo.data_id != data_id
@@ -412,56 +424,13 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 			if changed {
 				// Data changes invalidates stored elements
 				// and they need to be collected again
-				memo.el_first = {}
-				memo.el_last  = {}
+				memo.el_first, memo.el_last = {}, {}
 			} else {
 				// Add memoized children elements to current element
 
 				child_id := memo.el_first
 				for child in element_get(child_id) {
-
-					visit(child)
-					visit :: proc (h: Element_Handle) -> bool {
-						el := element_get(h) or_return
-
-						el._found = true
-
-						// Copy prev frame data TODO: separate prev_frame user data and calculated data
-						el.flags        = el.prev_frame.flags
-						el.margin       = el.prev_frame.margin
-						el.padding      = el.prev_frame.padding
-						el.place        = el.prev_frame.place
-						el.layout       = el.prev_frame.layout
-						el.effect       = el.prev_frame.effect
-						el.animations   = el.prev_frame.animations
-						el.transparency = el.prev_frame.transparency
-
-						// Copy draw requests from previous frame
-						// Ignoring the ones from layout/effect callbacks
-						if el.prev_frame.draw_frame_end != {} {
-							draw_id := el.prev_frame.draw_first
-							for d in draw_get_prev(draw_id) {
-								draw(d^, el)
-								if draw_id == el.prev_frame.draw_frame_end do break
-								draw_id = d.next
-							}
-							el.draw_frame_end = el.draw_last
-						}
-
-						// Update animations
-						for a, prop in el.animations {
-							animation_update(a, el, prop)
-						}
-
-						child_id := el.child_first
-						for child in element_get(child_id) {
-							visit(child)
-							child_id = child.next
-						}
-
-						return true
-					}
-
+					_memo_visit_nested_element(child)
 					if child_id == memo.el_last do break
 					child_id = child.next
 				}
@@ -470,6 +439,7 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 			break memo_search
 		}
 
+		// Create new memo
 		append(&el.memos, Memo{id=memo_id}, loc)
 		memo = &el.memos[len(el.memos)-1]
 
@@ -493,14 +463,46 @@ memo :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #caller_l
 	return memo_begin(data_id, memo_id, loc)
 }
 
+@private
+_memo_visit_nested_element :: proc (h: Element_Handle) -> bool {
+	el := element_get(h) or_return
+
+	// Copy prev frame data
+	el.input = el.last_frame.input
+
+	// Copy draw requests from previous frame
+	// Ignoring the ones from layout/effect callbacks
+	if el.last_frame.draw_frame_end != {} {
+		draw_id := el.last_frame.draw_first
+		for d in draw_get_last_frame(draw_id) {
+			draw(d^, el)
+			if draw_id == el.last_frame.draw_frame_end do break
+			draw_id = d.next
+		}
+		el.draw_frame_end = el.draw_last
+	}
+
+	// Update animations
+	for a, prop in el.animations {
+		animation_update(a, el, prop)
+	}
+
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		_memo_visit_nested_element(child)
+		child_id = child.next
+	}
+
+	return true
+}
+
 
 frame_begin :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
 	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
-		el.prev_frame = el.frame
-		el.frame = {}
+		el.last_frame, el.frame = el.frame, {}
 	}
 
 	// TODO: instead of copying could use two dynamic arrays and frame count % 2
@@ -691,7 +693,7 @@ is_hovered :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_hover
 }
 is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
-	return element_get_or_curr(h).prev_frame.mouse_in
+	return element_get_or_curr(h).last_frame.mouse_in
 }
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
@@ -861,7 +863,7 @@ element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 element_pos :: proc {element_pos_vec, element_pos_axis}
 element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_pos if el._found else el.prev_frame.ref_pos
+	return el.ref_pos if el._found else el.last_frame.ref_pos
 }
 element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_pos(h, loc)[axis]
@@ -870,7 +872,7 @@ element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_loc
 element_screen_pos :: proc {element_screen_pos_vec, element_screen_pos_axis}
 element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.screen_pos if el._found else el.prev_frame.screen_pos
+	return el.screen_pos if el._found else el.last_frame.screen_pos
 }
 element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_screen_pos(h, loc)[axis]
@@ -891,7 +893,7 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 	if el.size_set[axis] { // TODO: margins shouldn't be a part of ref_size
 		return el.ref_size[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
 	} else {
-		return el.prev_frame.ref_size[axis] - lt(el.prev_frame.margin)[axis] - rb(el.prev_frame.margin)[axis]
+		return el.last_frame.ref_size[axis] - lt(el.last_frame.margin)[axis] - rb(el.last_frame.margin)[axis]
 	}
 }
 
@@ -900,7 +902,7 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 element_bounds :: proc {element_bounds_vec, element_bounds_axis}
 element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.ref_size if el._found else el.prev_frame.ref_size
+	return el.ref_size if el._found else el.last_frame.ref_size
 }
 element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_bounds(h, loc)[axis]
@@ -922,11 +924,11 @@ element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #c
 		       lt(el.padding)[axis] -
 		       rb(el.padding)[axis]
 	} else {
-		return el.prev_frame.ref_size[axis] -
-		       lt(el.prev_frame.margin)[axis] -
-		       rb(el.prev_frame.margin)[axis] -
-		       lt(el.prev_frame.padding)[axis] -
-		       rb(el.prev_frame.padding)[axis]
+		return el.last_frame.ref_size[axis] -
+		       lt(el.last_frame.margin)[axis] -
+		       rb(el.last_frame.margin)[axis] -
+		       lt(el.last_frame.padding)[axis] -
+		       rb(el.last_frame.padding)[axis]
 	}
 }
 

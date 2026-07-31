@@ -80,7 +80,7 @@ animation_property_get :: proc (h: Element_Handle, prop: Animation_Property) -> 
 	case .height:  return element_box_size(h, Axis.Y)
 	case .left:    return element_screen_pos(h).x
 	case .top:     return element_screen_pos(h).y
-	case .opacity: return 1.0 - element_get(h).prev_frame.transparency
+	case .opacity: return 1.0 - element_get(h).last_frame.transparency
 	}
 	unreachable()
 }
@@ -89,7 +89,7 @@ animate :: proc (prop: Animation_Property, value: Sizing, h: Element_Handle = {}
 
 	el := element_get_or_curr(h, loc)
 
-	a, has_animation := hm.get(&ctx.animations, el.prev_frame.animations[prop])
+	a, has_animation := hm.get(&ctx.animations, el.last_frame.animations[prop])
 
 	if !has_animation {
 		ah := hm.add(&ctx.animations, Animation{})
