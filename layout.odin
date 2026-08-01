@@ -5,66 +5,71 @@ import "core:slice"
 
 
 @private
-_stack_update_layout :: proc (el: ^Element, $AX: Axis) {
+_stack_update_layout :: proc (el: ^Element, $AX: Axis, gap: int = 0) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
 
-	cursor := element_bounds(prev, AX)
+	cursor := element_bounds(prev, AX) + gap
 
 	child_id := prev.next
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		// Each child's bounds follow the previous child's bounds.
+		// Each child's bounds follow the previous child's bounds, with a gap
 		element_set_pos(child, AX, cursor)
-		cursor += element_bounds(child, AX)
+		cursor += element_bounds(child, AX) + gap
 	}
 
-	element_set_inner_bounds(el, AX, cursor)
+	// Total size includes the last child's bounds (without the trailing gap).
+	element_set_inner_bounds(el, AX, cursor - gap)
 }
 
-V_Stack :: struct {}
+V_Stack :: struct {gap: int}
 v_stack_update_layout :: proc () {
 	el := element_curr()
-	_stack_update_layout(el, .Y)
+	s := element_state(V_Stack, el)
+	_stack_update_layout(el, .Y, s.gap)
 }
-v_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
-	element_push(V_Stack, id, loc)
+v_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+	s, _ := element_push(V_Stack, id, loc)
+	s.gap = gap
 	layout(.V, v_stack_update_layout)
 }
-v_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
+v_stack_end :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=v_stack_end)
-v_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
-	v_stack_begin(id, loc)
+v_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	v_stack_begin(gap, id, loc)
 	return true
 }
 
-H_Stack :: struct {}
+H_Stack :: struct {gap: int}
 h_stack_update_layout :: proc () {
 	el := element_curr()
-	_stack_update_layout(el, .X)
+	s  := element_state(H_Stack, el)
+	_stack_update_layout(el, .X, s.gap)
 }
-h_stack_begin :: proc (id: u64 = 0, loc := #caller_location) {
-	element_push(H_Stack, id, loc)
+h_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+	s, _ := element_push(H_Stack, id, loc)
+	s.gap = gap
 	layout(.H, h_stack_update_layout)
 }
-h_stack_end :: proc (id: u64 = 0, loc := #caller_location) {
+h_stack_end :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=h_stack_end)
-h_stack :: proc (id: u64 = 0, loc := #caller_location) -> bool {
-	h_stack_begin(id, loc)
+h_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	h_stack_begin(gap, id, loc)
 	return true
 }
 
 
 @private
-_flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
+_flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 
 	prev, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -86,31 +91,37 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis) {
 	for child in element_get(child_id) {
 		defer child_id, prev = child.next, child
 
-		if cursor[AXIS] + element_bounds(child, AXIS) > max_size {
+		// Wrap to a new row if the next child doesn't fit.
+		// Leave room for the gap between this child and
+		// the next on the same row.
+		if cursor[AXIS] > 0 &&
+		   cursor[AXIS] + element_bounds(child, AXIS) + gap[AXIS] > max_size
+		{
 			cursor[AXIS] = 0
-			cursor[PERP] += row_size
+			cursor[PERP] += row_size + gap[PERP]
 			row_size = 0
 		}
 
 		element_set_pos(child, {AXIS = cursor[AXIS], PERP = cursor[PERP]})
 
-		cursor[AXIS] += element_bounds(child, AXIS)
+		cursor[AXIS] += element_bounds(child, AXIS) + gap[AXIS]
 		row_size = max(row_size, element_bounds(child, PERP))
 	}
 
 	element_set_inner_bounds(el, PERP, cursor[PERP] + element_bounds(prev, PERP))
 }
 
-Flex :: struct {axis: Axis}
+Flex :: struct {axis: Axis, gap: Vec2i}
 flex_update_layout :: proc () {
 	el := element_curr()
 	s  := element_state(Flex, el)
-	if s.axis == .H do _flex_update_layout(el, .H)
-	else            do _flex_update_layout(el, .V)
+	if s.axis == .H do _flex_update_layout(el, .H, s.gap)
+	else            do _flex_update_layout(el, .V, s.gap)
 }
-flex_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
 	s, _ := element_push(Flex, id, loc)
 	s.axis = axis
+	s.gap  = gap
 	layout(axis, flex_update_layout)
 }
 flex_end :: proc () {
@@ -118,18 +129,18 @@ flex_end :: proc () {
 	element_pop()
 }
 @(deferred_none=flex_end)
-flex :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool {
-	flex_begin(axis, id, loc)
+flex :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(axis, gap, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_h :: proc (id: u64 = 0, loc := #caller_location) -> bool {
-	flex_begin(.H, id, loc)
+flex_h :: proc (gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(.H, gap, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_v :: proc (id: u64 = 0, loc := #caller_location) -> bool {
-	flex_begin(.V, id, loc)
+flex_v :: proc (gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	flex_begin(.V, gap, id, loc)
 	return true
 }
 

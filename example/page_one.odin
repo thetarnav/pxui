@@ -93,16 +93,15 @@ page_one :: proc (
 	}
 
 	{
-		px.flex_h()
+		px.flex_h(gap={2, 4})
 		px.width_fill()
 		px.background_color(COLOR_DARK_GRAY)
-		px.padding(2)
+		px.padding(4)
 		px.margin(4)
 
 		for i in 0..<10 {
 			px.panel()
 			px.background_color(COLOR_LIGHT_RED)
-			px.margin(2)
 			px.width((i % 5) * 10 + 16)
 			px.height(14)
 		}

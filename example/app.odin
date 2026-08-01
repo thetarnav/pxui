@@ -83,7 +83,7 @@ ui :: proc (ws: Vec2i) {
 		px.height(20)
 		px.width_fill()
 
-		px.h_stack()
+		px.h_stack(gap=1)
 		px.size_fill()
 		px.background_color(COLOR_LIGHT_GRAY)
 		px.margin_bottom(4)
@@ -93,7 +93,6 @@ ui :: proc (ws: Vec2i) {
 			px.radio(i)
 			px.height_fill()
 			px.background_color(COLOR_DARK_GRAY)
-			px.margin(1)
 			px.padding(4, 0)
 
 			px.panel()

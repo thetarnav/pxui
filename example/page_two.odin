@@ -21,7 +21,7 @@ page_two :: proc () {
 	px.text("This is a page with ANIMATIONS", color=COLOR_BLACK)
 
 	{
-		px.h_stack()
+		px.h_stack(gap=2)
 
 		if button("Animate!") {
 			s.on = !s.on
@@ -30,7 +30,6 @@ page_two :: proc () {
 			s.show = !s.show
 		}
 	}
-
 
 	if s.show {
 
@@ -50,9 +49,9 @@ page_two :: proc () {
 
 		if px.memo(int(s.show) * 100 + int(init) * 10 + int(s.on)) {
 
-			px.v_stack()
+			px.v_stack(gap=4)
 			px.margin_top(2)
-			px.padding(2)
+			px.padding(4)
 			px.background_color(COLOR_DARK_GRAY)
 			px.width_fill()
 
@@ -61,7 +60,6 @@ page_two :: proc () {
 				px.background_color(COLOR_LIGHT_GREEN if i == 0 else COLOR_LIGHT_PURPLE)
 				px.clip_outside()
 				px.height(20)
-				px.margin(2)
 
 				if init {
 					px.width(200)
