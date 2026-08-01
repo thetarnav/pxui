@@ -147,9 +147,10 @@ flex_v :: proc (gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
 
 rect_cut_update_layout :: proc () {
 
-	el := element_curr()
-	s  := element_state(Rect_Cut, el)
-	ax := s.axis
+	el  := element_curr()
+	s   := element_state(Rect_Cut, el)
+	ax  := s.axis
+	gap := s.gap
 
 	// space_taken = total outer bounds of non-Fill children.
 	space_taken: int
@@ -164,7 +165,11 @@ rect_cut_update_layout :: proc () {
 		} else {
 			space_taken += element_bounds(child, ax)
 		}
+
+		space_taken += gap
 	}
+
+	space_taken = max(space_taken - gap, 0) // Remove last el gap
 
 	prev: ^Element
 	child_id = el.child_first
@@ -179,29 +184,30 @@ rect_cut_update_layout :: proc () {
 			element_set_bounds(child, ax, space)
 		}
 
+		pos := 0
 		if prev != nil {
-			// Position each child after previous (bounds).
-			element_set_pos(child, ax, element_pos(prev, ax) + element_bounds(prev, ax))
-		} else {
-			// First child at the start of the reference plane.
-			element_set_pos(child, ax, 0)
+			pos += element_pos(prev, ax)
+			pos += element_bounds(prev, ax)
+			pos += gap
 		}
+		element_set_pos(child, ax, pos)
 	}
 }
 
-Rect_Cut :: struct {axis: Axis}
-rect_cut_begin :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+Rect_Cut :: struct {axis: Axis, gap: int}
+rect_cut_begin :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) {
 	s, _ := element_push(Rect_Cut, id, loc)
 	s.axis = axis
+	s.gap  = gap
 	layout_axis(axis, rect_cut_update_layout)
 }
-rect_cut_end :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) {
+rect_cut_end :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=rect_cut_end)
-rect_cut :: proc (axis: Axis = .H, id: u64 = 0, loc := #caller_location) -> bool {
-	rect_cut_begin(axis, id, loc)
+rect_cut :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	rect_cut_begin(axis, gap, id, loc)
 	return true
 }
 

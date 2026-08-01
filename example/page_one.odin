@@ -57,7 +57,7 @@ page_one :: proc (
 	}
 
 	{
-		px.rect_cut(.H)
+		px.rect_cut(.H, gap=3)
 		px.width(1.0)
 		px.background_color(COLOR_DARK_GRAY)
 		px.padding(4)
@@ -67,20 +67,17 @@ page_one :: proc (
 		{
 			counter()
 			px.padding(2)
-			px.margin_right(2)
 		}
 
 		{
 			px.panel()
 			px.background_color(COLOR_LIGHT_YELLOW)
-			px.margin_right(3)
 			px.size_fill()
 		}
 
 		{
 			px.panel()
 			px.background_color(COLOR_LIGHT_PURPLE)
-			px.margin_right(3)
 			px.width(20)
 			px.height_fill()
 		}
