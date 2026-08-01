@@ -166,3 +166,19 @@ ui :: proc (ws: Vec2i) {
 	case:   page_two()
 	}
 }
+
+button :: proc (text: string) -> (clicked: bool) {
+
+	px.panel()
+	px.padding(6, 2)
+	px.background_color(COLOR_RED if px.is_hovered() else COLOR_LIGHT_RED)
+	clicked = px.is_clicked()
+
+	px.panel()
+	px.flag(.Non_Interactable)
+	px.origin({0.5, 0.5})
+	px.pos({0.5, 0.5})
+	px.text(text)
+
+	return
+}

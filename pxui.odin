@@ -97,7 +97,11 @@ Element_Frame_Input :: struct {
 	layout:       [2]struct {cb: proc (), deps: Axis_Set},
 	effect:       proc (),
 
-	animations:   [Animation_Property]Animation_Handle,
+	anims:        [Animation_Property]Animation_Handle,
+	anims_exit:   [Animation_Property]union { // nil — no end animation
+		Animation_Exit_Req, // — end animation requested
+		Animation_Handle,   // — end animation running
+	},
 
 	// 0 = fully opaque (default)
 	// 1 = fully transparent
@@ -367,6 +371,43 @@ element_pop :: proc () {
 	ctx.element_curr = parent.handle
 }
 
+@private
+_element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = false) {
+
+	el, is_el := element_get(h)
+	if !is_el do return
+
+	prevent_destroy := prevent_destroy
+
+	if h != ctx.element_root && !el._found {
+
+		// Prevent destroy if there are exit animations running
+		// - but only if the tree above is still present
+		parent, has_parent := element_get(el.parent)
+		if has_parent && parent._found {
+			prevent_destroy |= _element_has_exit_animations(el)
+		} else {
+			prevent_destroy = false
+		}
+
+		if prevent_destroy {
+			_element_copy_last_frame_data(el)
+			_element_update_animations(el)
+			_element_update_exit_animations(el)
+		} else {
+			_element_destroy(el)
+		}
+	}
+
+	// Visit children
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		_element_visit_end_frame(child, prevent_destroy)
+		child_id = child.next
+	}
+}
+
+@private
 _element_destroy :: proc (el: ^Element) {
 
 	if parent, has_parent := element_get(el.parent); has_parent && parent._found {
@@ -390,9 +431,8 @@ _element_destroy :: proc (el: ^Element) {
 	delete(el.memos)
 	free(el.data_ptr)
 
-	// Remove pending animations
-	for a in el.animations {
-		// TODO: animations should also be removed when they end
+	// Remove any pending animations
+	for a in el.anims {
 		hm.remove(&ctx.animations, a)
 	}
 
@@ -467,7 +507,21 @@ memo :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #caller_l
 _memo_visit_nested_element :: proc (h: Element_Handle) -> bool {
 	el := element_get(h) or_return
 
-	// Copy prev frame data
+	_element_copy_last_frame_data(el)
+	_element_update_animations(el)
+
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		_memo_visit_nested_element(child)
+		child_id = child.next
+	}
+
+	return true
+}
+
+_element_copy_last_frame_data :: proc (el: ^Element) {
+
+	// Copy prev frame input data
 	el.input = el.last_frame.input
 
 	// Copy draw requests from previous frame
@@ -481,19 +535,6 @@ _memo_visit_nested_element :: proc (h: Element_Handle) -> bool {
 		}
 		el.draw_frame_end = el.draw_last
 	}
-
-	// Update animations
-	for a, prop in el.animations {
-		animation_update(a, el, prop)
-	}
-
-	child_id := el.child_first
-	for child in element_get(child_id) {
-		_memo_visit_nested_element(child)
-		child_id = child.next
-	}
-
-	return true
 }
 
 
@@ -513,17 +554,13 @@ frame_begin :: proc () {
 frame_end :: proc () {
 	assert(ctx.element_curr == ctx.element_root)
 
-	it := hm.iterator_make(&ctx.elements)
-
-	for el, handle in hm.iterate(&it) {
-		if el._found || handle == ctx.element_root do continue
-		_element_destroy(el)
-	}
+	_element_visit_end_frame(ctx.element_root)
 
 	topological_solve()
 
 	update_screen_rect_and_mouse()
 
+	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
 		_call_effect(el)
 	}

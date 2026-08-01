@@ -13,6 +13,11 @@ Animation :: struct {
 }
 Animation_Handle :: struct {idx, gen: u32}
 
+Animation_Exit_Req :: struct {
+	value:        Sizing,
+	transition:   Transition,
+}
+
 Animation_Property :: enum {width, height, left, top, opacity}
 
 Transition :: struct {
@@ -20,6 +25,37 @@ Transition :: struct {
 	ease: ease.Ease,
 }
 
+_element_update_animations :: proc (el: ^Element) {
+	for a, prop in el.anims {
+		animation_update(a, el, prop)
+	}
+}
+_element_update_exit_animations :: proc (el: ^Element) {
+	for &anim_end, prop in el.anims_exit {
+
+		switch ae in anim_end {
+		case Animation_Handle:
+			animation_update(ae, el, prop) or_break
+			continue
+
+		case Animation_Exit_Req:
+			animation_remove(el.anims[prop], el, prop)
+			anim_end = animation_schedule(prop, ae.value, el) or_break
+			continue
+		}
+
+		anim_end = nil
+	}
+}
+_element_has_exit_animations :: proc (el: ^Element) -> bool {
+	for anim_end in el.last_frame.anims_exit {
+		if anim_end != nil do return true
+	}
+	return false
+}
+
+// Animations are updated by users calling animate() with same prop
+// or automatically for memoized elements
 animation_update :: proc (h: Animation_Handle, el: ^Element, prop: Animation_Property) -> (ok: bool) {
 
 	// TODO: custom transitions
@@ -44,11 +80,9 @@ animation_update :: proc (h: Animation_Handle, el: ^Element, prop: Animation_Pro
 	return true
 }
 
-animation_remove :: proc (h: Animation_Handle, el: ^Element, prop: Animation_Property, loc := #caller_location) -> bool {
-	a := hm.get(&ctx.animations, h) or_return
-	hm.remove(&ctx.animations, a)
-	el.animations[prop] = {}
-	return true
+animation_remove :: proc (h: Animation_Handle, el: ^Element, prop: Animation_Property, loc := #caller_location) {
+	hm.remove(&ctx.animations, h)
+	el.anims[prop] = {}
 }
 
 animation_property_set :: proc (a: ^Animation, h: Element_Handle, prop: Animation_Property, t: f32) {
@@ -85,11 +119,26 @@ animation_property_get :: proc (h: Element_Handle, prop: Animation_Property) -> 
 	unreachable()
 }
 
+animation_schedule :: proc (prop: Animation_Property, value: Sizing, el: ^Element, loc := #caller_location) -> (ah: Animation_Handle, ok: bool) {
+
+	ah = hm.add(&ctx.animations, Animation{})
+	a := hm.get(&ctx.animations, ah) or_return
+
+	a.value       = value
+	a.start_value = animation_property_get(el, prop)
+	a.start_time  = ctx.time
+
+	animation_update(a, el, prop) or_return
+
+	ok = true
+	return
+}
+
 animate :: proc (prop: Animation_Property, value: Sizing, h: Element_Handle = {}, loc := #caller_location) {
 
 	el := element_get_or_curr(h, loc)
 
-	a, has_animation := hm.get(&ctx.animations, el.last_frame.animations[prop])
+	a, has_animation := hm.get(&ctx.animations, el.last_frame.anims[prop])
 
 	if !has_animation {
 		ah := hm.add(&ctx.animations, Animation{})
@@ -104,6 +153,11 @@ animate :: proc (prop: Animation_Property, value: Sizing, h: Element_Handle = {}
 		a.start_time  = ctx.time
 	}
 
-	el.animations[prop] = a
+	el.anims[prop] = a
 	animation_update(a, el, prop)
+}
+
+animate_exit :: proc (prop: Animation_Property, value: Sizing, h: Element_Handle = {}, loc := #caller_location) {
+	el := element_get_or_curr(h, loc)
+	el.anims_exit[prop] = Animation_Exit_Req{value, {200, .Linear}}
 }
