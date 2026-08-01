@@ -832,6 +832,26 @@ left     :: pos_left
 top      :: pos_top
 pos      :: proc {pos_set, pos_axis}
 
+center_both :: proc (h: Element_Handle = {}) {
+	origin(Sizing_2D{0.5, 0.5}, h)
+	pos(Sizing_2D{0.5, 0.5}, h)
+}
+center_axis :: proc (axis: Axis, h: Element_Handle = {}) {
+	origin(axis, 0.5, h)
+	pos(axis, 0.5, h)
+}
+center_x :: proc (h: Element_Handle = {}) {
+	origin_left(0.5, h)
+	pos_left(0.5, h)
+}
+center_y :: proc (h: Element_Handle = {}) {
+	origin_top(0.5, h)
+	pos_top(0.5, h)
+}
+center_h :: center_x
+center_v :: center_y
+center   :: proc {center_both, center_axis}
+
 margin_set        :: proc (v: Insets)       {element_curr().margin = v}
 margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
 margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}

@@ -73,8 +73,7 @@ page_two :: proc () {
 
 				px.panel()
 				px.flag(.Non_Interactable)
-				px.origin({0.5, 0.5})
-				px.pos({0.5, 0.5})
+				px.center()
 
 				if init {
 					px.opacity(0)

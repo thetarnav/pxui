@@ -218,8 +218,7 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, COL
 			}
 
 			px.panel()
-			px.top(0.5)
-			px.origin_top(0.5)
+			px.center_y()
 
 			px.textf("Show cross", color=COLOR_TEXT)
 		}

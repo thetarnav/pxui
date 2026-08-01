@@ -97,8 +97,7 @@ ui :: proc (ws: Vec2i) {
 			px.padding(4, 0)
 
 			px.panel()
-			px.top(0.5)
-			px.origin_top(0.5)
+			px.center_y()
 
 			px.textf("Tab {}", i)
 		}
@@ -117,18 +116,12 @@ ui :: proc (ws: Vec2i) {
 	defer if show_cross {
 		px.panel()
 		px.flag(.Non_Interactable)
-		px.origin_left(0.5)
-		px.origin_top(0.5)
-		px.left(0.5)
-		px.top(0.5)
+		px.center()
 		px.opacity(0.5)
 
 		for ax in px.Axis {
 			px.panel()
-			px.origin_left(0.5)
-			px.origin_top(0.5)
-			px.left(0.5)
-			px.top(0.5)
+			px.center()
 			px.size_axis(ax, 4)
 			px.size_axis(px.perp(ax), int(cross_size_f))
 			px.background_color(COLOR_DARK_GREEN)
@@ -176,8 +169,7 @@ button :: proc (text: string) -> (clicked: bool) {
 
 	px.panel()
 	px.flag(.Non_Interactable)
-	px.origin({0.5, 0.5})
-	px.pos({0.5, 0.5})
+	px.center()
 	px.text(text)
 
 	return
