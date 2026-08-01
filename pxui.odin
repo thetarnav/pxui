@@ -392,6 +392,7 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 
 		if prevent_destroy {
 			_element_copy_last_frame_data(el)
+			flag(.Non_Interactable, el)
 			_element_update_animations(el)
 			_element_update_exit_animations(el)
 		} else {

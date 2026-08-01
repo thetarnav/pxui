@@ -40,10 +40,13 @@ page_two :: proc () {
 
 		if init {
 			px.opacity(0)
+			px.top(10)
 		} else {
 			px.animate(.opacity, 1.0)
+			px.animate(.top, 0)
 		}
 		px.animate_exit(.opacity, 0.0)
+		px.animate_exit(.top, 10)
 
 		if px.memo(int(s.show) * 100 + int(init) * 10 + int(s.on)) {
 
