@@ -140,14 +140,14 @@ run_frames :: proc (state: ^State, n: int) {
 		released := state.released || state.pending_release
 		held     := state.held || state.pending_press
 
-		app.frame(
+		input := px.Frame_Input {
 			mouse          = state.mouse,
 			mouse_pressed  = pressed,
 			mouse_released = released,
 			mouse_held     = held,
 			wheel_delta    = state.wheel,
-			ws             = state.ws,
-		)
+		}
+		app.frame(input, state.ws)
 
 		// Consume one-shot events.
 		state.pressed         = state.held && !state.pending_release
@@ -161,7 +161,6 @@ run_frames :: proc (state: ^State, n: int) {
 print_state :: proc () {
 	fmt.println("Input state:")
 	fmt.printf("  show_cross      = %v\n", app.show_cross)
-	fmt.printf("  inner_pad       = %v\n", app.inner_pad)
 	fmt.printf("  inner_color_idx = %v\n", app.inner_color_idx)
 	fmt.printf("  cross_size_f    = %v\n", app.cross_size_f)
 }
