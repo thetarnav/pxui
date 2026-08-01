@@ -131,7 +131,7 @@ ui :: proc (ws: Vec2i) {
 
 	defer {
 		px.scrollbar()
-		px.background_color({180, 140, 100, 255})
+		px.background_color({180, 140, 100, 200})
 
 		px.scrollbar_thumb()
 		grabbed := px.scrollbar_is_dragging()

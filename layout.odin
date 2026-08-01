@@ -213,7 +213,7 @@ rect_cut :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_loc
 
 
 @private
-_masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
+_masonry_layout_axis :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -224,7 +224,9 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	cols := make([]int, c, context.temp_allocator)
 
-	col_w := element_inner_bounds(el, PERP) / c // TODO: what to do about the flored pixel fraction (it grows space after)
+	// TODO: what to do about the flored pixel fraction (it grows space after)
+	max_w := element_inner_bounds(el, PERP)
+	col_w := (max_w - gap[PERP] * (c-1)) / c
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
@@ -232,15 +234,15 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 		min_idx := slice.min_index(cols) or_break
 
-		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * col_w})
+		element_set_pos(child, {AXIS=cols[min_idx], PERP=min_idx * (col_w + gap[PERP])})
 
-		cols[min_idx] += element_bounds(child, AXIS)
+		cols[min_idx] += element_bounds(child, AXIS) + gap[AXIS]
 	}
 
-	element_set_inner_bounds(el, AXIS, slice.max(cols))
+	element_set_inner_bounds(el, AXIS, slice.max(cols) - gap[AXIS])
 }
 @private
-_masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
+_masonry_layout_perp :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 
 	_, has_children := element_get(el.child_first)
 	if !has_children do return
@@ -249,7 +251,8 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
 
-	col_w := element_inner_bounds(el, PERP) / c
+	max_w := element_inner_bounds(el, PERP)
+	col_w := (max_w - gap[PERP] * (c-1)) / c
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
@@ -259,35 +262,36 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, $AXIS: Axis) {
 	}
 }
 
-Masonry :: struct {axis: Axis, cols: int}
-masonry_begin :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+Masonry :: struct {axis: Axis, cols: int, gap: Vec2i}
+masonry_begin :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
 	bounds_check_axis(axis, loc)
 
 	s, _ := element_push(Masonry, id, loc)
 	s.axis = axis
 	s.cols = cols
+	s.gap  = gap
 
 	layout(axis, proc () {
 		el := element_curr()
 		s  := element_state(Masonry, el)
-		if s.axis == .H do _masonry_layout_axis(el, s.cols, .H)
-		else            do _masonry_layout_axis(el, s.cols, .V)
+		if s.axis == .H do _masonry_layout_axis(el, s.cols, s.gap, .H)
+		else            do _masonry_layout_axis(el, s.cols, s.gap, .V)
 	}, deps={perp(axis)})
 
 	layout(perp(axis), proc () {
 		el := element_curr()
 		s  := element_state(Masonry, el)
-		if s.axis == .H do _masonry_layout_perp(el, s.cols, .H)
-		else            do _masonry_layout_perp(el, s.cols, .V)
+		if s.axis == .H do _masonry_layout_perp(el, s.cols, s.gap, .H)
+		else            do _masonry_layout_perp(el, s.cols, s.gap, .V)
 	})
 }
-masonry_end :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+masonry_end :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=masonry_end)
-masonry :: proc (cols: int, axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
-	masonry_begin(cols, axis, id, loc)
+masonry :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+	masonry_begin(cols, axis, gap, id, loc)
 	return true
 }
 

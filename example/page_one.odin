@@ -114,7 +114,7 @@ page_one :: proc (
 
 		defer {
 			px.scrollbar()
-			px.background_color({180, 140, 100, 255})
+			px.background_color({180, 140, 100, 200})
 
 			px.scrollbar_thumb()
 
@@ -133,14 +133,13 @@ page_one :: proc (
 		cols := 4
 		if      ws.x < 250 do cols = 3
 		else if ws.x > 400 do cols = 5
-		px.masonry(cols)
+		px.masonry(cols, gap={4, 6})
 		px.width_fill()
-		px.padding(2)
+		px.padding(4)
 
 		{
 			px.v_stack()
 			px.width_fill()
-			px.margin(2)
 			px.background_color({100, 100, 100, 255})
 
 			for _ in 0..<2 {
@@ -155,7 +154,6 @@ page_one :: proc (
 		for i in 0..<8 {
 			px.rect_cut()
 			px.width_fill()
-			px.margin(2)
 			px.padding(1)
 			px.background_color(COLOR_LIGHT_YELLOW)
 
