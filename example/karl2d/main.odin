@@ -4,12 +4,20 @@
 package main
 
 import "core:slice"
+import "core:fmt"
+import "core:time"
 import k2 "shared:karl2d"
 import px "../.."
 import app ".."
 
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
+
+MAX_FPS :: 60.0
+MIN_FPS :: 12.0
+
+MAX_DT :: 1000.0 / MAX_FPS
+MIN_DT :: 1000.0 / MIN_FPS
 
 Vec2  :: [2]f32
 Rect  :: px.Rectf
@@ -19,26 +27,60 @@ Color :: px.Color
 root_camera := k2.Camera{zoom = PIXEL_SCALE}
 camera: k2.Camera
 
+time_now :: proc () -> f32 {
+    @static start: time.Time
+    if start == {} {
+        start = time.now()
+    }
+    return f32(time.duration_milliseconds(time.since(start)))
+}
+
 main :: proc () {
 
-	_ = k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example",
-	            options = {window_mode = .Windowed_Resizable})
+	_ = k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example", options = {
+		window_mode = .Windowed_Resizable,
+	})
 
 	camera = root_camera
 	k2.set_camera(camera)
 
 	if px.init() != nil do return
 
-	for k2.update() {
-		defer k2.reset_frame_allocator()
-		defer free_all(context.temp_allocator)
+	for step() {}
 
-		k2.clear({30, 30, 40, 255})
+	app.shutdown()
+	k2.shutdown()
+}
+
+step :: proc () -> bool {
+
+    @static time_last: f32
+    @static time_miss: f32
+
+    time_now   := time_now()
+    dt         := time_now - time_last
+    elapsed    := dt + time_miss
+    capped_dt  := min(dt, MAX_DT*2)
+
+    if elapsed < MAX_DT {
+        return true
+    }
+
+    time_last = time_now
+    time_miss = max(0, elapsed - MAX_DT) // Carry over extra time
+
+	k2.reset_frame_allocator()
+	free_all(context.temp_allocator)
+
+	run_frame: {
+		k2.update() or_return
+		// frame(capped_dt) or_return
+		_ = capped_dt
 
 		ws := app.Vec2i(k2.get_screen_size() / PIXEL_SCALE)
 		mouse := app.Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
 
-		continue_frame := app.frame(
+		app.frame(
 			ws    = ws,
 			input = {
 				mouse          = mouse,
@@ -48,15 +90,25 @@ main :: proc () {
 				wheel_delta    = {0, f32(k2.get_mouse_wheel_delta() * 10)},
 				time           = int(k2.get_time() * 1000),
 			},
-		)
-		if !continue_frame do break
+		) or_return
+	}
+
+	render: {
+		k2.clear({30, 30, 40, 255})
 
 		render_ui()
+
+		{
+			fps := 1000.0/dt
+			str := fmt.tprint(int(fps))
+			k2.draw_text(str, 6.5, 10, k2.BLACK)
+			k2.draw_text(str, 6,   10, k2.LIGHT_GREEN)
+		}
+
 		k2.present()
 	}
 
-	app.shutdown()
-	k2.shutdown()
+    return true
 }
 
 render_ui :: proc () {

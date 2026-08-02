@@ -15,8 +15,6 @@ Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
 
-// Color palette (independent of any rendering backend).
-// Kept pale to match the original karl2d aesthetic.
 COLOR_TEXT          :: RGBA{210, 180, 160, 255}
 COLOR_WHITE         :: RGBA{255, 255, 255, 255}
 COLOR_BLACK         :: RGBA{0, 0, 0, 255}
@@ -32,14 +30,12 @@ COLOR_LIGHT_RED     :: RGBA{230, 140, 140, 255}
 COLOR_DARK_GREEN    :: RGBA{34, 120, 60, 255}
 COLOR_DARK_GRAY     :: RGBA{60, 60, 70, 255}
 
-// ─── Input component state ───────────────────────────────────────────────
 // These are driven by the input components in the demo.
 show_cross:      bool = true
 inner_color_idx: int  = 0
 cross_size_f:    f32  = 20
 selected_tab:    int  = 0
 
-// ─── Lifecycle ──────────────────────────────────────────────────────────
 
 init :: proc () -> bool {
 	px.init()
@@ -63,7 +59,6 @@ shutdown :: proc () {
 	px.shutdown()
 }
 
-// ─── UI definition ─────────────────────────────────────────────────────
 
 ui :: proc (ws: Vec2i) {
 
