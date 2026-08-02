@@ -281,8 +281,7 @@ element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Ele
 }
 
 @private
-_element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, loc := #caller_location) ->
-                      (state: rawptr, init: bool)
+_element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, loc := #caller_location) -> (state: rawptr)
 {
 	hash   := element_hash(type, user_id)
 	parent := element_curr(loc)
@@ -328,8 +327,6 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 			parent.child_first = handle
 		}
 		parent.child_last = handle
-
-		init = true
 	}
 
 	ctx.element_curr = el.handle
@@ -353,11 +350,9 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 	return
 }
 
-element_push :: #force_inline proc ($T: typeid, #any_int id: u64 = 0, loc := #caller_location) ->
-                                   (state: ^T, init: bool) {
-	ptr: rawptr
-	ptr, init = _element_push(T, size_of(T), align_of(T), id, loc)
-	return (^T)(ptr), init
+element_push :: #force_inline proc ($T: typeid, #any_int id: u64 = 0, loc := #caller_location) -> ^T {
+	ptr := _element_push(T, size_of(T), align_of(T), id, loc)
+	return (^T)(ptr)
 }
 
 element_pop :: proc () {
@@ -725,6 +720,12 @@ update_screen_rect_and_mouse :: proc () {
 
 		return true
 	}
+}
+
+// Returns `true` on the same frame as the element was first created
+is_init :: proc (h: Element_Handle = {}, loc := #caller_location) -> bool {
+	el := element_get_or_curr(h, loc)
+	return el.last_frame._found == false
 }
 
 is_hovered :: proc (h: Element_Handle = {}) -> bool {

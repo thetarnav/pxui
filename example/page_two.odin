@@ -5,11 +5,11 @@ import px ".."
 page_two :: proc () {
 
 	// This el is just for state
-	s, state_init := px.element_push(struct {on: bool, show: bool})
+	s := px.element_push(struct {on: bool, show: bool})
 	defer px.element_pop()
 	px.width_fill()
 
-	if state_init {
+	if px.is_init() {
 		s.on   = true
 		s.show = true
 	}
@@ -33,11 +33,10 @@ page_two :: proc () {
 
 	if s.show {
 
-		_, init := px.element_push(struct {})
-		defer px.element_pop()
+		px.panel()
 		px.width_fill()
 
-		if init {
+		if px.is_init() {
 			px.opacity(0)
 			px.top(10)
 		} else {
@@ -47,7 +46,7 @@ page_two :: proc () {
 		px.animate_exit(.opacity, 0.0)
 		px.animate_exit(.top, 10)
 
-		if px.memo(int(s.show) * 100 + int(init) * 10 + int(s.on)) {
+		if px.memo(int(s.show) * 100 + int(px.is_init()) * 10 + int(s.on)) {
 
 			px.v_stack(gap=4)
 			px.margin_top(2)
@@ -61,7 +60,7 @@ page_two :: proc () {
 				px.clip_outside()
 				px.height(20)
 
-				if init {
+				if px.is_init() {
 					px.width(200)
 				} else if s.on {
 					px.animate(.width, px.FILL) // TODO: fill doesn't update after animation end
@@ -73,7 +72,7 @@ page_two :: proc () {
 				px.flag(.Non_Interactable)
 				px.center()
 
-				if init {
+				if px.is_init() {
 					px.opacity(0)
 				} else if s.on {
 					px.animate(.opacity, 1.0)

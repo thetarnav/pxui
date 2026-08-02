@@ -19,7 +19,7 @@ Checkbox :: struct {
 }
 
 checkbox_begin :: proc (state: ^bool = nil, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Checkbox, id, loc)
+	s := element_push(Checkbox, id, loc)
 	s.ptr = state if state != nil else &s.checked
 
 	if is_click_in() {
@@ -55,7 +55,7 @@ Radio :: struct {
 }
 
 radio_group_begin :: proc (value: ^int = nil, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Radio_Group, id, loc)
+	s := element_push(Radio_Group, id, loc)
 	s.ptr = value if value != nil else &s.index
 }
 radio_group_end :: proc (state: ^int = nil, id: u64 = 0, loc := #caller_location) {
@@ -137,7 +137,7 @@ slider_get_thumb_pos_and_size :: proc (value, min, max: f32, track_len: int) -> 
 }
 
 slider_begin :: proc (value: ^f32 = nil, min: f32 = 0, max: f32 = 1, axis: Axis = .X, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Slider, id, loc)
+	s := element_push(Slider, id, loc)
 	s.min  = min
 	s.max  = max
 	s.axis = axis
@@ -217,7 +217,7 @@ slider_thumb :: proc (id: u64 = 0, loc := #caller_location) -> bool {
 
 // Optional: decrement/increment buttons (must be children of the slider).
 slider_button_begin :: proc (dir: int, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Slider_Button, id, loc)
+	s := element_push(Slider_Button, id, loc)
 	s.dir = dir
 }
 slider_button_end :: proc (dir: int, id: u64 = 0, loc := #caller_location) {
@@ -243,7 +243,7 @@ slider_button_clicked :: proc () -> bool {
 
 // Optional: bar between thumb and buttons (must be children of the slider).
 slider_bar_begin :: proc (side: int, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Slider_Bar, id, loc)
+	s := element_push(Slider_Bar, id, loc)
 	s.side = side
 }
 slider_bar_end :: proc (side: int, id: u64 = 0, loc := #caller_location) {

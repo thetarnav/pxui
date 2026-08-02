@@ -55,7 +55,7 @@ space_width :: proc() -> f32 {
 Paragraph :: struct {str: string, color: Color}
 paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 
-	s, _ := element_push(Paragraph, loc=loc)
+	s := element_push(Paragraph, loc=loc)
 	defer element_pop()
 
 	width_fill()

@@ -32,7 +32,7 @@ v_stack_update_layout :: proc () {
 	_stack_update_layout(el, .Y, s.gap)
 }
 v_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(V_Stack, id, loc)
+	s := element_push(V_Stack, id, loc)
 	s.gap = gap
 	layout(.V, v_stack_update_layout)
 }
@@ -53,7 +53,7 @@ h_stack_update_layout :: proc () {
 	_stack_update_layout(el, .X, s.gap)
 }
 h_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(H_Stack, id, loc)
+	s := element_push(H_Stack, id, loc)
 	s.gap = gap
 	layout(.H, h_stack_update_layout)
 }
@@ -119,7 +119,7 @@ flex_update_layout :: proc () {
 	else            do _flex_update_layout(el, .V, s.gap)
 }
 flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Flex, id, loc)
+	s := element_push(Flex, id, loc)
 	s.axis = axis
 	s.gap  = gap
 	layout(axis, flex_update_layout)
@@ -196,7 +196,7 @@ rect_cut_update_layout :: proc () {
 
 Rect_Cut :: struct {axis: Axis, gap: int}
 rect_cut_begin :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) {
-	s, _ := element_push(Rect_Cut, id, loc)
+	s := element_push(Rect_Cut, id, loc)
 	s.axis = axis
 	s.gap  = gap
 	layout_axis(axis, rect_cut_update_layout)
@@ -266,7 +266,7 @@ Masonry :: struct {axis: Axis, cols: int, gap: Vec2i}
 masonry_begin :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
 	bounds_check_axis(axis, loc)
 
-	s, _ := element_push(Masonry, id, loc)
+	s := element_push(Masonry, id, loc)
 	s.axis = axis
 	s.cols = cols
 	s.gap  = gap
@@ -300,7 +300,7 @@ Scroll_Area_Container :: struct {axis: Axis, scroll: f32}
 Scroll_Area_Content   :: struct {}
 scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
 
-	s, _ := element_push(Scroll_Area_Container, id, loc)
+	s := element_push(Scroll_Area_Container, id, loc)
 	s.axis = axis
 
 	size_fill()
