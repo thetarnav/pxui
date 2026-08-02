@@ -5,20 +5,6 @@ import px ".."
 page_one :: proc (
 	ws: Vec2i,
 ) {
-
-	@(deferred_none=px.element_pop)
-	counter :: proc (color := COLOR_TEXT, id: u64 = 0, loc := #caller_location) -> ^int {
-		Counter :: struct {count: int}
-		state := px.element_push(Counter, id, loc=loc)
-		hovered := px.is_hovered()
-		px.textf("Count: %v", state.count, color=COLOR_BLACK if hovered else color)
-		if px.is_clicked() {
-			state.count += 1
-		}
-		return &state.count
-	}
-
-
 	px.v_stack()
 	px.width_fill()
 

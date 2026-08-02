@@ -80,7 +80,8 @@ page_two :: proc () {
 					px.animate(.opacity, 0.0)
 				}
 
-				px.text("Woooo...")
+				count := counter(COLOR_BLACK)
+				count^ += 1
 			}
 		}
 	}
