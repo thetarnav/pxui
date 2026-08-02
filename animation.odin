@@ -112,9 +112,9 @@ animation_property_get :: proc (h: Element_Handle, prop: Animation_Property) -> 
 	switch prop {
 	case .width:   return element_box_size(h, Axis.X)
 	case .height:  return element_box_size(h, Axis.Y)
-	case .left:    return element_screen_pos(h).x
-	case .top:     return element_screen_pos(h).y
-	case .opacity: return 1.0 - element_get(h).last_frame.transparency
+	case .left:    return element_get_assert(h).last_frame.pos.x
+	case .top:     return element_get_assert(h).last_frame.pos.y
+	case .opacity: return 1.0 - element_get_assert(h).last_frame.transparency
 	}
 	unreachable()
 }
