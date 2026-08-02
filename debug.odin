@@ -8,7 +8,7 @@ import "core:fmt"
 debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
 	root := element_root()
-	screen := root.screen_pos + element_box_size(root)
+	screen := element_screen_rect(root)
 
 	pixels := make([]u8, screen.x * screen.y, allocator=context.temp_allocator)
 	display(root, pixels, screen.x)
@@ -31,7 +31,7 @@ debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 	display :: proc (h: Element_Handle, pixels: []u8, screen_w: int) -> (ok: bool) {
 
 		el   := element_get(h) or_return
-		pos  := el.screen_pos
+		pos  := element_screen_pos(el)
 		size := element_box_size(el)
 
 		for xi in 0..<size.x {

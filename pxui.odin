@@ -116,10 +116,13 @@ Element_Frame_Derived :: struct {
 	draw_last:      Draw_Request_Handle,
 	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
 
-	ref_pos:        Vec2i,   // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
-	ref_size:       Vec2i,   // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
-	screen_pos:     Vec2i,   // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
+	pos_ref:        Vec2i,   // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
+	pos_set:        [2]bool,
+
+	size_ref:       Vec2i,   // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
 	size_set:       [2]bool,
+
+	pos_screen:     Maybe(Vec2i),   // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
 
 	mouse_in:       bool,
 }
@@ -570,8 +573,10 @@ topological_solve :: proc () {
 
 	// Root has no parent; its ref_size comes from the user-set size only.
 	// Percentages on the root resolve against 0 (i.e. zero).
-	root.ref_size = size_vec_to_pixel(root.size, 0)
-	root.size_set = true
+	root.size_ref   = size_vec_to_pixel(root.size, 0)
+	root.size_set   = true
+	root.pos_set    = true
+	root.pos_screen = 0
 
 	it := hm.iterator_make(&ctx.elements)
 
@@ -696,9 +701,9 @@ update_screen_rect_and_mouse :: proc () {
 		el     := element_get(h) or_return
 		parent := element_get_assert(el.parent)
 
-		el.screen_pos = parent.screen_pos +
+		el.pos_screen = parent.pos_screen.? +
 		                lt(parent.padding) +
-		                el.ref_pos +
+		                el.pos_ref +
 		                lt(el.margin) +
 		                -size_vec_to_pixel(el.origin, element_box_size(el)) +
 	 	                size_vec_to_pixel(el.pos, element_inner_bounds(parent))
@@ -907,31 +912,39 @@ effect :: proc (cb: proc (), h: Element_Handle = {}) {element_get_or_curr(h).eff
 
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}
 element_set_pos_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
-	element_get_assert(h, loc).ref_pos = v
+	el := element_get_assert(h, loc)
+	el.pos_ref = v
+	el.pos_set = true
 }
 element_set_pos_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).ref_pos[axis] = v
+	el := element_get_assert(h, loc)
+	el.pos_ref[axis] = v
+	el.pos_set[axis] = true
 }
 element_set_left :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).ref_pos.x = v
+	el := element_get_assert(h, loc)
+	el.pos_ref.x = v
+	el.pos_set.x = true
 }
 element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
-	element_get_assert(h, loc).ref_pos.y = v
+	el := element_get_assert(h, loc)
+	el.pos_ref.y = v
+	el.pos_set.y = true
 }
 
 element_pos :: proc {element_pos_vec, element_pos_axis}
 element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
-	el := element_get_or_curr(h, loc)
-	return el.ref_pos if el._found else el.last_frame.ref_pos
+	return {element_pos(h, Axis.X, loc), element_pos(h, Axis.Y, loc)}
 }
 element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	return element_pos(h, loc)[axis]
+	el := element_get_or_curr(h, loc)
+	return el.pos_ref[axis] if el.pos_set[axis] else el.last_frame.pos_ref[axis]
 }
 
 element_screen_pos :: proc {element_screen_pos_vec, element_screen_pos_axis}
 element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
-	return el.screen_pos if el._found else el.last_frame.screen_pos
+	return el.pos_screen.? or_else el.last_frame.pos_screen.?
 }
 element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_screen_pos(h, loc)[axis]
@@ -950,9 +963,9 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
 	if el.size_set[axis] { // TODO: margins shouldn't be a part of ref_size
-		return el.ref_size[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
+		return el.size_ref[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
 	} else {
-		return el.last_frame.ref_size[axis] - lt(el.last_frame.margin)[axis] - rb(el.last_frame.margin)[axis]
+		return el.last_frame.size_ref[axis] - lt(el.last_frame.margin)[axis] - rb(el.last_frame.margin)[axis]
 	}
 }
 
@@ -960,11 +973,16 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 // element occupies in its parent. Equivalent to element_size.
 element_bounds :: proc {element_bounds_vec, element_bounds_axis}
 element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
-	el := element_get_or_curr(h, loc)
-	return el.ref_size if el._found else el.last_frame.ref_size
+	return {element_bounds(h, Axis.X, loc), element_bounds(h, Axis.Y, loc)}
 }
 element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
-	return element_bounds(h, loc)[axis]
+	axis_bounds_check(axis, loc)
+	el := element_get_or_curr(h, loc)
+	if el.size_set[axis] {
+		return el.size_ref[axis]
+	} else {
+		return el.last_frame.size_ref[axis]
+	}
 }
 
 // element_inner_bounds returns the size of the reference plane (inner area) available to children.
@@ -977,13 +995,13 @@ element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #c
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
 	if el.size_set[axis] {
-		return el.ref_size[axis] -
+		return el.size_ref[axis] -
 		       lt(el.margin)[axis] -
 		       rb(el.margin)[axis] -
 		       lt(el.padding)[axis] -
 		       rb(el.padding)[axis]
 	} else {
-		return el.last_frame.ref_size[axis] -
+		return el.last_frame.size_ref[axis] -
 		       lt(el.last_frame.margin)[axis] -
 		       rb(el.last_frame.margin)[axis] -
 		       lt(el.last_frame.padding)[axis] -
@@ -994,22 +1012,22 @@ element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #c
 element_set_bounds :: proc {element_set_bounds_vec, element_set_bounds_axis}
 element_set_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.ref_size = v
+	el.size_ref = v
 	el.size_set = true
 }
 element_set_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.ref_size[axis] = v
+	el.size_ref[axis] = v
 	el.size_set[axis] = true
 }
 element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.ref_size.x = v
+	el.size_ref.x = v
 	el.size_set.x = true
 }
 element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.ref_size.y = v
+	el.size_ref.y = v
 	el.size_set.y = true
 }
 
@@ -1023,7 +1041,7 @@ element_set_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #calle
 element_set_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
 	// TODO: handle prev frame data
-	el.ref_size[axis] = v +
+	el.size_ref[axis] = v +
 	                    lt(el.margin)[axis] +
 	                    rb(el.margin)[axis] +
 	                    lt(el.padding)[axis] +
@@ -1040,7 +1058,7 @@ element_expand_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #ca
 element_expand_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
 	// TODO: handle prev frame data
-	el.ref_size[axis] = max(el.ref_size[axis],
+	el.size_ref[axis] = max(el.size_ref[axis],
 	                        v +
 	                        lt(el.margin)[axis] +
 	                        rb(el.margin)[axis] +
