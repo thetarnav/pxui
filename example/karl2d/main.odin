@@ -44,7 +44,7 @@ main :: proc () {
 	camera = root_camera
 	k2.set_camera(camera)
 
-	if px.init() != nil do return
+	px.init()
 
 	for step() {}
 

@@ -108,9 +108,9 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
 		box_size := element_box_size(el)
 
-		if el.transparency > 0 {
+		if el.derived_transparency > 0 {
 			dst := element_screen_rect(el)
-			append(cmds, Draw_Command{dst, Draw_Layer{opacity = 1-el.transparency}})
+			append(cmds, Draw_Command{dst, Draw_Layer{opacity = 1-el.derived_transparency}})
 		}
 
 		req_id := el.draw_first
@@ -155,7 +155,7 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		}
 
 		// Close layer
-		if el.transparency > 0 {
+		if el.derived_transparency > 0 {
 			dst := element_screen_rect(el)
 			append(cmds, Draw_Command{dst, Draw_Layer{opacity=1}})
 		}

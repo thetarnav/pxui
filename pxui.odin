@@ -42,6 +42,7 @@ Placement :: struct {
 
 Axis :: enum {H=0, V=1,
               X=0, Y=1}
+AXIS :: [Axis]Axis{.X=.X, .Y=.Y} // because `for axis in Axis` iterates 4 times :(
 
 Axis_Set :: bit_set[Axis]
 
@@ -66,14 +67,14 @@ Context :: struct {
 	allocator:         mem.Allocator,
 
 	// TODO: implement own?  why a xar is  used—the point of handled  is not to use  pointers
-	elements:          hm.Dynamic_Handle_Map(Element, Element_Handle),
+	elements:          hm.Static_Handle_Map(10000, Element, Element_Handle),
 	element_curr:      Element_Handle,
 	element_root:      Element_Handle,
 
 	draw_reqs_prev:    []Draw_Request, // Used for memoized elements; copied from draw_reqs at the start of a frame
 	draw_reqs:         [dynamic]Draw_Request,
 
-	animations:        hm.Dynamic_Handle_Map(Animation, Animation_Handle),
+	animations:        hm.Static_Handle_Map(1000, Animation, Animation_Handle),
 
 	using frame_input: Frame_Input,
 
@@ -94,20 +95,18 @@ Element_Frame_Input :: struct {
 	padding:      Insets,
 	using place:  Placement,
 
-	layout:       [2]struct {cb: proc (), deps: Axis_Set},
-	effect:       proc (),
-
-	anims:        [Animation_Property]Animation_Handle,
-	anims_exit:   [Animation_Property]union { // nil — no end animation
-		Animation_Exit_Req, // — end animation requested
-		Animation_Handle,   // — end animation running
-	},
-
 	// 0 = fully opaque (default)
 	// 1 = fully transparent
 	//
 	// The element's subtree is rendered to an offscreen surface and composited back with this alpha
 	transparency: f32,
+
+	layout:       [2]struct {cb: proc (), deps: Axis_Set},
+	effect:       proc (),
+
+	anims_exit:   [Animation_Property]Animation_Exit_Req,
+
+	transition:   [Animation_Property]Transition,
 }
 
 // Element data derived from inputs, layout, etc.
@@ -117,12 +116,15 @@ Element_Frame_Derived :: struct {
 	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
 
 	pos_ref:        Vec2i,   // pos of the element's bounds (including margin) on the parent's ref plane (pixels, default 0,0)
+	pos_rel:        Vec2i,
 	pos_set:        [2]bool,
 
 	size_ref:       Vec2i,   // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
 	size_set:       [2]bool,
 
 	pos_screen:     Maybe(Vec2i),   // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
+
+	derived_transparency: f32,
 
 	mouse_in:       bool,
 }
@@ -153,6 +155,7 @@ Element :: struct {
 
 	last_frame:    Element_Frame_Data,
 	using frame:   Element_Frame_Data,
+	anims:         [Animation_Property]Animation_Handle,
 }
 Element_Handle :: struct {idx, gen: u32} // index to `ctx.elements`
 
@@ -164,13 +167,11 @@ Memo :: struct {
 	el_last:  Element_Handle,
 }
 
-init :: proc (allocator := context.allocator) -> (err: mem.Allocator_Error) {
+init :: proc (allocator := context.allocator) {
 
 	ctx.allocator = allocator
 
-	hm.dynamic_init(&ctx.elements, allocator)
-
-	ctx.element_root, err = hm.add(&ctx.elements, Element{})
+	ctx.element_root = hm.add(&ctx.elements, Element{})
 	ctx.element_curr = ctx.element_root
 
 	root := element_get_assert(ctx.element_root)
@@ -180,19 +181,18 @@ init :: proc (allocator := context.allocator) -> (err: mem.Allocator_Error) {
 }
 
 shutdown :: proc () {
-	hm.dynamic_destroy(&ctx.elements)
 }
 
 @(require_results)
-element_get :: proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #optional_ok {
+element_get :: #force_inline proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #optional_ok {
 	return hm.get(&ctx.elements, handle)
 }
-element_get_assert :: proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
+element_get_assert :: #force_inline proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
 	el, ok := hm.get(&ctx.elements, handle)
 	fmt.assertf(ok, "", handle, loc=loc)
 	return el
 }
-element_get_or_curr :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
+element_get_or_curr :: #force_inline proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
 	h := ctx.element_curr if h == {} else h
 	return element_get_assert(h, loc)
 }
@@ -310,7 +310,7 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 		bytes, alloc_err := runtime.mem_alloc(type_size, type_align, allocator=ctx.allocator)
 		assert(alloc_err == nil)
 
-		handle, add_err := hm.add(&ctx.elements, Element{
+		handle, add_ok := hm.add(&ctx.elements, Element{
 			type     = type,
 			hash     = hash,
 			id       = user_id,
@@ -320,7 +320,7 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 			data_ptr = raw_data(bytes),
 		})
 		// TODO: how to handle errors?
-		assert(add_err == nil)
+		assert(add_ok)
 		el = element_get_assert(handle)
 
 		if sibling, has_siblings := element_get(parent.child_last); has_siblings {
@@ -364,6 +364,8 @@ element_pop :: proc () {
 	el := element_curr()
 	el.draw_frame_end = el.draw_last
 
+	_element_animate_props(el)
+
 	// switch current element to parent
 	parent := element_parent()
 	ctx.element_curr = parent.handle
@@ -381,8 +383,7 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 
 		// Prevent destroy if there are exit animations running
 		// - but only if the tree above is still present
-		parent, has_parent := element_get(el.parent)
-		if has_parent && parent._found {
+		if parent, has_parent := element_get(el.parent); has_parent && parent._found {
 			prevent_destroy |= _element_has_exit_animations(el)
 		} else {
 			prevent_destroy = false
@@ -391,8 +392,8 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 		if prevent_destroy {
 			_element_copy_last_frame_data(el)
 			flag(.Non_Interactable, el)
-			_element_update_animations(el)
-			_element_update_exit_animations(el)
+			_element_animate_exit(el)
+			_element_animate_props(el)
 		} else {
 			_element_destroy(el)
 		}
@@ -507,7 +508,7 @@ _memo_visit_nested_element :: proc (h: Element_Handle) -> bool {
 	el := element_get(h) or_return
 
 	_element_copy_last_frame_data(el)
-	_element_update_animations(el)
+	_element_animate_props(el)
 
 	child_id := el.child_first
 	for child in element_get(child_id) {
@@ -555,7 +556,7 @@ frame_end :: proc () {
 
 	_element_visit_end_frame(ctx.element_root)
 
-	topological_solve()
+	_solve_layout()
 
 	update_screen_rect_and_mouse()
 
@@ -565,7 +566,7 @@ frame_end :: proc () {
 	}
 }
 
-topological_solve :: proc () {
+_solve_layout :: proc () {
 
 	context.allocator = context.temp_allocator
 
@@ -584,7 +585,7 @@ topological_solve :: proc () {
 	sorter: topological_sort.Sorter(Key)
 
 	for el, _ in hm.iterate(&it) {
-		#unroll for axis in Axis {
+		#unroll for axis in AXIS {
 			topological_sort.add_key(&sorter, Key{el, axis})
 
 			#partial switch s in el.size[axis] {
@@ -661,7 +662,13 @@ topological_solve :: proc () {
 			}
 		}
 
-		_call_layout(el, axis)
+		if el.size[axis] == CONTENT {
+			_call_layout(el, axis)
+			_animate_size(el, axis)
+		} else {
+			_animate_size(el, axis)
+			_call_layout(el, axis)
+		}
 
 		el.size_set[axis] = true
 	}
@@ -699,14 +706,18 @@ update_screen_rect_and_mouse :: proc () {
 	_visit :: proc (h: Element_Handle, check_mouse: bool) -> bool {
 
 		el     := element_get(h) or_return
-		parent := element_get_assert(el.parent)
+		parent := element_parent(el)
+
+		el.pos_rel = el.pos_ref +
+		             -size_vec_to_pixel(el.origin, element_box_size(el)) +
+		             size_vec_to_pixel(el.pos, element_inner_bounds(parent))
+
+		_animate_pos(el)
 
 		el.pos_screen = parent.pos_screen.? +
 		                lt(parent.padding) +
-		                el.pos_ref +
-		                lt(el.margin) +
-		                -size_vec_to_pixel(el.origin, element_box_size(el)) +
-	 	                size_vec_to_pixel(el.pos, element_inner_bounds(parent))
+		                el.pos_rel +
+		                lt(el.margin)
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
 		              rect_contains(element_screen_rect(el), ctx.mouse)

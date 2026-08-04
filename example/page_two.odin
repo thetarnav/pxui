@@ -39,10 +39,8 @@ page_two :: proc () {
 		if px.is_init() {
 			px.opacity(0)
 			px.top(10)
-		} else {
-			px.animate(.opacity, 1.0)
-			px.animate(.top, 0)
 		}
+		px.transition_all(300)
 		px.animate_exit(.opacity, 0.0)
 		px.animate_exit(.top, 10)
 
@@ -63,10 +61,11 @@ page_two :: proc () {
 				if px.is_init() {
 					px.width(200)
 				} else if s.on {
-					px.animate(.width, px.FILL) // TODO: fill doesn't update after animation end
+					px.width_fill()
 				} else {
-					px.animate(.width, 20)
+					px.width(20)
 				}
+				px.transition(.width)
 
 				px.panel()
 				px.flag(.Non_Interactable)
@@ -75,10 +74,12 @@ page_two :: proc () {
 				if px.is_init() {
 					px.opacity(0)
 				} else if s.on {
-					px.animate(.opacity, 1.0)
+					px.opacity(1)
 				} else {
-					px.animate(.opacity, 0.0)
+					px.opacity(0)
 				}
+				px.transition(.opacity, 300, .Linear)
+
 
 				count := counter(COLOR_BLACK)
 				count^ += 1
