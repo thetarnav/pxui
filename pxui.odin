@@ -42,7 +42,7 @@ Placement :: struct {
 
 Axis :: enum {H=0, V=1,
               X=0, Y=1}
-AXIS :: [Axis]Axis{.X=.X, .Y=.Y} // because `for axis in Axis` iterates 4 times :(
+AXIS :: [2]Axis{.X, .Y} // because `for axis in Axis` iterates 4 times :(
 
 Axis_Set :: bit_set[Axis]
 
@@ -89,6 +89,7 @@ Element_Flags :: bit_set[Element_Flag]
 // Element data user sets during frame or callbacks
 Element_Frame_Input :: struct {
 	_found:       bool,             // was the element present in this frame? TODO: could use frame count
+
 	flags:        Element_Flags,
 
 	margin:       Insets,
@@ -111,6 +112,11 @@ Element_Frame_Input :: struct {
 
 // Element data derived from inputs, layout, etc.
 Element_Frame_Derived :: struct {
+
+	child_first:    Element_Handle,       // can be zero—no children
+	child_last:     Element_Handle,       // can be zero—no children
+	next, prev:     Element_Handle,       // can be zero—siblings
+
 	draw_first:     Draw_Request_Handle,
 	draw_last:      Draw_Request_Handle,
 	draw_frame_end: Draw_Request_Handle, // Last draw request called before layout/effect callbacks
@@ -145,9 +151,6 @@ Element :: struct {
 
 	using handle:  Element_Handle,       // self
 	parent:        Element_Handle,       // can be zero—root
-	child_first:   Element_Handle,       // can be zero—no children
-	child_last:    Element_Handle,       // can be zero—no children
-	next, prev:    Element_Handle,       // can be zero—siblings
 
 	memos:         [dynamic]Memo,
 	memo_curr:     Maybe(^Memo),
@@ -292,19 +295,20 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 
 	search: {
 		// Search for matching child from previous frame
+		// TODO: this search could probably be optimized
 
-		child_id := parent.child_first
+		child_id := parent.last_frame.child_first
 		for child in element_get(child_id) {
-			// TODO: this search could probably be optimized
+			defer child_id = child.last_frame.next
+
 			if child.hash == hash && !child._found {
 				// Found matching child
 				el = child
 				break search
 			}
-			child_id = child.next
 		}
 
-		// Not found—alloc and append a new element
+		// Not found—create a new element
 
 		// TODO: use pool/arena for state to keep memory continious
 		bytes, alloc_err := runtime.mem_alloc(type_size, type_align, allocator=ctx.allocator)
@@ -322,17 +326,11 @@ _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, l
 		// TODO: how to handle errors?
 		assert(add_ok)
 		el = element_get_assert(handle)
-
-		if sibling, has_siblings := element_get(parent.child_last); has_siblings {
-			sibling.next = handle
-			el.prev = sibling.handle
-		} else {
-			parent.child_first = handle
-		}
-		parent.child_last = handle
 	}
 
-	ctx.element_curr = el.handle
+	_element_attach_after(el, parent.child_last)
+
+	ctx.element_curr = el
 	el._found        = true
 	state            = el.data_ptr
 	assert(type_size == 0 || state != nil)
@@ -360,15 +358,51 @@ element_push :: #force_inline proc ($T: typeid, #any_int id: u64 = 0, loc := #ca
 
 element_pop :: proc () {
 
-	// Mark end of draw requests called before callbacks (need to be copied for memoized elements)
 	el := element_curr()
+
+	// Mark end of draw requests called before callbacks (need to be copied for memoized elements)
 	el.draw_frame_end = el.draw_last
 
 	_element_animate_props(el)
 
 	// switch current element to parent
-	parent := element_parent()
-	ctx.element_curr = parent.handle
+	ctx.element_curr = element_parent()
+}
+
+_element_attach_after :: proc (el: ^Element, handle: Element_Handle) {
+
+	parent := element_parent(el)
+
+	if handle == {} {
+		// Prepend
+		if first, has_first := element_get(parent.child_first); has_first {
+			first.prev, el.next = el, first
+			if next, has_next := element_get(el.next); has_next {
+				next.prev = el
+			}
+		}
+		if parent.child_first == parent.child_last {
+			parent.child_last = el
+		}
+		parent.child_first = el
+	}
+	else if prev, has_prev := element_get(handle); has_prev && handle != parent.child_last && prev._found {
+		// Append after handle
+		el.prev, prev.next, el.next = prev, el, prev.next
+		if next, has_next := element_get(el.next); has_next {
+			next.prev = el
+		}
+	}
+	else if last, has_last := element_get(parent.child_last); has_last {
+		// Append last
+		el.prev, last.next = last, el
+		parent.child_last = el
+	}
+	else {
+		// First child
+		parent.child_first = el
+		parent.child_last  = el
+	}
 }
 
 @private
@@ -379,7 +413,7 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 
 	prevent_destroy := prevent_destroy
 
-	if h != ctx.element_root && !el._found {
+	if !el._found {
 
 		// Prevent destroy if there are exit animations running
 		// - but only if the tree above is still present
@@ -391,6 +425,7 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 
 		if prevent_destroy {
 			_element_copy_last_frame_data(el)
+			_element_attach_after(el, el.last_frame.prev)
 			flag(.Non_Interactable, el)
 			_element_animate_exit(el)
 			_element_animate_props(el)
@@ -400,32 +435,15 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 	}
 
 	// Visit children
-	child_id := el.child_first
+	child_id := el.last_frame.child_first
 	for child in element_get(child_id) {
 		_element_visit_end_frame(child, prevent_destroy)
-		child_id = child.next
+		child_id = child.last_frame.next
 	}
 }
 
 @private
 _element_destroy :: proc (el: ^Element) {
-
-	if parent, has_parent := element_get(el.parent); has_parent && parent._found {
-		// Unlink from siblings
-		if prev, has_prev := element_get(el.prev); has_prev && prev.next == el.handle {
-			prev.next = el.next
-		}
-		if next, has_next := element_get(el.next); has_next && next.prev == el.handle {
-			next.prev = el.prev
-		}
-		// Unlink from parent
-		if parent.child_first == el.handle {
-			parent.child_first = el.next
-		}
-		if parent.child_last == el.handle {
-			parent.child_last = el.prev
-		}
-	}
 
 	// Free data
 	delete(el.memos)
@@ -472,7 +490,7 @@ memo_begin :: proc (#any_int data_id: u64, #any_int memo_id: u64 = 0, loc := #ca
 				for child in element_get(child_id) {
 					_memo_visit_nested_element(child)
 					if child_id == memo.el_last do break
-					child_id = child.next
+					child_id = child.last_frame.next
 				}
 			}
 
@@ -508,12 +526,13 @@ _memo_visit_nested_element :: proc (h: Element_Handle) -> bool {
 	el := element_get(h) or_return
 
 	_element_copy_last_frame_data(el)
+	_element_attach_after(el, el.last_frame.prev)
 	_element_animate_props(el)
 
-	child_id := el.child_first
+	child_id := el.last_frame.child_first
 	for child in element_get(child_id) {
 		_memo_visit_nested_element(child)
-		child_id = child.next
+		child_id = child.last_frame.next
 	}
 
 	return true
@@ -549,6 +568,9 @@ frame_begin :: proc () {
 	// TODO: instead of copying could use two dynamic arrays and frame count % 2
 	ctx.draw_reqs_prev = slice.clone(ctx.draw_reqs[:], context.temp_allocator)
 	clear(&ctx.draw_reqs)
+
+	root := element_root()
+	root._found = true
 }
 
 frame_end :: proc () {
@@ -585,6 +607,9 @@ _solve_layout :: proc () {
 	sorter: topological_sort.Sorter(Key)
 
 	for el, _ in hm.iterate(&it) {
+
+		assert(el._found, "At this point all elements should be either found or destroyed")
+
 		#unroll for axis in AXIS {
 			topological_sort.add_key(&sorter, Key{el, axis})
 

@@ -33,8 +33,9 @@ page_two :: proc () {
 
 	if s.show {
 
-		px.panel()
+		px.panel(1)
 		px.width_fill()
+		px.margin_top(2)
 
 		if px.is_init() {
 			px.opacity(0)
@@ -45,9 +46,9 @@ page_two :: proc () {
 		px.animate_exit(.top, 10)
 
 		if px.memo(int(s.show) * 100 + int(px.is_init()) * 10 + int(s.on)) {
+		// {
 
 			px.v_stack(gap=4)
-			px.margin_top(2)
 			px.padding(4)
 			px.background_color(COLOR_DARK_GRAY)
 			px.width_fill()
@@ -84,6 +85,23 @@ page_two :: proc () {
 				count := counter(COLOR_BLACK)
 				count^ += 1
 			}
+		}
+	}
+
+	{
+		px.panel(2)
+		px.width_fill()
+		px.background_color(COLOR_LIGHT_YELLOW)
+
+		px.masonry(cols=2, gap=4)
+		px.width_fill()
+		px.padding(4)
+
+		for _ in 0..<5 {
+			px.panel()
+			px.width_fill()
+			px.height(40)
+			px.background_color(COLOR_BROWN)
 		}
 	}
 }
