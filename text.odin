@@ -5,8 +5,7 @@ import "base:runtime"
 import "core:fmt"
 import "./bmfont"
 
-Font         :: bmfont.Font
-measure_text :: bmfont.measure_text
+Font :: bmfont.Font
 
 default_font:       Font
 default_font_atlas: bmfont.Atlas
@@ -40,16 +39,8 @@ text :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	bounds := draw_text(str, color)
 	size_px(bounds)
 }
-
 textf :: proc (str: string, args: ..any, color: Color = 255, loc := #caller_location) {
 	text(fmt.tprintf(str, ..args), color, loc)
-}
-
-line_height :: proc() -> f32 {
-	return measure_text(default_font, "M").y
-}
-space_width :: proc() -> f32 {
-	return measure_text(default_font, " ").x
 }
 
 Paragraph :: struct {str: string, color: Color}
@@ -70,86 +61,83 @@ paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	layout(.Y, _paragraph_layout, deps={.X})
 }
 
+measure_text :: proc (font: Font, text: string) -> Vec2i {
+	return Vec2i(bmfont.measure_text(font, text))
+}
+line_height :: proc() -> int {
+	return measure_text(default_font, "M").y
+}
+space_width :: proc() -> int {
+	return measure_text(default_font, " ").x
+}
+
 @private
 _paragraph_layout :: proc () {
 	el := element_curr()
 	using s := element_state(Paragraph)
 
 	mw := element_inner_bounds(el, Axis.X)
-	sw := space_width()
 	lh := line_height()
-	lw: f32
 
-	current := make([dynamic]u8, context.temp_allocator)
+	cursor:     int
+	line_start: int
+	word_end:   int
+	word_start: int
+	in_space:   bool = true
+	in_newline: bool = true
 
-	cursor:    Vec2f // top-left of the next line to draw
-	extra_gap: f32   // extra vertical space inserted between lines
+	for ch, i in str {
+		switch ch {
+		case ' ', '\n':
+			if !in_space {
+				if measure_text(default_font, str[line_start:i]).x > mw {
+					draw_text(str[line_start:word_end], color, origin={0, cursor})
+					cursor += lh
+					line_start = word_start
+				}
 
-	i, n := 0, len(str)
-	for i < n {
-
-		// Read one word (non-space, non-newline).
-		word_start := i
-		for i < n && str[i] != ' ' && str[i] != '\n' {
-			i += 1
-		}
-		word := str[word_start:i]
-
-		// Hard newline: flush the line with the current word, then start fresh.
-		if i < n && str[i] == '\n' {
-			append(&current, ' ')
-			append(&current, word)
-			if len(current) > 0 {
-				draw_text(string(current[:]), color, cursor)
-				cursor.y += lh + extra_gap
-				clear(&current)
+				word_end = i
+				in_space = true
 			}
-			lw = 0
-			i += 1
-			continue
-		}
 
-		// Skip spaces (they belong to the inter-word gap, not the next word).
-		for i < n && str[i] == ' ' {
-			i += 1
-		}
-
-		if len(current) == 0 {
-			// First word on a line — always fits (single oversized word goes on
-			// its own line; the wrap step below catches the next one).
-			append(&current, word)
-			lw = measure_text(default_font, word).x
-		} else if lw + sw + measure_text(default_font, word).x > f32(mw) {
-			// Adding this word would overflow the line: emit what we have, start
-			// a new line with the word.
-			draw_text(string(current[:]), color, cursor)
-			cursor.y += lh + extra_gap
-			clear(&current)
-			append(&current, word)
-			lw = measure_text(default_font, word).x
-		} else {
-			// Fits on the current line.
-			append(&current, ' ')
-			append(&current, word)
-			lw += sw + measure_text(default_font, word).x
+			if ch == '\n' {
+				if !in_newline {
+					in_newline = true
+					draw_text(str[line_start:word_end], color, origin={0, cursor})
+				}
+				cursor += lh
+			}
+		case:
+			if in_newline {
+				in_newline = false
+				line_start = i
+			}
+			if in_space {
+				word_start = i
+				in_space   = false
+			}
 		}
 	}
 
-	if len(current) > 0 {
-		draw_text(string(current[:]), color, cursor)
-		cursor.y += lh + extra_gap
+	rest := word_end if in_space else len(str)
+	if line_start < rest {
+		draw_text(str[line_start:rest], color, origin={0, cursor} )
+		cursor += lh
 	}
 
-	element_set_height(el, int(cursor.y))
+	element_set_height(el, cursor)
 }
 
-draw_text :: proc (str: string, color: Color, origin: Vec2f = {0, 0}, cursor: ^Vec2f = nil) -> Vec2i {
+draw_text :: proc (str: string, color: Color, origin: Vec2i = {0, 0}, cursor: ^Vec2i = nil) -> Vec2i {
 
 	Data :: struct {color: Color}
 	data := Data{color}
 	context.user_ptr = &data
 
-	bounds := bmfont.draw_text(str, default_font, cb, origin=origin, cursor=cursor)
+	cursorf := Vec2f(cursor^) if cursor != nil else {}
+	bounds := bmfont.draw_text(str, default_font, cb, origin=Vec2f(origin), cursor=&cursorf)
+	if cursor != nil do cursor^ = Vec2i(cursorf)
+
 	return Vec2i(bounds.size)
 
 	cb :: proc (srcf, dstf: bmfont.Rect) {
