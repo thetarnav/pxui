@@ -174,6 +174,8 @@ init :: proc (allocator := context.allocator) {
 
 	ctx.allocator = allocator
 
+	ctx.draw_reqs = make([dynamic]Draw_Request, allocator)
+
 	ctx.element_root = hm.add(&ctx.elements, Element{})
 	ctx.element_curr = ctx.element_root
 
@@ -184,6 +186,11 @@ init :: proc (allocator := context.allocator) {
 }
 
 shutdown :: proc () {
+	delete(ctx.draw_reqs)
+	it := hm.iterator_make(&ctx.elements)
+	for el, _ in hm.iterate(&it) {
+		_element_destroy(el)
+	}
 }
 
 @(require_results)

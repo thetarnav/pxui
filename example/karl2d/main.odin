@@ -6,6 +6,8 @@ package main
 import "core:slice"
 import "core:fmt"
 import "core:time"
+import "core:log"
+import "core:mem"
 import k2 "shared:karl2d"
 import px "../.."
 import app ".."
@@ -36,6 +38,26 @@ time_now :: proc () -> f32 {
 }
 
 main :: proc () {
+
+	/* Logger */
+	context.logger = log.create_console_logger(
+		lowest = .Debug when ODIN_DEBUG else .Warning,
+	)
+
+	/* Memory Tracking */
+	when ODIN_DEBUG {
+		default_allocator := context.allocator
+		tracking_allocator: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&tracking_allocator, default_allocator)
+		context.allocator = mem.tracking_allocator(&tracking_allocator)
+
+		defer {
+			for _, value in tracking_allocator.allocation_map {
+				log.warnf("Leaked %v bytes", value.size, location=value.location)
+				// log.warnf("%v Leaked %v bytes\n", value.location, value.size)
+			}
+		}
+	}
 
 	_ = k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example", options = {
 		window_mode = .Windowed_Resizable,

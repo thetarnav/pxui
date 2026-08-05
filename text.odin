@@ -55,7 +55,7 @@ paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	if s.str != "" {
 		delete(s.str, loc=loc) // TODO: components need their own temp allocator (to handle memoized element layout callbacks)
 	}
-	s.str, _ = strings.clone(str, loc=loc)
+	s.str, _ = strings.clone(str, loc=loc) // TODO: free on cleanup
 	s.color  = color
 
 	layout(.Y, _paragraph_layout, deps={.X})

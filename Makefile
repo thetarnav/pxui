@@ -1,10 +1,15 @@
-.PHONY: run run-karl2d run-cli check test test-verbose clean
+.PHONY: run debug run-karl2d run-debug-karl2d run-cli check test test-verbose clean
 
 # Build and run the kitchen-sink example with the karl2d frontend.
 run: run-karl2d
 
+debug: run-debug-karl2d
+
 run-karl2d:
 	odin run example/karl2d
+
+run-debug-karl2d:
+	odin run example/karl2d -debug
 
 # Build and run the CLI/readline frontend for debugging.
 run-cli:
