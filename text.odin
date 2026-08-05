@@ -52,11 +52,18 @@ paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	width_fill()
 	flag(.Non_Interactable)
 
-	if s.str != "" {
-		delete(s.str, loc=loc) // TODO: components need their own temp allocator (to handle memoized element layout callbacks)
+	if str != s.str {
+		del_err := delete(s.str) // TODO: components need their own temp allocator (to handle memoized element layout callbacks)
+		assert(del_err == nil)
+		s.str, _ = strings.clone(str)
 	}
-	s.str, _ = strings.clone(str, loc=loc) // TODO: free on cleanup
-	s.color  = color
+	s.color = color
+
+	cleanup(proc () {
+		using s := element_state(Paragraph)
+		del_err := delete(s.str)
+		assert(del_err == nil)
+	})
 
 	layout(.Y, _paragraph_layout, deps={.X})
 }

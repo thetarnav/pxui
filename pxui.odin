@@ -104,6 +104,7 @@ Element_Frame_Input :: struct {
 
 	layout:       [2]struct {cb: proc (), deps: Axis_Set},
 	effect:       proc (),
+	cleanup:      proc (),
 
 	anims_exit:   [Animation_Property]Animation_Exit_Req,
 
@@ -452,6 +453,12 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 @private
 _element_destroy :: proc (el: ^Element) {
 
+	if el._found {
+		_call_element_callback(el, el.cleanup)
+	} else {
+		_call_element_callback(el, el.last_frame.cleanup)
+	}
+
 	// Free data
 	delete(el.memos)
 	free(el.data_ptr)
@@ -591,7 +598,7 @@ frame_end :: proc () {
 
 	it := hm.iterator_make(&ctx.elements)
 	for el, _ in hm.iterate(&it) {
-		_call_effect(el)
+		_call_element_callback(el, el.effect)
 	}
 }
 
@@ -695,11 +702,11 @@ _solve_layout :: proc () {
 		}
 
 		if el.size[axis] == CONTENT {
-			_call_layout(el, axis)
+			_call_element_callback(el, el.layout[axis].cb)
 			_animate_size(el, axis)
 		} else {
 			_animate_size(el, axis)
-			_call_layout(el, axis)
+			_call_element_callback(el, el.layout[axis].cb)
 		}
 
 		el.size_set[axis] = true
@@ -708,18 +715,7 @@ _solve_layout :: proc () {
 	return
 }
 
-@private
-_call_layout :: proc (el: ^Element, axis: Axis) {
-	layout := el.layout[axis]
-	if layout.cb == nil do return
-	prev_el := ctx.element_curr
-	ctx.element_curr = el.handle
-	layout.cb()
-	ctx.element_curr = prev_el
-}
-@private
-_call_effect :: proc (el: ^Element) {
-	cb := el.effect
+_call_element_callback :: proc (el: ^Element, cb: proc ()) {
 	if cb == nil do return
 	prev_el := ctx.element_curr
 	ctx.element_curr = el.handle
@@ -944,13 +940,15 @@ padding_x          :: padding_h
 padding_y          :: padding_v
 
 
-layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}) {
+layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}, loc := #caller_location) {
 	deps := deps if deps != {} else {axis}
-	element_get_or_curr(h).layout[axis] = {cb, deps}
+	element_get_or_curr(h, loc).layout[axis] = {cb, deps}
 }
 layout :: proc {layout_axis}
 
-effect :: proc (cb: proc (), h: Element_Handle = {}) {element_get_or_curr(h).effect = cb}
+effect :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).effect = cb}
+
+cleanup :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).cleanup = cb}
 
 
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}

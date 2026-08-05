@@ -145,7 +145,7 @@ ui :: proc (ws: Vec2i) {
 	px.scroll_content()
 	px.padding_l(12)
 
-	px.panel(id=u64(selected_tab))
+	px.panel(selected_tab)
 	px.width_fill()
 
 	switch selected_tab {
