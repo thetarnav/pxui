@@ -7,7 +7,6 @@ import "core:strings"
 import "base:runtime"
 import "core:mem"
 import "core:fmt"
-import "core:container/topological_sort"
 import hm "core:container/handle_map"
 
 @private
@@ -604,8 +603,6 @@ frame_end :: proc () {
 
 _solve_layout :: proc () {
 
-	context.allocator = context.temp_allocator
-
 	root := element_root()
 
 	// Root has no parent; its ref_size comes from the user-set size only.
@@ -615,22 +612,43 @@ _solve_layout :: proc () {
 	root.pos_set    = true
 	root.pos_screen = 0
 
-	it := hm.iterator_make(&ctx.elements)
-
+	Frame :: struct {
+		el:   ^Element,
+		axis: Axis,
+	}
 	Key :: struct {el: ^Element, axis: Axis}
-	sorter: topological_sort.Sorter(Key)
 
-	for el, _ in hm.iterate(&it) {
+	stack := make([dynamic]Frame, context.temp_allocator)
 
-		assert(el._found, "At this point all elements should be either found or destroyed")
+	added := make(map[Key]struct {}, context.temp_allocator)
 
-		#unroll for axis in AXIS {
-			topological_sort.add_key(&sorter, Key{el, axis})
+	append(&stack, Frame{root, .X})
+	append(&stack, Frame{root, .Y})
+
+	added[Key{root, .X}] = {}
+	added[Key{root, .Y}] = {}
+
+	add :: proc (el: ^Element, axis: Axis, stack: ^[dynamic]Frame, added: ^map[Key]struct {}) -> bool {
+		if (Key{el, axis}) not_in added {
+			append(stack, Frame{el, axis})
+			added[Key{el, axis}] = {}
+			return false
+		} else {
+			return el.size_set[axis]
+		}
+	}
+
+	for len(stack) > 0 {
+		#reverse for f, i in stack {
+			el, axis := f.el, f.axis
+
+			ok := true
 
 			#partial switch s in el.size[axis] {
 			case Fill, f32:
 				parent := element_get_assert(el.parent)
-				topological_sort.add_dependency(&sorter, Key{el, axis}, Key{parent, axis})
+				pok := add(parent, axis, &stack, &added)
+				ok &&= pok
 			case Content:
 				child_id := el.child_first
 				for child in element_get(child_id) {
@@ -640,14 +658,16 @@ _solve_layout :: proc () {
 					case Fill, f32: continue // skip cyclic deps
 					}
 
-					topological_sort.add_dependency(&sorter, Key{el, axis}, Key{child, axis})
+					cok := add(child, axis, &stack, &added)
+					ok &&= cok
 				}
 			}
 
 			// Custom layouts can depend on other axis
 			if el.layout[axis].cb != nil {
 				if perp(axis) in el.layout[axis].deps {
-					topological_sort.add_dependency(&sorter, Key{el, axis}, Key{el, perp(axis)})
+					pok := add(el, perp(axis), &stack, &added)
+					ok &&= pok
 				}
 				if axis in el.layout[axis].deps && el.size[axis] != CONTENT {
 					child_id := el.child_first
@@ -658,61 +678,62 @@ _solve_layout :: proc () {
 						case Fill, f32: continue // skip cyclic deps
 						}
 
-						topological_sort.add_dependency(&sorter, Key{el, axis}, Key{child, axis})
+						cok := add(child, axis, &stack, &added)
+						ok &&= cok
 					}
 				}
 			}
-		}
-	}
 
-	sorted, cycled := topological_sort.sort(&sorter)
+			if ok {
+				_element_update_layout_axis(el, axis)
+				unordered_remove(&stack, i)
 
-	if len(cycled) > 0 {
-		w := io.to_writer(os.to_writer(os.stdout))
-		fmt.wprintln(w, "Cycled:")
-		for key in cycled {
-			fmt.wprint(w, "\t")
-			element_display_writer(w, key.el)
-			fmt.wprintln(w, ":", key.axis == .X ? "X" : "Y")
-		}
-	}
-
-	for key in sorted {
-		el, axis := key.el, key.axis
-
-		if !el.size_set[axis] {
-			switch v in el.size[axis] {
-			case Fill, f32:
-				element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(el.parent, axis)))
-			case Content:
 				child_id := el.child_first
 				for child in element_get(child_id) {
 					defer child_id = child.next
-
-					switch _ in child.size[axis] {
-					case Fill, f32:
-						// skip cyclic deps
-					case Content, int:
-						element_expand_inner_bounds(el, axis, element_bounds(child, axis))
+					if (Key{child, axis}) not_in added {
+						add(child, axis, &stack, &added)
 					}
 				}
-			case int:
-				element_set_bounds(el, axis, v + lt(el.margin)[axis] + rb(el.margin)[axis])
 			}
 		}
+	}
+}
 
-		if el.size[axis] == CONTENT {
-			_call_element_callback(el, el.layout[axis].cb)
-			_animate_size(el, axis)
-		} else {
-			_animate_size(el, axis)
-			_call_element_callback(el, el.layout[axis].cb)
+_element_update_layout_axis :: proc (el: ^Element, axis: Axis) {
+	if !el.size_set[axis] {
+		switch v in el.size[axis] {
+		case Fill, f32:
+			assert(element_parent(el).size_set[axis])
+			element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(el.parent, axis)))
+		case Content:
+			child_id := el.child_first
+			for child in element_get(child_id) {
+				defer child_id = child.next
+
+				#partial switch _ in child.size[axis] {
+				case Fill, f32:
+					// skip cyclic deps
+					continue
+				}
+
+				assert(child.size_set[axis])
+				element_expand_inner_bounds(el, axis, element_bounds(child, axis))
+			}
+		case int:
+			element_set_bounds(el, axis, v + lt(el.margin)[axis] + rb(el.margin)[axis])
 		}
-
-		el.size_set[axis] = true
 	}
 
-	return
+	if el.size[axis] == CONTENT {
+		_call_element_callback(el, el.layout[axis].cb)
+		_animate_size(el, axis)
+	} else {
+		_animate_size(el, axis)
+		_call_element_callback(el, el.layout[axis].cb)
+	}
+
+	el.size_set[axis] = true
 }
 
 _call_element_callback :: proc (el: ^Element, cb: proc ()) {

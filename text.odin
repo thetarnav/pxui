@@ -84,6 +84,8 @@ _paragraph_layout :: proc () {
 	using s := element_state(Paragraph)
 
 	mw := element_inner_bounds(el, Axis.X)
+	if mw <= 0 do return
+
 	lh := line_height()
 
 	cursor:     int
