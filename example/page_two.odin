@@ -14,11 +14,16 @@ page_two :: proc () {
 		s.show = true
 	}
 
-	px.v_stack()
+	px.v_stack(gap=6)
 	px.width_fill()
 
-	px.text("Hello!", color=COLOR_BLACK)
-	px.text("This is a page with ANIMATIONS", color=COLOR_BLACK)
+	{
+		px.v_stack()
+		px.width_fill()
+
+		px.text("Hello!", color=COLOR_BROWN)
+		px.text("This is a page with ANIMATIONS", color=COLOR_BROWN)
+	}
 
 	{
 		px.h_stack(gap=2)
@@ -35,7 +40,6 @@ page_two :: proc () {
 
 		px.panel(1)
 		px.width_fill()
-		px.margin_top(2)
 
 		if px.is_init() {
 			px.opacity(0)
@@ -89,19 +93,61 @@ page_two :: proc () {
 	}
 
 	{
-		px.panel(2)
+		s := px.element_push(struct {open: int}, 2)
+		defer px.element_pop()
 		px.width_fill()
-		px.background_color(COLOR_LIGHT_YELLOW)
+		px.transition(.top)
 
 		px.masonry(cols=2, gap=4)
 		px.width_fill()
-		px.padding(4)
 
-		for _ in 0..<5 {
+		for i in 0..<5 {
+			id := i+1
+
 			px.panel()
 			px.width_fill()
-			px.height(40)
+			px.clip_outside()
+
+			if s.open != id {
+				px.height(20)
+			}
+
+			px.transition(.height)
+			px.transition(.left)
+			px.transition(.top)
+
+			px.v_stack()
+			px.width_fill()
 			px.background_color(COLOR_BROWN)
+
+			{
+				px.panel()
+				px.width_fill()
+				px.height(20)
+				px.background_color(COLOR_LIGHT_BROWN)
+
+				if px.is_clicked() {
+					if s.open == id {
+						s.open = 0
+					} else {
+						s.open = id
+					}
+				}
+
+				px.panel()
+				px.flag(.Non_Interactable)
+				px.center()
+
+				px.textf("Card %i", id, color=COLOR_BROWN)
+			}
+
+			{
+				px.panel()
+				px.width_fill()
+				px.padding(4)
+
+				px.paragraph("- Welcome weary traveler! To my SHOP\n- How may I assis you?", color=COLOR_LIGHT_BROWN)
+			}
 		}
 	}
 }
