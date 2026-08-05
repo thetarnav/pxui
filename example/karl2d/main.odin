@@ -12,6 +12,8 @@ import k2 "shared:karl2d"
 import px "../.."
 import app ".."
 
+_ :: mem
+
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
