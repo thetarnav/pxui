@@ -17,9 +17,10 @@ Color :: px.Color
 
 COLOR_TEXT          :: RGBA{210, 180, 160, 255}
 COLOR_WHITE         :: RGBA{255, 255, 255, 255}
-COLOR_BLACK         :: RGBA{0, 0, 0, 255}
-COLOR_BROWN         :: RGBA{139, 90, 43, 255}
+COLOR_BLACK         :: RGBA{  0,   0,   0, 255}
+COLOR_BROWN         :: RGBA{139,  90,  43, 255}
 COLOR_RED           :: RGBA{220, 120, 120, 255}
+COLOR_GREEN         :: RGBA{100, 170, 120, 255}
 COLOR_LIGHT_GREEN   :: RGBA{180, 220, 180, 255}
 COLOR_LIGHT_GRAY    :: RGBA{200, 200, 200, 255}
 COLOR_LIGHT_BROWN   :: RGBA{210, 190, 160, 255}
@@ -27,8 +28,9 @@ COLOR_LIGHT_YELLOW  :: RGBA{240, 230, 180, 255}
 COLOR_LIGHT_PURPLE  :: RGBA{210, 200, 230, 255}
 COLOR_LIGHT_BLUE    :: RGBA{170, 190, 220, 255}
 COLOR_LIGHT_RED     :: RGBA{230, 140, 140, 255}
-COLOR_DARK_GREEN    :: RGBA{34, 120, 60, 255}
-COLOR_DARK_GRAY     :: RGBA{60, 60, 70, 255}
+COLOR_DARK_GREEN    :: RGBA{ 34, 120,  60, 255}
+COLOR_DARK_GRAY     :: RGBA{ 60,  60,  70, 255}
+COLOR_DARK_RED      :: RGBA{200, 100, 100, 255}
 
 // These are driven by the input components in the demo.
 show_cross:      bool = true

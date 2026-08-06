@@ -93,22 +93,59 @@ page_two :: proc () {
 	}
 
 	{
-		s := px.element_push(struct {open: int}, 2)
+		@static texts := []string{
+			"- Welcome weary traveler! To my SHOP\n- How may I assis you?",
+			"Use transition(prop, time, ease) to automatically animate changes to element properties.",
+			"To implement enter animations use is_init() to set starting props, different from normal ones.",
+			"For exit animations use animate_exit(prop, value).\nPXUI will transition to these as the element is removed from the UI.",
+		}
+
+		Item :: struct {id: int, text: string}
+		State :: struct {
+			open:    int,
+			items:   [dynamic; 12]Item,
+			last_id: int,
+			remove:  int,
+		}
+
+		s := px.element_push(State, 2)
 		defer px.element_pop()
+
+		add_item :: proc (s: ^State) {
+			text := texts[s.last_id % len(texts)]
+			s.last_id += 1
+			append(&s.items, Item{s.last_id, text})
+		}
+
+		if px.is_init() {
+			for _ in 0..<5 {
+				add_item(s)
+			}
+		}
+
+		defer if s.remove != 0 {
+			for item, i in s.items {
+				if item.id == s.remove {
+					ordered_remove(&s.items, i)
+					break
+				}
+			}
+			s.remove = 0
+		}
+
 		px.width_fill()
 		px.transition(.top)
 
 		px.masonry(cols=2, gap=4)
 		px.width_fill()
 
-		for i in 0..<5 {
-			id := i+1
+		for &item in s.items {
 
-			px.panel()
+			px.panel(item.id)
 			px.width_fill()
 			px.clip_outside()
 
-			if s.open != id {
+			if s.open != item.id {
 				px.height(20)
 			}
 
@@ -127,18 +164,36 @@ page_two :: proc () {
 				px.background_color(COLOR_LIGHT_BROWN)
 
 				if px.is_clicked() {
-					if s.open == id {
-						s.open = 0
-					} else {
-						s.open = id
+					s.open = item.id if s.open != item.id else 0
+				}
+
+				{
+					px.panel()
+					px.left(1.0)
+					px.origin_left(1.0)
+					px.height_fill()
+					px.width(20)
+					px.background_color(COLOR_RED)
+
+					if px.is_hovered() {
+						px.background_color(COLOR_DARK_RED)
 					}
+					if px.is_clicked() {
+						s.remove = item.id
+					}
+
+					px.panel()
+					px.flag(.Non_Interactable)
+					px.center()
+
+					px.text("X", color=COLOR_WHITE)
 				}
 
 				px.panel()
 				px.flag(.Non_Interactable)
 				px.center()
 
-				px.textf("Card %i", id, color=COLOR_BROWN)
+				px.textf("Card %i.", item.id, color=COLOR_BROWN)
 			}
 
 			{
@@ -146,8 +201,34 @@ page_two :: proc () {
 				px.width_fill()
 				px.padding(4)
 
-				px.paragraph("- Welcome weary traveler! To my SHOP\n- How may I assis you?", color=COLOR_LIGHT_BROWN)
+				px.paragraph(item.text, color=COLOR_LIGHT_BROWN)
 			}
+		}
+
+		if len(s.items) < cap(s.items) {
+			px.panel(max(int))
+			px.width_fill()
+			px.height(20)
+			px.transition(.left)
+			px.transition(.top)
+
+			px.panel()
+			px.height(16)
+			px.width(0.8)
+			px.center()
+			px.background_color(COLOR_GREEN)
+			if px.is_hovered() {
+				px.background_color(COLOR_DARK_GREEN)
+			}
+			if px.is_clicked() {
+				add_item(s)
+			}
+
+			px.panel()
+			px.flag(.Non_Interactable)
+			px.center()
+
+			px.text("Add another", color=COLOR_WHITE)
 		}
 	}
 }
