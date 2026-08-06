@@ -122,7 +122,7 @@ flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller
 	s := element_push(Flex, id, loc)
 	s.axis = axis
 	s.gap  = gap
-	layout(axis, flex_update_layout)
+	layout(perp(axis), flex_update_layout, deps={axis})
 }
 flex_end :: proc () {
 	assert(typeid_of(Flex) == element_curr().type)
