@@ -612,44 +612,42 @@ _solve_layout :: proc () {
 	root.pos_set    = true
 	root.pos_screen = 0
 
-	Frame :: struct {
-		el:   ^Element,
-		axis: Axis,
+	Added :: map[struct {^Element, Axis}]struct {}
+	added := make(Added, hm.len(ctx.elements)*2, context.temp_allocator)
+
+	it := hm.iterator_make(&ctx.elements)
+	for el, _ in hm.iterate(&it) {
+		visit(el, Axis.X, &added)
+		visit(el, Axis.Y, &added)
 	}
-	Key :: struct {el: ^Element, axis: Axis}
 
-	stack := make([dynamic]Frame, context.temp_allocator)
+	visit :: proc (el: ^Element, axis: Axis, added: ^Added) {
 
-	added := make(map[Key]struct {}, context.temp_allocator)
+		if ({el, axis}) in added do return
+		added[{el, axis}] = {}
 
-	append(&stack, Frame{root, .X})
-	append(&stack, Frame{root, .Y})
+		#partial switch s in el.size[axis] {
+		case Fill, f32:
+			visit(element_parent(el), axis, added)
+		case Content:
+			child_id := el.child_first
+			for child in element_get(child_id) {
+				defer child_id = child.next
 
-	added[Key{root, .X}] = {}
-	added[Key{root, .Y}] = {}
+				#partial switch _ in child.size[axis] {
+				case Fill, f32: continue // skip cyclic deps
+				}
 
-	add :: proc (el: ^Element, axis: Axis, stack: ^[dynamic]Frame, added: ^map[Key]struct {}) -> bool {
-		if (Key{el, axis}) not_in added {
-			append(stack, Frame{el, axis})
-			added[Key{el, axis}] = {}
-			return false
-		} else {
-			return el.size_set[axis]
+				visit(child, axis, added)
+			}
 		}
-	}
 
-	for len(stack) > 0 {
-		#reverse for f, i in stack {
-			el, axis := f.el, f.axis
-
-			ok := true
-
-			#partial switch s in el.size[axis] {
-			case Fill, f32:
-				parent := element_get_assert(el.parent)
-				pok := add(parent, axis, &stack, &added)
-				ok &&= pok
-			case Content:
+		// Custom layouts can depend on other axis
+		if el.layout[axis].cb != nil {
+			if perp(axis) in el.layout[axis].deps {
+				visit(el, perp(axis), added)
+			}
+			if axis in el.layout[axis].deps && el.size[axis] != CONTENT {
 				child_id := el.child_first
 				for child in element_get(child_id) {
 					defer child_id = child.next
@@ -658,54 +656,23 @@ _solve_layout :: proc () {
 					case Fill, f32: continue // skip cyclic deps
 					}
 
-					cok := add(child, axis, &stack, &added)
-					ok &&= cok
-				}
-			}
-
-			// Custom layouts can depend on other axis
-			if el.layout[axis].cb != nil {
-				if perp(axis) in el.layout[axis].deps {
-					pok := add(el, perp(axis), &stack, &added)
-					ok &&= pok
-				}
-				if axis in el.layout[axis].deps && el.size[axis] != CONTENT {
-					child_id := el.child_first
-					for child in element_get(child_id) {
-						defer child_id = child.next
-
-						#partial switch _ in child.size[axis] {
-						case Fill, f32: continue // skip cyclic deps
-						}
-
-						cok := add(child, axis, &stack, &added)
-						ok &&= cok
-					}
-				}
-			}
-
-			if ok {
-				_element_update_layout_axis(el, axis)
-				unordered_remove(&stack, i)
-
-				child_id := el.child_first
-				for child in element_get(child_id) {
-					defer child_id = child.next
-					if (Key{child, axis}) not_in added {
-						add(child, axis, &stack, &added)
-					}
+					visit(child, axis, added)
 				}
 			}
 		}
+
+		_element_update_layout_axis(el, axis)
 	}
 }
 
 _element_update_layout_axis :: proc (el: ^Element, axis: Axis) {
+
 	if !el.size_set[axis] {
 		switch v in el.size[axis] {
 		case Fill, f32:
-			assert(element_parent(el).size_set[axis])
-			element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(el.parent, axis)))
+			parent := element_parent(el)
+			assert(parent.size_set[axis])
+			element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(parent, axis)))
 		case Content:
 			child_id := el.child_first
 			for child in element_get(child_id) {
