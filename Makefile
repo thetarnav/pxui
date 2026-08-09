@@ -26,7 +26,9 @@ run-atlas: run-atlas-builder
 run-atlas-builder:
 	odin run atlas-builder \
 		-define:TEXTURES_DIR="assets" \
-		-define:PACKAGE_NAME="pxui"
+		-define:PACKAGE_NAME="pxui" \
+		-define:ATLAS_PNG_OUTPUT_PATH="assets/atlas.png" \
+		-define:ATLAS_ODIN_OUTPUT_PATH="assets/atlas.odin"
 
 
 # Check the library alone.
