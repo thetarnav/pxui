@@ -1,3 +1,7 @@
 [submodule "bmfont"]
 	path = bmfont
 	url = git@github.com:thetarnav/odin-bmfont.git
+[submodule "aseprite"]
+	path = aseprite
+	url = git@github.com:blob1807/odin-aseprite.git
+	shallow = true
