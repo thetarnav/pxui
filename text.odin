@@ -13,7 +13,7 @@ default_font_atlas: bmfont.Atlas
 @init
 init_default_font :: proc "contextless" () {
 	context = runtime.default_context()
-	default_font, default_font_atlas, _ = bmfont.load_json_bytestream(#load("./fonts/monogram.json", string))
+	default_font, default_font_atlas, _ = bmfont.load_json_bytestream(#load("./assets/monogram.json", string))
 	default_font.spacing = 1
 }
 

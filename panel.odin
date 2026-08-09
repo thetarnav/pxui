@@ -10,7 +10,7 @@ panel_atlas: Atlas
 @(private, init)
 init_panel_texture :: proc "contextless" () {
 	context = runtime.default_context()
-	img, _ := tga.load_from_bytes(#load("./panel.tga"), allocator=context.temp_allocator)
+	img, _ := tga.load_from_bytes(#load("./assets/panel.tga"), allocator=context.temp_allocator)
 	panel_atlas = {
 		pixels = slice.clone(slice.reinterpret([]RGBA, img.pixels.buf[:])),
 		size   = {img.width, img.height}
