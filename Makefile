@@ -1,4 +1,8 @@
-.PHONY: run debug run-karl2d build-debug-karl2d run-cli check test test-verbose clean
+.PHONY: run debug run-karl2d build-debug-karl2d \
+        run-cli \
+        atlas run-atlas run-atlas-builder \
+        check test test-verbose \
+        clean
 
 # Build and run the kitchen-sink example with the karl2d frontend.
 run: run-karl2d
@@ -14,6 +18,14 @@ build-debug-karl2d:
 # Build and run the CLI/readline frontend for debugging.
 run-cli:
 	odin run example/cli
+
+
+atlas:     run-atlas-builder
+run-atlas: run-atlas-builder
+
+run-atlas-builder:
+	odin run atlas-builder -define:TEXTURES_DIR="assets" -define:PACKAGE_NAME="pxui"
+
 
 # Check the library alone.
 check:
