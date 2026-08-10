@@ -8,11 +8,12 @@ import "base:runtime"
 import "core:time"
 
 Trace :: struct {
+	name:            string,
 	start:           time.Tick,
 	min, max, total: time.Duration,
 	runs:            int,
 }
-_traces: map[string]Trace
+_traces: map[rawptr]Trace
 
 @init _init_trace :: proc "contextless" () {
 	context = runtime.default_context()
@@ -26,9 +27,9 @@ _traces: map[string]Trace
 
 	_print_table_begin()
 	_print_table_add("name", "avg", "min", "max", "runs")
-	for name, trace in _traces {
+	for _, trace in _traces {
 		avg := trace.total / time.Duration(trace.runs)
-		_print_table_add(name, avg, trace.min, trace.max, trace.runs)
+		_print_table_add(trace.name, avg, trace.min, trace.max, trace.runs)
 	}
 	_print_table_end()
 
@@ -102,10 +103,11 @@ _print_table :: proc (loc := #caller_location) {
 
 trace_begin :: proc (name: string, loc := #caller_location) {
 
-	trace, in_traces := &_traces[name]
+	ptr := raw_data(name)
+	trace, in_traces := &_traces[ptr]
 	if !in_traces {
-		_traces[name] = {}
-		trace, _ = &_traces[name]
+		_traces[ptr] = {name=name}
+		trace, _ = &_traces[ptr]
 	}
 
 	assert(trace.start == {}, loc=loc)
@@ -114,7 +116,8 @@ trace_begin :: proc (name: string, loc := #caller_location) {
 }
 trace_end :: proc (name: string, loc := #caller_location) {
 
-	trace, in_traces := &_traces[name]
+	ptr := raw_data(name)
+	trace, in_traces := &_traces[ptr]
 
 	assert(in_traces && trace.start != {}, loc=loc)
 

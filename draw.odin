@@ -81,7 +81,7 @@ _draw_tiled :: proc (cmds: ^[dynamic]Draw_Command, tex: Draw_Texture, dst: Rect)
 
 get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 
-	trace("get_draw_commands")
+	trace(#procedure)
 
 	cmds := make([dynamic]Draw_Command, 0, len(ctx.draw_reqs) * 2, allocator)
 	defer shrink(&cmds)
