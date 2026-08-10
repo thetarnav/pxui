@@ -1,13 +1,17 @@
 .PHONY: run debug run-karl2d build-debug-karl2d \
         run-cli \
-        atlas run-atlas run-atlas-builder \
         check test test-verbose \
         clean
 
-# Build and run the kitchen-sink example with the karl2d frontend.
-run: run-karl2d
 
-debug: build-debug-karl2d
+# Default target
+all: run
+
+
+# Build and run the kitchen-sink example with the karl2d frontend.
+run: atlas run-karl2d
+
+debug: atlas build-debug-karl2d
 
 run-karl2d:
 	odin run example/karl2d
@@ -15,15 +19,15 @@ run-karl2d:
 build-debug-karl2d:
 	odin build example/karl2d -debug
 
+
 # Build and run the CLI/readline frontend for debugging.
 run-cli:
 	odin run example/cli
 
 
-atlas:     run-atlas-builder
-run-atlas: run-atlas-builder
+atlas: assets/atlas.png assets/atlas.odin
 
-run-atlas-builder:
+assets/atlas.png assets/atlas.odin: assets/ui.aseprite
 	odin run atlas-builder \
 		-define:TEXTURES_DIR="assets" \
 		-define:PACKAGE_NAME="assets" \
