@@ -210,12 +210,15 @@ render_ui :: proc () {
 				tex := k2.create_render_texture(**ws)
 				append(&render_textures, tex)
 				append(&layers, Layer{len(render_textures)-1, v.opacity, Vec2(cmd.dst.pos)})
+
 				k2.set_render_texture(tex)
-				k2.clear({0, 0, 0, 0})
+				k2.clear(0) // new texture might have garbage from previous frames
+
 				camera = {zoom=1}
 				k2.set_camera(camera)
 				update_scissor(scissor)
-			} else {
+			}
+			else {
 				layer := pop(&layers)
 				if len(layers) > 0 {
 					k2.set_render_texture(render_textures[layers[len(layers)-1].tex])
