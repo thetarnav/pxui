@@ -27,13 +27,13 @@ LETTERS_IN_FONT :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz12345678
 
 // A generated square in the atlas you can use with rl.SetShapesTexture to make
 // raylib shapes such as rl.DrawRectangleRec() use the atlas.
-SHAPES_TEXTURE_RECT :: Rect {66, 0, 10, 10}
+SHAPES_TEXTURE_RECT :: Rect {67, 0, 10, 10}
 
 Texture_Name :: enum {
 	None,
-	Logo,
-	Border_Square,
 	Border_Rounded,
+	Border_Square,
+	Logo,
 }
 
 Atlas_Texture :: struct {
@@ -56,9 +56,9 @@ Atlas_Texture :: struct {
 
 atlas_textures: [Texture_Name]Atlas_Texture = {
 	.None = {},
-	.Logo = { rect = {38, 0, 27, 10}, offset_top = 0, offset_right = 573, offset_bottom = 370, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {0, 0, 27, 10} },
-	.Border_Square = { rect = {0, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 14} },
-	.Border_Rounded = { rect = {19, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 14} },
+	.Border_Rounded = { rect = {0, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 14} },
+	.Border_Square = { rect = {19, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 13} },
+	.Logo = { rect = {38, 0, 28, 10}, offset_top = 0, offset_right = 572, offset_bottom = 370, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {0, 0, 28, 10} },
 }
 
 Animation_Name :: enum {
@@ -84,6 +84,74 @@ Atlas_Animation :: struct {
 
 atlas_animations := [Animation_Name]Atlas_Animation {
 	.None = {},
+}
+
+UI_COLOR_0 :: Color{0, 0, 0, 0}
+UI_COLOR_1 :: Color{34, 32, 52, 255}
+UI_COLOR_2 :: Color{69, 40, 60, 255}
+UI_COLOR_3 :: Color{102, 57, 49, 255}
+UI_COLOR_4 :: Color{143, 86, 59, 255}
+UI_COLOR_5 :: Color{223, 113, 38, 255}
+UI_COLOR_6 :: Color{217, 160, 102, 255}
+UI_COLOR_7 :: Color{238, 195, 154, 255}
+UI_COLOR_8 :: Color{251, 242, 54, 255}
+UI_COLOR_9 :: Color{153, 229, 80, 255}
+UI_COLOR_10 :: Color{106, 190, 48, 255}
+UI_COLOR_11 :: Color{55, 148, 110, 255}
+UI_COLOR_12 :: Color{75, 105, 47, 255}
+UI_COLOR_13 :: Color{82, 75, 36, 255}
+UI_COLOR_14 :: Color{50, 60, 57, 255}
+UI_COLOR_15 :: Color{63, 63, 116, 255}
+UI_COLOR_16 :: Color{48, 96, 130, 255}
+UI_COLOR_17 :: Color{91, 110, 225, 255}
+UI_COLOR_18 :: Color{99, 155, 255, 255}
+UI_COLOR_19 :: Color{95, 205, 228, 255}
+UI_COLOR_20 :: Color{203, 219, 252, 255}
+UI_COLOR_21 :: Color{255, 255, 255, 255}
+UI_COLOR_22 :: Color{155, 173, 183, 255}
+UI_COLOR_23 :: Color{132, 126, 135, 255}
+UI_COLOR_24 :: Color{105, 106, 106, 255}
+UI_COLOR_25 :: Color{89, 86, 82, 255}
+UI_COLOR_26 :: Color{118, 66, 138, 255}
+UI_COLOR_27 :: Color{172, 50, 50, 255}
+UI_COLOR_28 :: Color{217, 87, 99, 255}
+UI_COLOR_29 :: Color{215, 123, 186, 255}
+UI_COLOR_30 :: Color{143, 151, 74, 255}
+UI_COLOR_31 :: Color{138, 111, 48, 255}
+
+UI_Palette :: [32]Color{
+	UI_COLOR_0,
+	UI_COLOR_1,
+	UI_COLOR_2,
+	UI_COLOR_3,
+	UI_COLOR_4,
+	UI_COLOR_5,
+	UI_COLOR_6,
+	UI_COLOR_7,
+	UI_COLOR_8,
+	UI_COLOR_9,
+	UI_COLOR_10,
+	UI_COLOR_11,
+	UI_COLOR_12,
+	UI_COLOR_13,
+	UI_COLOR_14,
+	UI_COLOR_15,
+	UI_COLOR_16,
+	UI_COLOR_17,
+	UI_COLOR_18,
+	UI_COLOR_19,
+	UI_COLOR_20,
+	UI_COLOR_21,
+	UI_COLOR_22,
+	UI_COLOR_23,
+	UI_COLOR_24,
+	UI_COLOR_25,
+	UI_COLOR_26,
+	UI_COLOR_27,
+	UI_COLOR_28,
+	UI_COLOR_29,
+	UI_COLOR_30,
+	UI_COLOR_31,
 }
 
 Atlas_Glyph :: struct {

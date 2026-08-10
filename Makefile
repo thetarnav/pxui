@@ -28,7 +28,8 @@ run-atlas-builder:
 		-define:TEXTURES_DIR="assets" \
 		-define:PACKAGE_NAME="assets" \
 		-define:ATLAS_PNG_OUTPUT_PATH="assets/atlas.png" \
-		-define:ATLAS_ODIN_OUTPUT_PATH="assets/atlas.odin"
+		-define:ATLAS_ODIN_OUTPUT_PATH="assets/atlas.odin" \
+		-define:PALETTE_SRC_FILE="assets/ui.aseprite"
 
 
 # Check the library alone.
