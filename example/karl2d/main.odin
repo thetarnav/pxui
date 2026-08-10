@@ -211,6 +211,7 @@ render_ui :: proc () {
 				append(&render_textures, tex)
 				append(&layers, Layer{len(render_textures)-1, v.opacity, Vec2(cmd.dst.pos)})
 				k2.set_render_texture(tex)
+				k2.clear({0, 0, 0, 0})
 				camera = {zoom=1}
 				k2.set_camera(camera)
 				update_scissor(scissor)
