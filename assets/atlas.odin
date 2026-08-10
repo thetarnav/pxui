@@ -119,7 +119,7 @@ UI_COLOR_29 :: Color{215, 123, 186, 255}
 UI_COLOR_30 :: Color{143, 151, 74, 255}
 UI_COLOR_31 :: Color{138, 111, 48, 255}
 
-UI_Palette :: [32]Color{
+UI_PALETTE :: [32]Color{
 	UI_COLOR_0,
 	UI_COLOR_1,
 	UI_COLOR_2,
