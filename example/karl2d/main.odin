@@ -152,8 +152,18 @@ render_ui :: proc () {
 	@static
 	tex_map: map[^px.Atlas]k2.Texture
 
-	Layer :: struct #all_or_none {tex: k2.Render_Texture, opacity: f32, offset: Vec2}
-	render_textures := make([dynamic]Layer, context.temp_allocator)
+	Layer :: struct #all_or_none {tex: int, opacity: f32, offset: Vec2}
+	layers := make([dynamic]Layer, context.temp_allocator)
+
+	@static
+	render_textures: [dynamic]k2.Render_Texture
+
+	{ // Clear render textures from previous frame
+		for tex in render_textures {
+			k2.destroy_render_texture(tex)
+		}
+		clear(&render_textures)
+	}
 
 	ws := px.Vec2i(k2.get_screen_size())
 
@@ -198,15 +208,16 @@ render_ui :: proc () {
 		case px.Draw_Layer:
 			if v.opacity < 1 {
 				tex := k2.create_render_texture(**ws)
-				append(&render_textures, Layer{tex, v.opacity, Vec2(cmd.dst.pos)})
+				append(&render_textures, tex)
+				append(&layers, Layer{len(render_textures)-1, v.opacity, Vec2(cmd.dst.pos)})
 				k2.set_render_texture(tex)
 				camera = {zoom=1}
 				k2.set_camera(camera)
 				update_scissor(scissor)
 			} else {
-				layer := pop(&render_textures)
-				if len(render_textures) > 0 {
-					k2.set_render_texture(render_textures[len(render_textures)-1].tex)
+				layer := pop(&layers)
+				if len(layers) > 0 {
+					k2.set_render_texture(render_textures[layers[len(layers)-1].tex])
 					camera = {zoom=1}
 					k2.set_camera(camera)
 				} else {
@@ -215,7 +226,7 @@ render_ui :: proc () {
 					k2.set_camera(root_camera)
 				}
 				update_scissor(scissor)
-				k2.draw_texture(layer.tex.texture, 0, tint={255, 255, 255, u8(layer.opacity*255)})
+				k2.draw_texture(render_textures[layer.tex].texture, 0, tint={255, 255, 255, u8(layer.opacity*255)})
 			}
 		}
 	}
