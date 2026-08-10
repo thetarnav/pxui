@@ -66,6 +66,8 @@ shutdown :: proc () {
 
 ui :: proc (ws: Vec2i) {
 
+	px.trace("ui()")
+
 	// root size
 	px.size_px(ws)
 

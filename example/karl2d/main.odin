@@ -29,9 +29,6 @@ Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
 
-root_camera := k2.Camera{zoom = PIXEL_SCALE}
-camera: k2.Camera
-
 time_now :: proc () -> f32 {
     @static start: time.Time
     if start == {} {
@@ -65,9 +62,6 @@ main :: proc () {
 	_ = k2.init(UI_W * PIXEL_SCALE, UI_H * PIXEL_SCALE, "Pixui Example", options = {
 		window_mode = .Windowed_Resizable,
 	})
-
-	camera = root_camera
-	k2.set_camera(camera)
 
 	px.init()
 
@@ -110,7 +104,7 @@ step :: proc () -> bool {
 		_ = capped_dt
 
 		ws := Vec2i(k2.get_screen_size() / PIXEL_SCALE)
-		mouse := Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
+		mouse := Vec2i(k2.get_mouse_position() / PIXEL_SCALE)
 
 		app.frame(
 			ws    = ws,
@@ -172,31 +166,17 @@ render_ui :: proc () {
 		render_textures_size = ws
 	}
 
-	scissor: Maybe(k2.Rect)
-	// Apply scissor rect with the current camera
-	update_scissor :: proc (scissor: Maybe(k2.Rect)) {
-		if s, has_scrissor := scissor.?; has_scrissor {
-			k2.set_scissor_rect(k2.rect_from_pos_size(
-				k2.world_to_screen({s.x, s.y}, camera),
-				k2.world_to_screen({s.w, s.h}, camera),
-			))
-		} else {
-			k2.set_scissor_rect(nil)
-		}
-	}
-
 	for cmd in px.get_draw_commands(context.temp_allocator) {
-		dst := k2_rect_px(cmd.dst)
 
-		px.trace("render_ui.render cmd")
+		dst := k2.rect_from_pos_size(Vec2(cmd.dst.pos  * PIXEL_SCALE),
+		                             Vec2(cmd.dst.size * PIXEL_SCALE))
 
 		switch v in cmd.var {
 		case px.Draw_Color:
 			k2.draw_rect(dst, v)
 
 		case px.Draw_Scissor:
-			scissor = dst if !v.reset else nil
-			update_scissor(scissor)
+			k2.set_scissor_rect(dst if !v.reset else nil)
 
 		case px.Draw_Texture:
 			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}
@@ -224,23 +204,10 @@ render_ui :: proc () {
 
 				k2.set_render_texture(tex)
 				k2.clear(0) // Clear before use
-
-				camera = {zoom=1}
-				k2.set_camera(camera)
-				update_scissor(scissor)
 			}
 			else {
 				layer := pop(&layers)
-				if len(layers) > 0 {
-					k2.set_render_texture(render_textures[layers[len(layers)-1].tex])
-					camera = {zoom=1}
-					k2.set_camera(camera)
-				} else {
-					k2.set_render_texture(nil)
-					camera = root_camera
-					k2.set_camera(root_camera)
-				}
-				update_scissor(scissor)
+				k2.set_render_texture(render_textures[layers[len(layers)-1].tex] if len(layers) > 0 else nil)
 				k2.draw_texture(render_textures[layer.tex].texture, 0, tint={255, 255, 255, u8(layer.opacity*255)})
 			}
 		}
