@@ -23,7 +23,8 @@ MIN_FPS :: 12.0
 MAX_DT :: 1000.0 / MAX_FPS
 MIN_DT :: 1000.0 / MIN_FPS
 
-Vec2  :: [2]f32
+Vec2  :: px.Vec2f
+Vec2i :: px.Vec2i
 Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
@@ -108,8 +109,8 @@ step :: proc () -> bool {
 		// frame(capped_dt) or_return
 		_ = capped_dt
 
-		ws := app.Vec2i(k2.get_screen_size() / PIXEL_SCALE)
-		mouse := app.Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
+		ws := Vec2i(k2.get_screen_size() / PIXEL_SCALE)
+		mouse := Vec2i(k2.screen_to_world(k2.get_mouse_position(), camera))
 
 		app.frame(
 			ws    = ws,
@@ -149,6 +150,8 @@ render_ui :: proc () {
 
 	px.trace("render_ui")
 
+	ws := px.Vec2i(k2.get_screen_size())
+
 	@static
 	tex_map: map[^px.Atlas]k2.Texture
 
@@ -157,15 +160,17 @@ render_ui :: proc () {
 
 	@static
 	render_textures: [dynamic]k2.Render_Texture
+	@static
+	render_textures_size: Vec2i
 
-	{ // Clear render textures from previous frame
+	// Clear render textures on window resize
+	if render_textures_size != ws {
 		for tex in render_textures {
 			k2.destroy_render_texture(tex)
 		}
 		clear(&render_textures)
+		render_textures_size = ws
 	}
-
-	ws := px.Vec2i(k2.get_screen_size())
 
 	scissor: Maybe(k2.Rect)
 	// Apply scissor rect with the current camera
@@ -207,12 +212,18 @@ render_ui :: proc () {
 
 		case px.Draw_Layer:
 			if v.opacity < 1 {
-				tex := k2.create_render_texture(**ws)
-				append(&render_textures, tex)
-				append(&layers, Layer{len(render_textures)-1, v.opacity, Vec2(cmd.dst.pos)})
+				// Reuse existing texture if available, otherwise create new
+				tex: k2.Render_Texture
+				if len(layers) < len(render_textures) {
+					tex = render_textures[len(layers)]
+				} else {
+					tex = k2.create_render_texture(**ws)
+					append(&render_textures, tex)
+				}
+				append(&layers, Layer{len(layers), v.opacity, Vec2(cmd.dst.pos)})
 
 				k2.set_render_texture(tex)
-				k2.clear(0) // new texture might have garbage from previous frames
+				k2.clear(0) // Clear before use
 
 				camera = {zoom=1}
 				k2.set_camera(camera)

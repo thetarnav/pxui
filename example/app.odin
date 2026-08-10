@@ -9,8 +9,8 @@ import px ".."
 UI_W, UI_H :: 320, 200
 PIXEL_SCALE :: 4
 
-Vec2  :: [2]f32
-Vec2i :: [2]int
+Vec2  :: px.Vec2f
+Vec2i :: px.Vec2i
 Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
