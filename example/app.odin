@@ -48,6 +48,8 @@ frame :: proc (
 	input: px.Frame_Input,
 	ws:    Vec2i,
 ) -> bool {
+	px.trace("app.frame()")
+
 	px.frame_begin()
 	px.ctx.frame_input = input
 

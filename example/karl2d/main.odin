@@ -93,11 +93,18 @@ step :: proc () -> bool {
     time_last = time_now
     time_miss = max(0, elapsed - MAX_DT) // Carry over extra time
 
+	px.trace("step()")
+
 	k2.reset_frame_allocator()
 	free_all(context.temp_allocator)
 
 	run_frame: {
-		k2.update() or_return
+
+		{
+			px.trace("k2.update()")
+			k2.update() or_return
+		}
+
 		// frame(capped_dt) or_return
 		_ = capped_dt
 
@@ -129,13 +136,18 @@ step :: proc () -> bool {
 			k2.draw_text(str, 6,   10, k2.LIGHT_GREEN)
 		}
 
-		k2.present()
+		{
+			px.trace("k2.present()")
+			k2.present()
+		}
 	}
 
     return true
 }
 
 render_ui :: proc () {
+
+	px.trace("render_ui")
 
 	@static
 	tex_map: map[^px.Atlas]k2.Texture
@@ -160,6 +172,8 @@ render_ui :: proc () {
 
 	for cmd in px.get_draw_commands(context.temp_allocator) {
 		dst := k2_rect_px(cmd.dst)
+
+		px.trace("render_ui.render cmd")
 
 		switch v in cmd.var {
 		case px.Draw_Color:

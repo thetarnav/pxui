@@ -65,7 +65,6 @@ Frame_Input :: struct {
 Context :: struct {
 	allocator:         mem.Allocator,
 
-	// TODO: implement own?  why a xar is  used—the point of handled  is not to use  pointers
 	elements:          hm.Static_Handle_Map(10000, Element, Element_Handle),
 	element_curr:      Element_Handle,
 	element_root:      Element_Handle,
@@ -571,6 +570,8 @@ _element_copy_last_frame_data :: proc (el: ^Element) {
 
 
 frame_begin :: proc () {
+	trace("Frame Begin")
+
 	assert(ctx.element_curr == ctx.element_root)
 
 	it := hm.iterator_make(&ctx.elements)
@@ -587,21 +588,32 @@ frame_begin :: proc () {
 }
 
 frame_end :: proc () {
+	trace("Frame End")
+
 	assert(ctx.element_curr == ctx.element_root)
 
-	_element_visit_end_frame(ctx.element_root)
+	{
+		trace("Destroy/Exit Elements")
+		_element_visit_end_frame(ctx.element_root)
+	}
 
 	_solve_layout()
 
 	update_screen_rect_and_mouse()
 
-	it := hm.iterator_make(&ctx.elements)
-	for el, _ in hm.iterate(&it) {
-		_call_element_callback(el, el.effect)
+	{
+		trace("Call Effects")
+
+		it := hm.iterator_make(&ctx.elements)
+		for el, _ in hm.iterate(&it) {
+			_call_element_callback(el, el.effect)
+		}
 	}
 }
 
 _solve_layout :: proc () {
+
+	trace("Solve Layout")
 
 	root := element_root()
 
@@ -712,6 +724,8 @@ _call_element_callback :: proc (el: ^Element, cb: proc ()) {
 }
 
 update_screen_rect_and_mouse :: proc () {
+
+	trace("Screen/Interation update")
 
 	root := element_root()
 
