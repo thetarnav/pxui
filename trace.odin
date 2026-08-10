@@ -3,7 +3,6 @@ package pxui
 import "core:os"
 import "core:io"
 import "core:strings"
-import "core:slice"
 import "core:fmt"
 import "base:runtime"
 import "core:time"
@@ -29,13 +28,7 @@ _traces: map[string]Trace
 	_print_table_add("name", "avg", "min", "max", "runs")
 	for name, trace in _traces {
 		avg := trace.total / time.Duration(trace.runs)
-		_print_table_add(
-			fmt.tprint(name),
-			fmt.tprint(avg),
-			fmt.tprint(trace.min),
-			fmt.tprint(trace.max),
-			fmt.tprint(trace.runs),
-		)
+		_print_table_add(name, avg, trace.min, trace.max, trace.runs)
 	}
 	_print_table_end()
 
@@ -51,14 +44,24 @@ _print_table_begin :: proc (loc := #caller_location) {
 	_print_table_current.widths  = make([dynamic]int,      context.temp_allocator, loc=loc)
 	_print_table_current.content = make([dynamic][]string, context.temp_allocator, loc=loc)
 }
-_print_table_add :: proc (row: ..string) {
-	resize(&_print_table_current.widths, max(len(_print_table_current.widths), len(row)))
-	for str, i in row {
+_print_table_add :: proc (items: ..any) {
+
+	resize(&_print_table_current.widths, max(len(_print_table_current.widths), len(items)))
+
+	row := make([dynamic]string, 0, len(items), context.temp_allocator)
+
+	for item, i in items {
+
+		str := fmt.tprint(item)
+		append(&row, str)
+
 		length: int
 		for _ in str do length += 1
+
 		_print_table_current.widths[i] = max(length, _print_table_current.widths[i])
 	}
-	append(&_print_table_current.content, slice.clone(row, context.temp_allocator))
+
+	append(&_print_table_current.content, row[:])
 }
 _print_table_end :: proc (loc := #caller_location) {
 
