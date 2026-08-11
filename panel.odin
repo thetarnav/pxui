@@ -66,11 +66,11 @@ nine_slice :: proc (
 		using s := element_state(Nine_Slice)
 
 		box        := element_box_size()
-		l, t, r, b := insets.l, insets.t, insets.r, insets.b
-		aw, ah     := **src.size
+		l, t, r, b := **insets
+		sw, sh     := **src.size
 		origin     := src.pos
 
-		if box.x <= 0 || box.y <= 0 || aw == 0 || ah == 0 do return
+		if box.x <= 0 || box.y <= 0 || sw == 0 || sh == 0 do return
 
 		draw_slice :: proc (atlas: ^Atlas, origin: Vec2i, dst, src: Rect) {
 			draw_tex(to_placement(dst), {{origin + src.pos, src.size}, atlas, WHITE})
@@ -78,16 +78,16 @@ nine_slice :: proc (
 
 		// Corners
 		draw_slice(atlas, origin, {{0, 0},                 {l, t}},         {{0, 0},                  {l, t}})
-		draw_slice(atlas, origin, {{box.x - r, 0},         {r, t}},         {{aw - r, 0},             {r, t}})
-		draw_slice(atlas, origin, {{0, box.y - b},         {l, b}},         {{0, ah - b},             {l, b}})
-		draw_slice(atlas, origin, {{box.x - r, box.y - b}, {r, b}},         {{aw - r, ah - b},        {r, b}})
+		draw_slice(atlas, origin, {{box.x - r, 0},         {r, t}},         {{sw - r, 0},             {r, t}})
+		draw_slice(atlas, origin, {{0, box.y - b},         {l, b}},         {{0, sh - b},             {l, b}})
+		draw_slice(atlas, origin, {{box.x - r, box.y - b}, {r, b}},         {{sw - r, sh - b},        {r, b}})
 		// Edges
-		draw_slice(atlas, origin, {{l, 0},         {box.x - l - r, t}},     {{l, 0},         {aw - l - r, t}})
-		draw_slice(atlas, origin, {{l, box.y - b}, {box.x - l - r, b}},     {{l, ah - b},    {aw - l - r, b}})
-		draw_slice(atlas, origin, {{0, t},         {l, box.y - t - b}},     {{0, t},         {l, ah - t - b}})
-		draw_slice(atlas, origin, {{box.x - r, t}, {r, box.y - t - b}},     {{aw - r, t},    {r, ah - t - b}})
+		draw_slice(atlas, origin, {{l, 0},         {box.x - l - r, t}},     {{l, 0},         {sw - l - r, t}})
+		draw_slice(atlas, origin, {{l, box.y - b}, {box.x - l - r, b}},     {{l, sh - b},    {sw - l - r, b}})
+		draw_slice(atlas, origin, {{0, t},         {l, box.y - t - b}},     {{0, t},         {l, sh - t - b}})
+		draw_slice(atlas, origin, {{box.x - r, t}, {r, box.y - t - b}},     {{sw - r, t},    {r, sh - t - b}})
 		// Center
-		draw_slice(atlas, origin, {{l, t}, {box.x - l - r, box.y - t - b}}, {{l, t}, {aw - l - r, ah - t - b}})
+		draw_slice(atlas, origin, {{l, t}, {box.x - l - r, box.y - t - b}}, {{l, t}, {sw - l - r, sh - t - b}})
 	})
 }
 background_color :: proc (color: Color) {
