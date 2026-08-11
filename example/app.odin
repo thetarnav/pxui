@@ -74,7 +74,7 @@ ui :: proc (ws: Vec2i) {
 	px.panel()
 	px.padding(6, 12)
 	px.size_fill()
-	px.nine_slice()
+	px.nine_slice(&px.panel_atlas, px.nine_slice_rect, px.nine_slice_insets)
 
 	px.rect_cut(.V)
 	px.size_fill()

@@ -5,7 +5,6 @@ import "core:slice"
 import "core:image/png"
 import "./assets"
 
-@private
 panel_atlas: Atlas
 nine_slice_rect: Rect
 nine_slice_insets: Insets
@@ -28,11 +27,6 @@ init_panel_texture :: proc "contextless" () {
 	}
 }
 
-@private
-get_panel_atlas :: proc () -> Atlas {
-	return panel_atlas
-}
-
 Panel :: struct {}
 panel_begin :: proc (#any_int id: u64 = 0, loc := #caller_location) {
 	element_push(Panel, id, loc)
@@ -48,25 +42,35 @@ panel :: proc (#any_int id: u64 = 0, loc := #caller_location) -> bool {
 }
 
 
-nine_slice :: proc (#any_int id: u64 = 0, loc := #caller_location) {
+nine_slice :: proc (
+	atlas:  ^Atlas,
+	src:    Rect,
+	insets: Insets,
+	#any_int id: u64 = 0,
+	loc := #caller_location,
+) {
 
-	Nine_Slice :: struct {}
-	element_push(Nine_Slice, id, loc)
+	Nine_Slice :: struct {
+		atlas:  ^Atlas,
+		src:    Rect,
+		insets: Insets,
+	}
+	s := element_push(Nine_Slice, id, loc)
+	s^ = {atlas, src, insets}
 	defer element_pop()
 
 	size_fill()
 	position_absolute()
 
 	effect(proc () {
-		box := element_box_size()
-		if box.x <= 0 || box.y <= 0 do return
+		using s := element_state(Nine_Slice)
 
-		atlas := &panel_atlas
-		insets := nine_slice_insets
-
+		box        := element_box_size()
 		l, t, r, b := insets.l, insets.t, insets.r, insets.b
-		aw, ah := **nine_slice_rect.size
-		origin := nine_slice_rect.pos
+		aw, ah     := **src.size
+		origin     := src.pos
+
+		if box.x <= 0 || box.y <= 0 || aw == 0 || ah == 0 do return
 
 		draw_slice :: proc (atlas: ^Atlas, origin: Vec2i, dst, src: Rect) {
 			draw_tex(to_placement(dst), {{origin + src.pos, src.size}, atlas, WHITE})

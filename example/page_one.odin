@@ -14,7 +14,8 @@ page_one :: proc (
 
 		{
 			px.panel()
-			px.nine_slice()
+			px.nine_slice(&px.panel_atlas, px.nine_slice_rect, px.nine_slice_insets)
+
 			px.margin_right(4)
 
 			px.h_stack()
@@ -34,7 +35,7 @@ page_one :: proc (
 
 		{
 			px.panel()
-			px.nine_slice()
+			px.nine_slice(&px.panel_atlas, px.nine_slice_rect, px.nine_slice_insets)
 
 			count := counter()
 			px.padding(6, 4)
