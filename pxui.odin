@@ -81,7 +81,7 @@ Context :: struct {
 }
 ctx: Context
 
-Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel}
+Element_Flag  :: enum u8 {Non_Interactable, Capture_Wheel, Position_Absolute}
 Element_Flags :: bit_set[Element_Flag]
 
 // Element data user sets during frame or callbacks
@@ -684,16 +684,16 @@ _element_update_layout_axis :: proc (el: ^Element, axis: Axis) {
 		case Fill, f32:
 			parent := element_parent(el)
 			assert(parent.size_set[axis])
-			element_set_bounds(el, axis, size_to_pixel(v, element_inner_bounds(parent, axis)))
+			parent_size := .Position_Absolute in el.flags \
+			               	? element_box_size(parent, axis) \
+			               	: element_inner_bounds(parent, axis)
+			element_set_bounds(el, axis, size_to_pixel(v, parent_size))
 		case Content:
-			child_id := el.child_first
-			for child in element_get(child_id) {
-				defer child_id = child.next
+			child_id: Element_Handle
+			for child in each_element_layout_children(el, &child_id) {
 
 				#partial switch _ in child.size[axis] {
-				case Fill, f32:
-					// skip cyclic deps
-					continue
+				case Fill, f32: continue // skip cyclic deps
 				}
 
 				assert(child.size_set[axis])
@@ -738,16 +738,26 @@ update_screen_rect_and_mouse :: proc () {
 		el     := element_get(h) or_return
 		parent := element_parent(el)
 
+		parent_size := .Position_Absolute in el.flags \
+		               	? element_box_size(parent) \
+		               	: element_inner_bounds(parent)
+
 		el.pos_rel = el.pos_ref +
 		             -size_vec_to_pixel(el.origin, element_box_size(el)) +
-		             size_vec_to_pixel(el.pos, element_inner_bounds(parent))
+		             size_vec_to_pixel(el.pos, parent_size)
 
 		_animate_pos(el)
 
-		el.pos_screen = parent.pos_screen.? +
-		                lt(parent.padding) +
-		                el.pos_rel +
-		                lt(el.margin)
+		pos_screen := parent.pos_screen.? +
+		              el.pos_rel +
+		              lt(el.margin)
+
+		if .Position_Absolute not_in el.flags {
+			pos_screen += lt(parent.padding)
+		}
+
+		el.pos_screen = pos_screen
+
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
 		              rect_contains(element_screen_rect(el), ctx.mouse)
@@ -768,189 +778,29 @@ update_screen_rect_and_mouse :: proc () {
 	}
 }
 
-// Returns `true` on the same frame as the element was first created
-is_init :: proc (h: Element_Handle = {}, loc := #caller_location) -> bool {
-	el := element_get_or_curr(h, loc)
-	return el.last_frame._found == false
-}
+@require_results
+each_element_layout_children :: proc (el: ^Element, prev: ^Element_Handle) -> (next: ^Element, ok: bool) {
 
-is_hovered :: proc (h: Element_Handle = {}) -> bool {
-	return element_get_or_curr(h).handle == ctx.element_hover
-}
-is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
-	return element_get_or_curr(h).last_frame.mouse_in
-}
-is_clicked :: proc (h: Element_Handle = {}) -> bool {
-	return is_hovered(h) && ctx.mouse_pressed
-}
-is_pressed :: proc (h: Element_Handle = {}) -> bool {
-	return is_hovered(h) && ctx.mouse_pressed
-}
-is_click_in :: proc (h: Element_Handle = {}) -> bool {
-	return is_mouse_in(h) && ctx.mouse_pressed
-}
-is_press_in :: proc (h: Element_Handle = {}) -> bool {
-	return is_mouse_in(h) && ctx.mouse_pressed
-}
-is_released :: proc () -> bool {
-	return ctx.mouse_released
-}
-is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
-	return element_get_or_curr(h).handle == ctx.element_wheel
-}
+	if prev == nil do return
 
-wheel_delta :: proc (h: Element_Handle = {}) -> Vec2f {
-	return ctx.wheel_delta if is_wheel_in(h) else {}
-}
-wheel_delta_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h)[axis]
-}
-wheel_delta_x :: proc (h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h).x
-}
-wheel_delta_y :: proc (h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h).y
-}
+	next_id := el.child_first
+	if prev_el, has_prev := element_get(prev^); has_prev {
+		next_id = prev_el.next
+	}
 
+	prev^ = next_id
+	next, ok = element_get(next_id)
 
-flag :: proc (f: Element_Flag, h: Element_Handle = {}) {
-	el := element_get_or_curr(h)
-	el.flags += {f}
+	if ok && .Position_Absolute in next.flags {
+		next, ok = each_element_layout_children(el, prev)
+	}
+
+	return
 }
-flags :: proc (f: Element_Flags, h: Element_Handle = {}) {
-	el := element_get_or_curr(h)
-	el.flags += f
+element_has_layout_children :: proc (el: ^Element) -> bool {
+	_ = each_element_layout_children(el, &({})) or_return
+	return true
 }
-
-transparency :: proc (alpha: f32 = 0, h: Element_Handle = {}, loc := #caller_location) {
-	assert(0 <= alpha && alpha <= 1, loc=loc)
-	element_get_or_curr(h, loc).transparency = alpha
-}
-opacity :: proc (alpha: f32 = 1, h: Element_Handle = {}, loc := #caller_location) {
-	transparency(1-alpha, h, loc)
-}
-
-size_set          :: proc (v: Sizing_2D)          {element_curr().size = v}
-size_px           :: proc (v: Vec2i)              {element_curr().size = {v.x, v.y}}
-size_percent      :: proc (v: Vec2f)              {element_curr().size = {v.x, v.y}}
-size_fill         :: proc ()                      {element_curr().size = FILL}
-size_hv           :: proc (h, v: Sizing)          {element_curr().size = {h, v}}
-size_w            :: proc (w: Sizing)             {element_curr().size.x = w}
-size_w_px         :: proc (w: int)                {element_curr().size.x = w}
-size_w_percent    :: proc (w: f32)                {element_curr().size.x = w}
-size_w_fill       :: proc ()                      {element_curr().size.x = FILL}
-size_h            :: proc (h: Sizing)             {element_curr().size.y = h}
-size_h_px         :: proc (h: int)                {element_curr().size.y = h}
-size_h_percent    :: proc (h: f32)                {element_curr().size.y = h}
-size_h_fill       :: proc ()                      {element_curr().size.y = FILL}
-size_axis         :: proc (axis: Axis, v: Sizing) {element_curr().size[axis] = v}
-size_axis_px      :: proc (axis: Axis, v: int)    {element_curr().size[axis] = v}
-size_axis_percent :: proc (axis: Axis, v: f32)    {element_curr().size[axis] = v}
-size_axis_fill    :: proc (axis: Axis)            {element_curr().size[axis] = FILL}
-size              :: proc {size_set, size_hv}
-size_x            :: size_w
-size_x_px         :: size_w_px
-size_x_percent    :: size_w_percent
-size_x_fill       :: size_w_fill
-size_y            :: size_h
-size_y_px         :: size_h_px
-size_y_percent    :: size_h_percent
-size_y_fill       :: size_h_fill
-width             :: size_w
-width_px          :: size_w_px
-width_percent     :: size_w_percent
-width_fill        :: size_w_fill
-height            :: size_h
-height_px         :: size_h_px
-height_percent    :: size_h_percent
-height_fill       :: size_h_fill
-
-origin_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).origin = v}
-origin_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).origin[axis] = v}
-origin_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.x = v}
-origin_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.y = v}
-origin      :: proc {origin_set, origin_axis}
-
-pos_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).pos = v}
-pos_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).pos[axis] = v}
-pos_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.x = v}
-pos_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.y = v}
-left     :: pos_left
-top      :: pos_top
-pos      :: proc {pos_set, pos_axis}
-
-center_both :: proc (h: Element_Handle = {}) {
-	origin(Sizing_2D{0.5, 0.5}, h)
-	pos(Sizing_2D{0.5, 0.5}, h)
-}
-center_axis :: proc (axis: Axis, h: Element_Handle = {}) {
-	origin(axis, 0.5, h)
-	pos(axis, 0.5, h)
-}
-center_x :: proc (h: Element_Handle = {}) {
-	origin_left(0.5, h)
-	pos_left(0.5, h)
-}
-center_y :: proc (h: Element_Handle = {}) {
-	origin_top(0.5, h)
-	pos_top(0.5, h)
-}
-center_h :: center_x
-center_v :: center_y
-center   :: proc {center_both, center_axis}
-
-margin_set        :: proc (v: Insets)       {element_curr().margin = v}
-margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
-margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
-margin_vec        :: proc (v: Vec2i)        {margin(v.x, v.y, v.x, v.y)}
-margin_all        :: proc (v: int)          {margin(v, v, v, v)}
-margin_t          :: proc (v: int)          {element_curr().margin.t = v}
-margin_b          :: proc (v: int)          {element_curr().margin.b = v}
-margin_l          :: proc (v: int)          {element_curr().margin.l = v}
-margin_r          :: proc (v: int)          {element_curr().margin.r = v}
-margin_h          :: proc (h: int)          {margin_l(h); margin_r(h)}
-margin_v          :: proc (v: int)          {margin_t(v); margin_b(v)}
-margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
-margin_dirs       :: margin_directions
-margin_bottom     :: margin_b
-margin_bot        :: margin_b
-margin_left       :: margin_l
-margin_right      :: margin_r
-margin_top        :: margin_t
-margin_x          :: margin_h
-margin_y          :: margin_v
-
-padding_set        :: proc (v: Insets)       {element_curr().padding = v}
-padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
-padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
-padding_vec        :: proc (v: Vec2i)        {padding(v.x, v.y, v.x, v.y)}
-padding_all        :: proc (v: int)          {padding(v, v, v, v)}
-padding_t          :: proc (v: int)          {element_curr().padding.t = v}
-padding_b          :: proc (v: int)          {element_curr().padding.b = v}
-padding_l          :: proc (v: int)          {element_curr().padding.l = v}
-padding_r          :: proc (v: int)          {element_curr().padding.r = v}
-padding_h          :: proc (h: int)          {padding_l(h); padding_r(h)}
-padding_v          :: proc (v: int)          {padding_t(v); padding_b(v)}
-padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
-padding_dirs       :: padding_directions
-padding_bottom     :: padding_b
-padding_bot        :: padding_b
-padding_left       :: padding_l
-padding_right      :: padding_r
-padding_top        :: padding_t
-padding_x          :: padding_h
-padding_y          :: padding_v
-
-
-layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}, loc := #caller_location) {
-	deps := deps if deps != {} else {axis}
-	element_get_or_curr(h, loc).layout[axis] = {cb, deps}
-}
-layout :: proc {layout_axis}
-
-effect :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).effect = cb}
-
-cleanup :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).cleanup = cb}
 
 
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}
@@ -1109,3 +959,193 @@ element_expand_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int,
 	                        rb(el.padding)[axis])
 	el.size_set[axis] = true
 }
+
+
+// Returns `true` on the same frame as the element was first created
+is_init :: proc (h: Element_Handle = {}, loc := #caller_location) -> bool {
+	el := element_get_or_curr(h, loc)
+	return el.last_frame._found == false
+}
+
+is_hovered :: proc (h: Element_Handle = {}) -> bool {
+	return element_get_or_curr(h).handle == ctx.element_hover
+}
+is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
+	return element_get_or_curr(h).last_frame.mouse_in
+}
+is_clicked :: proc (h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && ctx.mouse_pressed
+}
+is_pressed :: proc (h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && ctx.mouse_pressed
+}
+is_click_in :: proc (h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && ctx.mouse_pressed
+}
+is_press_in :: proc (h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && ctx.mouse_pressed
+}
+is_released :: proc () -> bool {
+	return ctx.mouse_released
+}
+is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
+	return element_get_or_curr(h).handle == ctx.element_wheel
+}
+
+wheel_delta :: proc (h: Element_Handle = {}) -> Vec2f {
+	return ctx.wheel_delta if is_wheel_in(h) else {}
+}
+wheel_delta_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h)[axis]
+}
+wheel_delta_x :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h).x
+}
+wheel_delta_y :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta(h).y
+}
+
+
+flag :: proc (f: Element_Flag, h: Element_Handle = {}, loc := #caller_location) {
+	el := element_get_or_curr(h, loc)
+	el.flags += {f}
+}
+flags :: proc (f: Element_Flags, h: Element_Handle = {}, loc := #caller_location) {
+	el := element_get_or_curr(h, loc)
+	el.flags += f
+}
+captures_wheel    :: proc (h: Element_Handle = {}, loc := #caller_location) {flag(.Capture_Wheel,     h, loc)}
+non_interactable  :: proc (h: Element_Handle = {}, loc := #caller_location) {flag(.Non_Interactable,  h, loc)}
+position_absolute :: proc (h: Element_Handle = {}, loc := #caller_location) {flag(.Position_Absolute, h, loc)}
+
+
+transparency :: proc (alpha: f32 = 0, h: Element_Handle = {}, loc := #caller_location) {
+	assert(0 <= alpha && alpha <= 1, loc=loc)
+	element_get_or_curr(h, loc).transparency = alpha
+}
+opacity :: proc (alpha: f32 = 1, h: Element_Handle = {}, loc := #caller_location) {
+	transparency(1-alpha, h, loc)
+}
+
+
+size_set          :: proc (v: Sizing_2D)          {element_curr().size = v}
+size_px           :: proc (v: Vec2i)              {element_curr().size = {v.x, v.y}}
+size_percent      :: proc (v: Vec2f)              {element_curr().size = {v.x, v.y}}
+size_fill         :: proc ()                      {element_curr().size = FILL}
+size_hv           :: proc (h, v: Sizing)          {element_curr().size = {h, v}}
+size_w            :: proc (w: Sizing)             {element_curr().size.x = w}
+size_w_px         :: proc (w: int)                {element_curr().size.x = w}
+size_w_percent    :: proc (w: f32)                {element_curr().size.x = w}
+size_w_fill       :: proc ()                      {element_curr().size.x = FILL}
+size_h            :: proc (h: Sizing)             {element_curr().size.y = h}
+size_h_px         :: proc (h: int)                {element_curr().size.y = h}
+size_h_percent    :: proc (h: f32)                {element_curr().size.y = h}
+size_h_fill       :: proc ()                      {element_curr().size.y = FILL}
+size_axis         :: proc (axis: Axis, v: Sizing) {element_curr().size[axis] = v}
+size_axis_px      :: proc (axis: Axis, v: int)    {element_curr().size[axis] = v}
+size_axis_percent :: proc (axis: Axis, v: f32)    {element_curr().size[axis] = v}
+size_axis_fill    :: proc (axis: Axis)            {element_curr().size[axis] = FILL}
+size              :: proc {size_set, size_hv}
+size_x            :: size_w
+size_x_px         :: size_w_px
+size_x_percent    :: size_w_percent
+size_x_fill       :: size_w_fill
+size_y            :: size_h
+size_y_px         :: size_h_px
+size_y_percent    :: size_h_percent
+size_y_fill       :: size_h_fill
+width             :: size_w
+width_px          :: size_w_px
+width_percent     :: size_w_percent
+width_fill        :: size_w_fill
+height            :: size_h
+height_px         :: size_h_px
+height_percent    :: size_h_percent
+height_fill       :: size_h_fill
+
+origin_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).origin = v}
+origin_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).origin[axis] = v}
+origin_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.x = v}
+origin_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).origin.y = v}
+origin      :: proc {origin_set, origin_axis}
+
+pos_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}) {element_get_or_curr(h).pos = v}
+pos_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}) {element_get_or_curr(h).pos[axis] = v}
+pos_left :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.x = v}
+pos_top  :: proc (v: Sizing,             h: Element_Handle = {}) {element_get_or_curr(h).pos.y = v}
+left     :: pos_left
+top      :: pos_top
+pos      :: proc {pos_set, pos_axis}
+
+center_both :: proc (h: Element_Handle = {}) {
+	origin(Sizing_2D{0.5, 0.5}, h)
+	pos(Sizing_2D{0.5, 0.5}, h)
+}
+center_axis :: proc (axis: Axis, h: Element_Handle = {}) {
+	origin(axis, 0.5, h)
+	pos(axis, 0.5, h)
+}
+center_x :: proc (h: Element_Handle = {}) {
+	origin_left(0.5, h)
+	pos_left(0.5, h)
+}
+center_y :: proc (h: Element_Handle = {}) {
+	origin_top(0.5, h)
+	pos_top(0.5, h)
+}
+center_h :: center_x
+center_v :: center_y
+center   :: proc {center_both, center_axis}
+
+margin_set        :: proc (v: Insets)       {element_curr().margin = v}
+margin_directions :: proc (l, t, r, b: int) {margin(Insets{l, t, r, b})}
+margin_axis       :: proc (h, v: int)       {margin(h, v, h, v)}
+margin_vec        :: proc (v: Vec2i)        {margin(v.x, v.y, v.x, v.y)}
+margin_all        :: proc (v: int)          {margin(v, v, v, v)}
+margin_t          :: proc (v: int)          {element_curr().margin.t = v}
+margin_b          :: proc (v: int)          {element_curr().margin.b = v}
+margin_l          :: proc (v: int)          {element_curr().margin.l = v}
+margin_r          :: proc (v: int)          {element_curr().margin.r = v}
+margin_h          :: proc (h: int)          {margin_l(h); margin_r(h)}
+margin_v          :: proc (v: int)          {margin_t(v); margin_b(v)}
+margin            :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_dirs       :: margin_directions
+margin_bottom     :: margin_b
+margin_bot        :: margin_b
+margin_left       :: margin_l
+margin_right      :: margin_r
+margin_top        :: margin_t
+margin_x          :: margin_h
+margin_y          :: margin_v
+
+padding_set        :: proc (v: Insets)       {element_curr().padding = v}
+padding_directions :: proc (l, t, r, b: int) {padding(Insets{l, t, r, b})}
+padding_axis       :: proc (h, v: int)       {padding(h, v, h, v)}
+padding_vec        :: proc (v: Vec2i)        {padding(v.x, v.y, v.x, v.y)}
+padding_all        :: proc (v: int)          {padding(v, v, v, v)}
+padding_t          :: proc (v: int)          {element_curr().padding.t = v}
+padding_b          :: proc (v: int)          {element_curr().padding.b = v}
+padding_l          :: proc (v: int)          {element_curr().padding.l = v}
+padding_r          :: proc (v: int)          {element_curr().padding.r = v}
+padding_h          :: proc (h: int)          {padding_l(h); padding_r(h)}
+padding_v          :: proc (v: int)          {padding_t(v); padding_b(v)}
+padding            :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_dirs       :: padding_directions
+padding_bottom     :: padding_b
+padding_bot        :: padding_b
+padding_left       :: padding_l
+padding_right      :: padding_r
+padding_top        :: padding_t
+padding_x          :: padding_h
+padding_y          :: padding_v
+
+
+layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Handle = {}, loc := #caller_location) {
+	deps := deps if deps != {} else {axis}
+	element_get_or_curr(h, loc).layout[axis] = {cb, deps}
+}
+layout :: proc {layout_axis}
+
+effect :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).effect = cb}
+
+cleanup :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).cleanup = cb}

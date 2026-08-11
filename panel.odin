@@ -47,7 +47,16 @@ panel :: proc (#any_int id: u64 = 0, loc := #caller_location) -> bool {
 	return true
 }
 
-nine_slice :: proc () {
+
+nine_slice :: proc (#any_int id: u64 = 0, loc := #caller_location) {
+
+	Nine_Slice :: struct {}
+	element_push(Nine_Slice, id, loc)
+	defer element_pop()
+
+	size_fill()
+	position_absolute()
+
 	effect(proc () {
 		box := element_box_size()
 		if box.x <= 0 || box.y <= 0 do return

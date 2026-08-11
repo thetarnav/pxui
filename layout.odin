@@ -7,14 +7,14 @@ import "core:slice"
 @private
 _stack_update_layout :: proc (el: ^Element, $AX: Axis, gap: int = 0) {
 
-	prev, has_children := element_get(el.child_first)
+	child_id: Element_Handle
+	prev, has_children := each_element_layout_children(el, &child_id)
 	if !has_children do return
 
 	cursor := element_bounds(prev, AX) + gap
 
-	child_id := prev.next
-	for child in element_get(child_id) {
-		defer child_id, prev = child.next, child
+	for child in each_element_layout_children(el, &child_id) {
+		defer prev = child
 
 		// Each child's bounds follow the previous child's bounds, with a gap
 		element_set_pos(child, AX, cursor)
@@ -71,7 +71,8 @@ h_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
 @private
 _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 
-	prev, has_children := element_get(el.child_first)
+	child_id: Element_Handle
+	prev, has_children := each_element_layout_children(el, &child_id)
 	if !has_children do return
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
@@ -87,9 +88,8 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 
 	row_size: int
 
-	child_id := prev.next
-	for child in element_get(child_id) {
-		defer child_id, prev = child.next, child
+	for child in each_element_layout_children(el, &child_id) {
+		defer prev = child
 
 		// Wrap to a new row if the next child doesn't fit.
 		// Leave room for the gap between this child and
@@ -156,9 +156,8 @@ rect_cut_update_layout :: proc () {
 	space_taken: int
 	fills: int
 
-	child_id := el.child_first
-	for child in element_get(child_id) {
-		defer child_id = child.next
+	child_id: Element_Handle
+	for child in each_element_layout_children(el, &child_id) {
 
 		if _, is_fill := child.size[ax].(Fill); is_fill {
 			fills += 1
@@ -172,9 +171,9 @@ rect_cut_update_layout :: proc () {
 	space_taken = max(space_taken - gap, 0) // Remove last el gap
 
 	prev: ^Element
-	child_id = el.child_first
-	for child in element_get(child_id) {
-		defer child_id, prev = child.next, child
+	child_id = {}
+	for child in each_element_layout_children(el, &child_id) {
+		defer prev = child
 
 		// All fill-children divide the remaining space equally.
 		if _, is_fill := child.size[ax].(Fill); is_fill {
@@ -215,8 +214,7 @@ rect_cut :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_loc
 @private
 _masonry_layout_axis :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 
-	_, has_children := element_get(el.child_first)
-	if !has_children do return
+	if !element_has_layout_children(el) do return
 
 	c := c if c > 0 else 1
 
@@ -228,9 +226,8 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 	max_w := element_inner_bounds(el, PERP)
 	col_w := (max_w - gap[PERP] * (c-1)) / c
 
-	child_id := el.child_first
-	for child in element_get(child_id) {
-		defer child_id = child.next
+	child_id: Element_Handle
+	for child in each_element_layout_children(el, &child_id) {
 
 		min_idx := slice.min_index(cols) or_break
 
@@ -244,8 +241,7 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 @private
 _masonry_layout_perp :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 
-	_, has_children := element_get(el.child_first)
-	if !has_children do return
+	if !element_has_layout_children(el) do return
 
 	c := c if c > 0 else 1
 
@@ -254,9 +250,8 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 	max_w := element_inner_bounds(el, PERP)
 	col_w := (max_w - gap[PERP] * (c-1)) / c
 
-	child_id := el.child_first
-	for child in element_get(child_id) {
-		defer child_id = child.next
+	child_id: Element_Handle
+	for child in each_element_layout_children(el, &child_id) {
 
 		element_set_bounds(child, PERP, col_w)
 	}
