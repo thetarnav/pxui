@@ -147,7 +147,7 @@ render_ui :: proc () {
 	ws := px.Vec2i(k2.get_screen_size())
 
 	@static
-	tex_map: map[^px.Atlas]k2.Texture
+	tex_map: map[^px.Texture]k2.Texture
 
 	Layer :: struct #all_or_none {tex: int, opacity: f32, offset: Vec2}
 	layers := make([dynamic]Layer, context.temp_allocator)
@@ -181,11 +181,11 @@ render_ui :: proc () {
 		case px.Draw_Texture:
 			src := Rect{Vec2(v.src.pos), Vec2(v.src.size)}
 
-			tex, in_map := tex_map[v.atlas]
+			tex, in_map := tex_map[v.tex]
 			if !in_map {
-				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, v.atlas.pixels),
-				                                     **v.atlas.size, .RGBA_8_Norm)
-				tex_map[v.atlas] = tex
+				tex = k2.load_texture_from_bytes_raw(slice.reinterpret([]u8, v.tex.pixels),
+				                                     **v.tex.size, .RGBA_8_Norm)
+				tex_map[v.tex] = tex
 			}
 
 			k2.draw_texture_fit(tex, k2_rect(src), dst, tint=v.tint)

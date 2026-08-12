@@ -24,10 +24,6 @@ fini_default_font :: proc "contextless" () {
 	delete(default_font_atlas.pixels)
 }
 
-get_font_atlas :: proc () -> Atlas {
-	return Atlas(default_font_atlas)
-}
-
 Text :: struct {}
 
 text :: proc (str: string, color: Color = 255, loc := #caller_location) {
@@ -157,7 +153,7 @@ draw_text :: proc (str: string, color: Color, origin: Vec2i = {0, 0}, cursor: ^V
 		draw_tex(to_placement(dst), {
 			src   = src,
 			tint  = color,
-			atlas = (^Atlas)(&default_font_atlas),
+			tex   = (^Texture)(&default_font_atlas),
 		})
 	}
 }

@@ -32,7 +32,7 @@ Draw_Variant :: union {
 Draw_Color   :: Color
 Draw_Texture :: struct {
 	src:   Rect,
-	atlas: ^Atlas,
+	tex:   ^Texture,
 	tint:  Color,
 }
 Draw_Scissor :: struct {reset: bool}

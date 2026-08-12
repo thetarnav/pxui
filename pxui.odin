@@ -45,7 +45,7 @@ AXIS :: [2]Axis{.X, .Y} // because `for axis in Axis` iterates 4 times :(
 
 Axis_Set :: bit_set[Axis]
 
-Atlas :: struct {
+Texture :: struct {
 	pixels: []RGBA,
 	size:   Vec2i,
 }
