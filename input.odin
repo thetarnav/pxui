@@ -237,7 +237,9 @@ slider_value :: proc () -> f32 {
 // Required: slider thumb (must be child of the slider).
 slider_thumb_begin :: proc (loc := #caller_location) {
 	element_push(Slider_Thumb, loc=loc)
+	s := element_parent_state(Slider)
 	size_fill()
+	center(perp(s.axis))
 	position_absolute()
 }
 slider_thumb_end :: proc (loc := #caller_location) {
@@ -279,7 +281,9 @@ slider_button_clicked :: proc () -> bool {
 // Optional: bar between thumb and buttons (must be children of the slider).
 slider_bar_begin :: proc (loc := #caller_location) {
 	element_push(Slider_Bar, loc=loc)
+	s := element_parent_state(Slider)
 	size_fill()
+	center(perp(s.axis))
 	position_absolute()
 }
 slider_bar_end :: proc (loc := #caller_location) {

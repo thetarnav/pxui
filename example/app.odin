@@ -191,25 +191,22 @@ slider :: proc (value: ^f32, min: f32 = 0, max: f32 = 1, #any_int id: u64 = 0, l
 
 	px.slider(value, min, max, .X, id, loc)
 	px.width_fill()
-	px.height(20)
-	px.background_color(COLOR_WHITE)
+	px.height(8)
 
 	{// Left bar
 		px.slider_bar()
-		px.margin(2)
-		px.background_color(COLOR_BROWN)
+		px.nine_slice(&px.atlas_texture, **px.atlas_textures[.Slider_Bar_Fill])
 	}
 
 	{// Thumb
 		px.slider_thumb()
-		px.height_fill()
-		px.width(20)
-		px.background_color(COLOR_LIGHT_RED)
+		px.height(10)
+		px.width(6)
+		px.background_texture(&px.atlas_texture, px.atlas_textures[.Slider_Thumb].src)
 	}
 
 	{// Rigth bar
 		px.slider_bar()
-		px.margin(2)
-		px.background_color(COLOR_LIGHT_YELLOW)
+		px.nine_slice(&px.atlas_texture, **px.atlas_textures[.Slider_Bar_Empty])
 	}
 }
