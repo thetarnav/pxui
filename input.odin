@@ -169,13 +169,13 @@ slider_begin :: proc (
 			}
 		}
 
-		assert(thumb != nil, "Slider requires one Thumb children", loc=slider.loc)
-
-		thumb_w  := element_bounds(thumb, axis, loc=slider.loc)
 		slider_w := element_inner_bounds(slider, axis, loc=slider.loc)
+		thumb_w  := element_bounds(thumb, axis, loc=slider.loc) if thumb != nil else 0
 		thumb_p  := int(math.remap_clamped(s.ptr^, min, max, 0, f32(slider_w-thumb_w)))
 
-		element_set_pos(thumb, axis, thumb_p, loc=slider.loc)
+		if thumb != nil {
+			element_set_pos(thumb, axis, thumb_p, loc=slider.loc)
+		}
 
 		if bar_left != nil {
 			element_set_bounds(bar_left, axis, thumb_p, loc=slider.loc)
@@ -188,17 +188,17 @@ slider_begin :: proc (
 	}, loc=loc)
 
 	effect(proc () {
-		slider   := element_curr()
-		using s  := element_state(Slider, loc=slider.loc)
-		thumb, _ := element_find_child_assert(Slider_Thumb, loc=slider.loc)
-		thumb_w  := element_bounds(thumb, axis, loc=slider.loc)
-		avail_w  := element_inner_bounds(slider, axis, loc=slider.loc)-thumb_w
-		thumb_p  := int(math.remap_clamped(s.ptr^, min, max, 0, f32(avail_w)))
-		sl_pos   := element_screen_pos(slider, axis, loc=slider.loc)
-		mouse    := ctx.mouse[axis]
+		slider      := element_curr()
+		using s     := element_state(Slider, loc=slider.loc)
+		thumb, _, _ := element_find_child(Slider_Thumb, loc=slider.loc)
+		thumb_w     := element_bounds(thumb, axis, loc=slider.loc) if thumb != nil else 0
+		avail_w     := element_inner_bounds(slider, axis, loc=slider.loc)-thumb_w
+		thumb_p     := int(math.remap_clamped(s.ptr^, min, max, 0, f32(avail_w)))
+		sl_pos      := element_screen_pos(slider, axis, loc=slider.loc)
+		mouse       := ctx.mouse[axis]
 
 		// Start dragging if pressed on the thumb or anywhere on the track
-		if is_press_in(thumb) {
+		if thumb != nil && is_press_in(thumb) {
 			dragging = true
 			offset   = f32(mouse - sl_pos - thumb_p) - f32(thumb_w)/2
 		} else if is_press_in(slider) {
@@ -234,7 +234,7 @@ slider_value :: proc () -> f32 {
 	return s.value
 }
 
-// Required: slider thumb (must be child of the slider).
+// Optional: slider thumb (must be child of the slider).
 slider_thumb_begin :: proc (loc := #caller_location) {
 	element_push(Slider_Thumb, loc=loc)
 	s := element_parent_state(Slider)
