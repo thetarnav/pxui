@@ -8,12 +8,12 @@ import "core:slice"
 _stack_update_layout :: proc (el: ^Element, $AX: Axis, gap: int = 0) {
 
 	child_id: Element_Handle
-	prev, has_children := each_element_layout_children(el, &child_id)
+	prev, has_children := each_element_layout_child(el, &child_id)
 	if !has_children do return
 
 	cursor := element_bounds(prev, AX) + gap
 
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 		defer prev = child
 
 		// Each child's bounds follow the previous child's bounds, with a gap
@@ -72,7 +72,7 @@ h_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
 _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 
 	child_id: Element_Handle
-	prev, has_children := each_element_layout_children(el, &child_id)
+	prev, has_children := each_element_layout_child(el, &child_id)
 	if !has_children do return
 
 	PERP :: Axis((int(AXIS) + 1) % 2)
@@ -88,7 +88,7 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 
 	row_size: int
 
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 		defer prev = child
 
 		// Wrap to a new row if the next child doesn't fit.
@@ -157,7 +157,7 @@ rect_cut_update_layout :: proc () {
 	fills: int
 
 	child_id: Element_Handle
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 
 		if _, is_fill := child.size[ax].(Fill); is_fill {
 			fills += 1
@@ -172,7 +172,7 @@ rect_cut_update_layout :: proc () {
 
 	prev: ^Element
 	child_id = {}
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 		defer prev = child
 
 		// All fill-children divide the remaining space equally.
@@ -227,7 +227,7 @@ _masonry_layout_axis :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 	col_w := (max_w - gap[PERP] * (c-1)) / c
 
 	child_id: Element_Handle
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 
 		min_idx := slice.min_index(cols) or_break
 
@@ -251,7 +251,7 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 	col_w := (max_w - gap[PERP] * (c-1)) / c
 
 	child_id: Element_Handle
-	for child in each_element_layout_children(el, &child_id) {
+	for child in each_element_layout_child(el, &child_id) {
 
 		element_set_bounds(child, PERP, col_w)
 	}

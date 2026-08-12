@@ -186,3 +186,30 @@ counter :: proc (color := COLOR_TEXT, id: u64 = 0, loc := #caller_location) -> ^
 	}
 	return &state.count
 }
+
+slider :: proc (value: ^f32, min: f32 = 0, max: f32 = 1, #any_int id: u64 = 0, loc := #caller_location) {
+
+	px.slider(value, min, max, .X, id, loc)
+	px.width_fill()
+	px.height(20)
+	px.background_color(COLOR_WHITE)
+
+	{// Left bar
+		px.slider_bar()
+		px.margin(2)
+		px.background_color(COLOR_BROWN)
+	}
+
+	{// Thumb
+		px.slider_thumb()
+		px.height_fill()
+		px.width(20)
+		px.background_color(COLOR_LIGHT_RED)
+	}
+
+	{// Rigth bar
+		px.slider_bar()
+		px.margin(2)
+		px.background_color(COLOR_LIGHT_YELLOW)
+	}
+}

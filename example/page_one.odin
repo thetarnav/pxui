@@ -225,18 +225,8 @@ Can be used with any rendering backend—see example/ for use with karl2d.`, COL
 			}
 		}
 
-			// Slider: controls the inner panel's padding.
-		{
-			px.slider(&cross_size_f, 4, 100)
-			px.width_fill()
-			px.height(20)
-			px.background_color(COLOR_WHITE)
-
-			px.slider_thumb()
-			px.height_fill()
-			px.width(20)
-			px.background_color(COLOR_LIGHT_RED)
-		}
+		// Slider: controls the inner panel's padding.
+		slider(&cross_size_f, 4, 100)
 
 			// Vertical slider demo: show that the slider works on either axis.
 		{

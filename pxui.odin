@@ -192,105 +192,6 @@ shutdown :: proc () {
 	}
 }
 
-@(require_results)
-element_get :: #force_inline proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #optional_ok {
-	return hm.get(&ctx.elements, handle)
-}
-element_get_assert :: #force_inline proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
-	el, ok := hm.get(&ctx.elements, handle)
-	fmt.assertf(ok, "", handle, loc=loc)
-	return el
-}
-element_get_or_curr :: #force_inline proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
-	h := ctx.element_curr if h == {} else h
-	return element_get_assert(h, loc)
-}
-
-@(require_results)
-element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
-	type_id := transmute(u64)T
-	return hash_combine(type_id, user_id) if user_id > 0 else type_id
-}
-
-element_display_write  :: proc (buf: []byte, i: ^int, h: Element_Handle = {}, loc := #caller_location) -> bool {
-	el := element_get_or_curr(h, loc=loc)
-
-	_ = runtime.write_rune(i, buf, '<') or_return
-
-	runtime.write_typeid(i, buf, el.type) or_return
-
-	if el.id != 0 {
-		runtime.write_string(i, buf, " id=") or_return
-		runtime.write_u64(i, buf, el.id) or_return
-	}
-
-	if el.loc != {} {
-		runtime.write_string(i, buf, " loc=") or_return
-		runtime.write_caller_location(i, buf, el.loc) or_return
-	}
-
-	_ = runtime.write_rune(i, buf, '>') or_return
-
-	return true
-}
-element_display_writer  :: proc (w: io.Writer, h: Element_Handle = {}, n_written: ^int = nil, loc := #caller_location) -> (n: int, err: io.Error) {
-	buf: [1024]byte
-	i: int
-	element_display_write(buf[:], &i, h, loc=loc)
-	return io.write_full(w, buf[:i])
-}
-element_display_builder  :: proc (sb: ^strings.Builder, h: Element_Handle = {}, loc := #caller_location) -> int {
-	buf: [1024]byte
-	i: int
-	element_display_write(buf[:], &i, h, loc=loc)
-	return strings.write_bytes(sb, buf[:i], loc=loc)
-}
-@(require_results)
-element_display_string :: proc (h: Element_Handle = {}, allocator := context.allocator, loc := #caller_location) -> (string, bool) #optional_ok {
-	sb := strings.builder_make(allocator, loc=loc)
-	n := element_display_builder(&sb, h, loc=loc)
-	return strings.to_string(sb), n > 0
-}
-element_display :: proc {element_display_write, element_display_writer, element_display_builder, element_display_string}
-element_print :: proc (h: Element_Handle = {}, loc := #caller_location) {
-	w := io.to_writer(os.to_writer(os.stdout))
-	element_display_writer(w, h, loc=loc)
-}
-
-element_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
-	el := element_get_or_curr(h, loc)
-	if el.type == typeid_of(T) {
-		return (^T)(el.data_ptr), true
-	}
-	return nil, false
-}
-element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
-	s, ok := element_state_safe(T, h, loc)
-	assert(ok, "Element doesn't match desired state type", loc)
-	return s
-}
-element_parent_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
-	el := element_get_or_curr(h, loc)
-	return element_state(T, element_parent(el, loc), loc)
-}
-element_lookup_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
-	h := ctx.element_curr if h == {} else h
-	for el in element_get(h) {
-		defer h = el.parent
-		s := element_state_safe(T, el, loc) or_continue
-		return s, true
-	}
-	return nil, false
-}
-element_lookup_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
-	s, ok := element_lookup_state_safe(T, h, loc)
-	assert(ok, "No element matching desired state type up the tree", loc)
-	return s
-}
-
-element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
-	return element_get_assert(element_get_or_curr(h, loc).parent, loc)
-}
 
 @private
 _element_push :: proc (type: typeid, type_size, type_align: int, user_id: u64, loc := #caller_location) -> (state: rawptr)
@@ -468,13 +369,6 @@ _element_destroy :: proc (el: ^Element) {
 
 	// Free self
 	hm.remove(&ctx.elements, el)
-}
-
-element_curr :: proc (loc := #caller_location) -> ^Element {
-	return element_get_assert(ctx.element_curr, loc)
-}
-element_root :: proc (loc := #caller_location) -> ^Element {
-	return element_get_assert(ctx.element_root, loc)
 }
 
 
@@ -690,7 +584,7 @@ _element_update_layout_axis :: proc (el: ^Element, axis: Axis) {
 			element_set_bounds(el, axis, size_to_pixel(v, parent_size))
 		case Content:
 			child_id: Element_Handle
-			for child in each_element_layout_children(el, &child_id) {
+			for child in each_element_layout_child(el, &child_id) {
 
 				#partial switch _ in child.size[axis] {
 				case Fill, f32: continue // skip cyclic deps
@@ -778,8 +672,122 @@ update_screen_rect_and_mouse :: proc () {
 	}
 }
 
+
+@(require_results)
+element_curr :: proc (loc := #caller_location) -> ^Element {
+	return element_get_assert(ctx.element_curr, loc)
+}
+@(require_results)
+element_root :: proc (loc := #caller_location) -> ^Element {
+	return element_get_assert(ctx.element_root, loc)
+}
+
+@(require_results)
+element_get :: #force_inline proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #optional_ok {
+	return hm.get(&ctx.elements, handle)
+}
+@(require_results)
+element_get_assert :: #force_inline proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
+	el, ok := hm.get(&ctx.elements, handle)
+	fmt.assertf(ok, "", handle, loc=loc)
+	return el
+}
+@(require_results)
+element_get_or_curr :: #force_inline proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
+	h := ctx.element_curr if h == {} else h
+	return element_get_assert(h, loc)
+}
+
+@(require_results)
+element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
+	type_id := transmute(u64)T
+	return hash_combine(type_id, user_id) if user_id > 0 else type_id
+}
+
+element_display_write  :: proc (buf: []byte, i: ^int, h: Element_Handle = {}, loc := #caller_location) -> bool {
+	el := element_get_or_curr(h, loc=loc)
+
+	_ = runtime.write_rune(i, buf, '<') or_return
+
+	runtime.write_typeid(i, buf, el.type) or_return
+
+	if el.id != 0 {
+		runtime.write_string(i, buf, " id=") or_return
+		runtime.write_u64(i, buf, el.id) or_return
+	}
+
+	if el.loc != {} {
+		runtime.write_string(i, buf, " loc=") or_return
+		runtime.write_caller_location(i, buf, el.loc) or_return
+	}
+
+	_ = runtime.write_rune(i, buf, '>') or_return
+
+	return true
+}
+element_display_writer  :: proc (w: io.Writer, h: Element_Handle = {}, n_written: ^int = nil, loc := #caller_location) -> (n: int, err: io.Error) {
+	buf: [1024]byte
+	i: int
+	element_display_write(buf[:], &i, h, loc=loc)
+	return io.write_full(w, buf[:i])
+}
+element_display_builder  :: proc (sb: ^strings.Builder, h: Element_Handle = {}, loc := #caller_location) -> int {
+	buf: [1024]byte
+	i: int
+	element_display_write(buf[:], &i, h, loc=loc)
+	return strings.write_bytes(sb, buf[:i], loc=loc)
+}
+@(require_results)
+element_display_string :: proc (h: Element_Handle = {}, allocator := context.allocator, loc := #caller_location) -> (string, bool) #optional_ok {
+	sb := strings.builder_make(allocator, loc=loc)
+	n := element_display_builder(&sb, h, loc=loc)
+	return strings.to_string(sb), n > 0
+}
+element_display :: proc {element_display_write, element_display_writer, element_display_builder, element_display_string}
+element_print :: proc (h: Element_Handle = {}, loc := #caller_location) {
+	w := io.to_writer(os.to_writer(os.stdout))
+	element_display_writer(w, h, loc=loc)
+}
+
+@(require_results)
+element_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
+	el := element_get_or_curr(h, loc)
+	if el.type == typeid_of(T) {
+		return (^T)(el.data_ptr), true
+	}
+	return nil, false
+}
+element_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	s, ok := element_state_safe(T, h, loc)
+	assert(ok, "Element doesn't match desired state type", loc)
+	return s
+}
+element_parent_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	el := element_get_or_curr(h, loc)
+	return element_state(T, element_parent(el, loc), loc)
+}
+element_lookup_state_safe :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (^T, bool) {
+	h := ctx.element_curr if h == {} else h
+	for el in element_get(h) {
+		defer h = el.parent
+		s := element_state_safe(T, el, loc) or_continue
+		return s, true
+	}
+	return nil, false
+}
+element_lookup_state :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> ^T {
+	s, ok := element_lookup_state_safe(T, h, loc)
+	assert(ok, "No element matching desired state type up the tree", loc)
+	return s
+}
+
+@(require_results)
+element_parent :: proc (h: Element_Handle = {}, loc := #caller_location) -> ^Element {
+	return element_get_assert(element_get_or_curr(h, loc).parent, loc)
+}
+
 @require_results
-each_element_layout_children :: proc (el: ^Element, prev: ^Element_Handle) -> (next: ^Element, ok: bool) {
+each_element_child :: proc (el: ^Element, prev: ^Element_Handle) -> (next: ^Element, ok: bool) {
 
 	if prev == nil do return
 
@@ -789,17 +797,57 @@ each_element_layout_children :: proc (el: ^Element, prev: ^Element_Handle) -> (n
 	}
 
 	prev^ = next_id
-	next, ok = element_get(next_id)
+	return element_get(next_id)
+}
+@require_results
+element_has_children :: proc (el: ^Element) -> bool {
+	_ = each_element_child(el, &({})) or_return
+	return true
+}
 
+@require_results
+each_element_layout_child :: proc (el: ^Element, prev: ^Element_Handle) -> (next: ^Element, ok: bool) {
+
+	next, ok = each_element_child(el, prev)
+
+	// Skip elements that shouldn't be touched by layout
 	if ok && .Position_Absolute in next.flags {
-		next, ok = each_element_layout_children(el, prev)
+		next, ok = each_element_layout_child(el, prev)
 	}
 
 	return
 }
+@require_results
 element_has_layout_children :: proc (el: ^Element) -> bool {
-	_ = each_element_layout_children(el, &({})) or_return
+	_ = each_element_layout_child(el, &({})) or_return
 	return true
+}
+
+@(require_results)
+_find_child_by_typeid :: proc (type: typeid, el: ^Element) -> (^Element, bool) {
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		defer child_id = child.next
+		if child.type == type do return child, true
+	}
+	return {}, false
+}
+@(require_results)
+element_find_child :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (child: ^Element, state: ^T, ok: bool) {
+	el := element_get_or_curr(h, loc)
+	child = _find_child_by_typeid(T, el) or_return
+	state = cast(^T)child.data_ptr
+	ok    = true
+	return
+}
+element_find_child_assert :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (child: ^Element, state: ^T) {
+	ok: bool
+	child, state, ok = element_find_child(T)
+	when !ODIN_DISABLE_ASSERT do if !ok {
+		fmt.panicf("%s requires a direct child of %w but not found",
+		           element_display(h, context.temp_allocator, loc), typeid_of(T), loc=loc)
+	}
+	return
 }
 
 
@@ -826,32 +874,39 @@ element_set_top :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 }
 
 element_pos :: proc {element_pos_vec, element_pos_axis}
+@(require_results)
 element_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	return {element_pos(h, Axis.X, loc), element_pos(h, Axis.Y, loc)}
 }
+@(require_results)
 element_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	el := element_get_or_curr(h, loc)
 	return el.pos_ref[axis] if el.pos_set[axis] else el.last_frame.pos_ref[axis]
 }
 
 element_screen_pos :: proc {element_screen_pos_vec, element_screen_pos_axis}
+@(require_results)
 element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	el := element_get_or_curr(h, loc)
 	return el.pos_screen.? or_else el.last_frame.pos_screen.?
 }
+@(require_results)
 element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	return element_screen_pos(h, loc)[axis]
 }
 
+@(require_results)
 element_screen_rect :: proc (h: Element_Handle = {}, loc := #caller_location) -> Rect {
 	return {element_screen_pos(h, loc), element_box_size(h, loc)}
 }
 
 // element_box_size returns the element's box size (excluding margin). This is what gets drawn.
 element_box_size :: proc {element_box_size_vec, element_box_size_axis}
+@(require_results)
 element_box_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	return {element_box_size(h, Axis.X, loc), element_box_size(h, Axis.Y, loc)}
 }
+@(require_results)
 element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
@@ -865,9 +920,11 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 // element_bounds returns the element's outer bounds (including margin). This is the space the
 // element occupies in its parent. Equivalent to element_size.
 element_bounds :: proc {element_bounds_vec, element_bounds_axis}
+@(require_results)
 element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	return {element_bounds(h, Axis.X, loc), element_bounds(h, Axis.Y, loc)}
 }
+@(require_results)
 element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
@@ -881,9 +938,11 @@ element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_
 // element_inner_bounds returns the size of the reference plane (inner area) available to children.
 // This is the outer bounds minus margin and padding.
 element_inner_bounds :: proc {element_inner_bounds_vec, element_inner_bounds_axis}
+@(require_results)
 element_inner_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> Vec2i {
 	return {element_inner_bounds(h, Axis.X, loc), element_inner_bounds(h, Axis.Y, loc)}
 }
+@(require_results)
 element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
@@ -962,45 +1021,58 @@ element_expand_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int,
 
 
 // Returns `true` on the same frame as the element was first created
+@(require_results)
 is_init :: proc (h: Element_Handle = {}, loc := #caller_location) -> bool {
 	el := element_get_or_curr(h, loc)
 	return el.last_frame._found == false
 }
 
+@(require_results)
 is_hovered :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_hover
 }
+@(require_results)
 is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).last_frame.mouse_in
 }
+@(require_results)
 is_clicked :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
 }
+@(require_results)
 is_pressed :: proc (h: Element_Handle = {}) -> bool {
 	return is_hovered(h) && ctx.mouse_pressed
 }
+@(require_results)
 is_click_in :: proc (h: Element_Handle = {}) -> bool {
 	return is_mouse_in(h) && ctx.mouse_pressed
 }
+@(require_results)
 is_press_in :: proc (h: Element_Handle = {}) -> bool {
 	return is_mouse_in(h) && ctx.mouse_pressed
 }
+@(require_results)
 is_released :: proc () -> bool {
 	return ctx.mouse_released
 }
+@(require_results)
 is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_wheel
 }
 
+@(require_results)
 wheel_delta :: proc (h: Element_Handle = {}) -> Vec2f {
 	return ctx.wheel_delta if is_wheel_in(h) else {}
 }
+@(require_results)
 wheel_delta_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
 	return wheel_delta(h)[axis]
 }
+@(require_results)
 wheel_delta_x :: proc (h: Element_Handle = {}) -> f32 {
 	return wheel_delta(h).x
 }
+@(require_results)
 wheel_delta_y :: proc (h: Element_Handle = {}) -> f32 {
 	return wheel_delta(h).y
 }
