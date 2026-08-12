@@ -31,12 +31,12 @@ SHAPES_TEXTURE_RECT :: Rect {67, 0, 10, 10}
 
 Texture_Name :: enum {
 	None,
-	Slider_Bar_Empty,
-	Slider_Thumb,
-	Slider_Bar_Fill,
-	Border_Rounded,
-	Border_Square,
 	Logo,
+	Border_Square,
+	Border_Rounded,
+	Slider_Bar_Fill,
+	Slider_Thumb,
+	Slider_Bar_Empty,
 }
 
 Atlas_Texture :: struct {
@@ -59,12 +59,12 @@ Atlas_Texture :: struct {
 
 atlas_textures: [Texture_Name]Atlas_Texture = {
 	.None = {},
-	.Slider_Bar_Empty = { rect = {83, 0, 17, 5}, offset_top = 0, offset_right = 583, offset_bottom = 375, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {1, 1, 14, 2} },
-	.Slider_Thumb = { rect = {78, 0, 4, 7}, offset_top = 0, offset_right = 596, offset_bottom = 373, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {0, 0, 4, 7} },
-	.Slider_Bar_Fill = { rect = {101, 0, 14, 5}, offset_top = 0, offset_right = 586, offset_bottom = 375, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {1, 1, 13, 2} },
-	.Border_Rounded = { rect = {0, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 14} },
-	.Border_Square = { rect = {19, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 13} },
 	.Logo = { rect = {38, 0, 28, 10}, offset_top = 0, offset_right = 572, offset_bottom = 370, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {0, 0, 28, 10} },
+	.Border_Square = { rect = {0, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 13} },
+	.Border_Rounded = { rect = {19, 0, 18, 18}, offset_top = 0, offset_right = 582, offset_bottom = 362, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {2, 2, 14, 14} },
+	.Slider_Bar_Fill = { rect = {106, 0, 19, 7}, offset_top = 0, offset_right = 581, offset_bottom = 373, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {1, 1, 18, 4} },
+	.Slider_Thumb = { rect = {78, 0, 5, 9}, offset_top = 0, offset_right = 595, offset_bottom = 371, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {0, 0, 5, 9} },
+	.Slider_Bar_Empty = { rect = {84, 0, 21, 7}, offset_top = 0, offset_right = 579, offset_bottom = 373, offset_left = 0, document_size = {600, 380}, duration = 0.100, nine_slice = {1, 1, 18, 4} },
 }
 
 Animation_Name :: enum {

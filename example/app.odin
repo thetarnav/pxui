@@ -191,7 +191,8 @@ slider :: proc (value: ^f32, min: f32 = 0, max: f32 = 1, #any_int id: u64 = 0, l
 
 	px.slider(value, min, max, .X, id, loc)
 	px.width_fill()
-	px.height(8)
+	px.height(px.atlas_textures[.Slider_Bar_Fill].src.size.y)
+	px.margin_v(1)
 
 	{// Left bar
 		px.slider_bar()
@@ -200,8 +201,7 @@ slider :: proc (value: ^f32, min: f32 = 0, max: f32 = 1, #any_int id: u64 = 0, l
 
 	{// Thumb
 		px.slider_thumb()
-		px.height(10)
-		px.width(6)
+		px.size_px(px.atlas_textures[.Slider_Thumb].src.size)
 		px.background_texture(&px.atlas_texture, px.atlas_textures[.Slider_Thumb].src)
 	}
 
