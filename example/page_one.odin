@@ -14,7 +14,7 @@ page_one :: proc (
 
 		{
 			px.panel()
-			px.nine_slice(&px.panel_atlas, px.nine_slice_rect, px.nine_slice_insets)
+			px.nine_slice(&px.atlas_texture, **px.atlas_textures[.Border_Rounded])
 
 			px.margin_right(4)
 
@@ -35,7 +35,7 @@ page_one :: proc (
 
 		{
 			px.panel()
-			px.nine_slice(&px.panel_atlas, px.nine_slice_rect, px.nine_slice_insets)
+			px.nine_slice(&px.atlas_texture, **px.atlas_textures[.Border_Rounded])
 
 			count := counter()
 			px.padding(6, 4)
