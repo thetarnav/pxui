@@ -91,7 +91,7 @@ nine_slice :: proc (
 	}
 
 	// Center
-	draw_tex({margin=insets, size=FILL}, {{s.pos + {l, t}, {sw - l - r, sh - t - b}}, tex, tint})
+	draw_tex({margin=insets, size=FILL}, {{s.pos + {l, t}, {sw-l-r, sh-t-b}}, tex, tint})
 }
 background_color :: proc (color: Color, h: Element_Handle = {}) {
 	draw_color({size=FILL}, color, h)
