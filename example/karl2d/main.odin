@@ -15,7 +15,7 @@ import app ".."
 _ :: mem
 
 UI_W, UI_H :: 320, 200
-PIXEL_SCALE :: 4
+PIXEL_SCALE :: 3
 
 MAX_FPS :: 60.0
 MIN_FPS :: 12.0

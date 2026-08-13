@@ -6,9 +6,6 @@ package example
 
 import px ".."
 
-UI_W, UI_H :: 320, 200
-PIXEL_SCALE :: 4
-
 Vec2  :: px.Vec2f
 Vec2i :: px.Vec2i
 Rect  :: px.Rectf
