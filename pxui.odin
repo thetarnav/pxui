@@ -38,6 +38,8 @@ Sizing_2D :: [2]Sizing
 
 Placement :: struct {
 	pos, size, min, max, origin: Sizing_2D,
+	margin, padding:             Insets,
+	aspect_ratio:                f32, // TODO: x/y
 }
 
 Axis :: enum {H=0, V=1,
@@ -91,8 +93,6 @@ Element_Frame_Input :: struct {
 
 	flags:        Element_Flags,
 
-	margin:       Insets,
-	padding:      Insets,
 	using place:  Placement,
 
 	// 0 = fully opaque (default)
