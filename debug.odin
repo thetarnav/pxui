@@ -104,6 +104,7 @@ debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display
 // TODO: all strings should allocate or none—otherwise you cannot free
 sizing_to_string :: proc (s: Sizing, allocator := context.allocator) -> string {
 	switch v in s {
+	case nil:     return "nil"
 	case Content: return "Content"
 	case Fill:    return "Fill"
 	case int:     return fmt.aprintf("%d", v, allocator=allocator)

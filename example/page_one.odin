@@ -79,6 +79,7 @@ page_one :: proc (
 	{
 		px.flex_h(gap={2, 4})
 		px.width_fill()
+		px.max_width(400)
 		px.background_color(COLOR_DARK_GRAY)
 		px.padding(4)
 		px.margin(4)

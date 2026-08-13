@@ -20,6 +20,7 @@ rb :: #force_inline proc "contextless" (i: Insets) -> Vec2i {return {i.r, i.b}}
 // `ref` is the reference size in pixels (parent's content area along that axis).
 size_to_pixel :: proc (s: Sizing, ref: int) -> int {
 	switch v in s {
+	case nil:     return 0
 	case Content: return 0
 	case Fill:    return ref
 	case int:     return v

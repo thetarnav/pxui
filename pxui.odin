@@ -24,7 +24,8 @@ WHITE :: Color{255, 255, 255, 255}
 
 Content :: struct {}
 Fill    :: struct {}
-Sizing :: union #no_nil {
+Sizing :: union {
+	// nil — not set; for size it defaults to Content, for other props it's zero or unused
 	Content, // derive from content - default
 	Fill,    // fill available space
 	int,     // absolute - pixels
@@ -505,7 +506,7 @@ frame_end :: proc () {
 	}
 }
 
-_solve_layout :: proc () {
+_solve_layout :: proc () #no_bounds_check {
 
 	trace("Solve Layout")
 
@@ -532,80 +533,106 @@ _solve_layout :: proc () {
 		if ({el, axis}) in added do return
 		added[{el, axis}] = {}
 
-		#partial switch s in el.size[axis] {
-		case Fill, f32:
+		is_top_down  := _element_size_is_top_down(el, axis)
+		is_bottom_up := _element_size_is_bottom_up(el, axis)
+
+		// Visit parent dep
+		if is_top_down {
 			visit(element_parent(el), axis, added)
-		case Content:
-			child_id := el.child_first
-			for child in element_get(child_id) {
-				defer child_id = child.next
-
-				#partial switch _ in child.size[axis] {
-				case Fill, f32: continue // skip cyclic deps
-				}
-
-				visit(child, axis, added)
-			}
 		}
 
-		// Custom layouts can depend on other axis
-		if el.layout[axis].cb != nil {
-			if perp(axis) in el.layout[axis].deps {
-				visit(el, perp(axis), added)
-			}
-			if axis in el.layout[axis].deps && el.size[axis] != CONTENT {
-				child_id := el.child_first
-				for child in element_get(child_id) {
-					defer child_id = child.next
-
-					#partial switch _ in child.size[axis] {
-					case Fill, f32: continue // skip cyclic deps
-					}
-
+		// Visit children deps
+		if is_bottom_up {
+			child_id: Element_Handle
+			for child in each_element_layout_child(el, &child_id) {
+				if !_element_size_is_top_down(child, axis) {
 					visit(child, axis, added)
 				}
 			}
 		}
 
-		_element_update_layout_axis(el, axis)
+		// Visit self—other axis
+		if el.layout[axis].cb != nil && perp(axis) in el.layout[axis].deps {
+			visit(el, perp(axis), added)
+		}
+
+		if !el.size_set[axis] {
+			el.size_set[axis] = true
+			el.size_ref[axis] = (el.size[axis].(int) or_else 0) +
+			                    lt(el.margin)[axis] +
+			                    rb(el.margin)[axis]
+
+			if is_top_down {
+				parent := element_parent(el)
+				assert(parent.size_set[axis])
+				parent_size := .Position_Absolute in el.flags \
+				               	? element_box_size(parent, axis) \
+				               	: element_inner_bounds(parent, axis)
+				_element_set_ref_size(el, axis, parent_size)
+			}
+			else if is_bottom_up {
+				child_id: Element_Handle
+				for child in each_element_layout_child(el, &child_id) {
+					if _element_size_is_top_down(child, axis) do continue
+
+					assert(child.size_set[axis])
+					element_expand_inner_bounds(el, axis, element_bounds(child, axis))
+				}
+			}
+		}
+
+		if is_bottom_up {
+			_call_element_callback(el, el.layout[axis].cb)
+			_animate_size(el, axis)
+		} else {
+			_animate_size(el, axis)
+			_call_element_callback(el, el.layout[axis].cb)
+		}
 	}
 }
 
-_element_update_layout_axis :: proc (el: ^Element, axis: Axis) {
+_element_size_is_top_down :: proc (el: ^Element, axis: Axis) -> bool #no_bounds_check {
+	#partial switch _ in el.size[axis] {case Fill, f32: return true}
+	#partial switch _ in el.min[axis]  {case Fill, f32: return true}
+	#partial switch _ in el.max[axis]  {case Fill, f32: return true}
+	return false
+}
+_element_size_is_bottom_up :: proc (el: ^Element, axis: Axis) -> bool #no_bounds_check {
+	#partial switch _ in el.size[axis] {case nil, Content: return true} // el.size nil defaults to Content behavior
+	#partial switch _ in el.min[axis]  {case Content: return true}
+	#partial switch _ in el.max[axis]  {case Content: return true}
+	return el.layout[axis].cb != nil && axis in el.layout[axis].deps // layout callback should know the size of it's children
+}
 
-	if !el.size_set[axis] {
-		switch v in el.size[axis] {
-		case Fill, f32:
-			parent := element_parent(el)
-			assert(parent.size_set[axis])
-			parent_size := .Position_Absolute in el.flags \
-			               	? element_box_size(parent, axis) \
-			               	: element_inner_bounds(parent, axis)
-			element_set_bounds(el, axis, size_to_pixel(v, parent_size))
-		case Content:
-			child_id: Element_Handle
-			for child in each_element_layout_child(el, &child_id) {
+_element_set_ref_size :: proc (el: ^Element, axis: Axis, ref: int) #no_bounds_check {
 
-				#partial switch _ in child.size[axis] {
-				case Fill, f32: continue // skip cyclic deps
-				}
+	size, minimum, maximum: int
 
-				assert(child.size_set[axis])
-				element_expand_inner_bounds(el, axis, element_bounds(child, axis))
-			}
-		case int:
-			element_set_bounds(el, axis, v + lt(el.margin)[axis] + rb(el.margin)[axis])
-		}
+	switch v in el.size[axis] {
+	case f32:     size = int(f32(ref) * v)
+	case int:     size = v
+	case nil:     size = ref
+	case Content: size = ref
+	case Fill:    size = ref
 	}
 
-	if el.size[axis] == CONTENT {
-		_call_element_callback(el, el.layout[axis].cb)
-		_animate_size(el, axis)
-	} else {
-		_animate_size(el, axis)
-		_call_element_callback(el, el.layout[axis].cb)
+	switch v in el.min[axis] {
+	case f32:     minimum = int(f32(ref) * v)
+	case int:     minimum = v
+	case nil:     minimum = size
+	case Content: minimum = ref
+	case Fill:    minimum = ref
 	}
 
+	switch v in el.max[axis] {
+	case f32:     maximum = int(f32(ref) * v)
+	case int:     maximum = v
+	case nil:     maximum = size
+	case Content: maximum = ref
+	case Fill:    maximum = ref
+	}
+
+	el.size_ref[axis] = clamp(size, minimum, maximum)
 	el.size_set[axis] = true
 }
 
@@ -651,7 +678,6 @@ update_screen_rect_and_mouse :: proc () {
 		}
 
 		el.pos_screen = pos_screen
-
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
 		              rect_contains(element_screen_rect(el), ctx.mouse)
@@ -891,7 +917,7 @@ element_screen_pos_vec :: proc (h: Element_Handle = {}, loc := #caller_location)
 	return el.pos_screen.? or_else el.last_frame.pos_screen.?
 }
 @(require_results)
-element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+element_screen_pos_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	return element_screen_pos(h, loc)[axis]
 }
 
@@ -910,7 +936,7 @@ element_box_size_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -
 element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
-	if el.size_set[axis] { // TODO: margins shouldn't be a part of ref_size
+	if el.size_set[axis] {
 		return el.size_ref[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
 	} else {
 		return el.last_frame.size_ref[axis] - lt(el.last_frame.margin)[axis] - rb(el.last_frame.margin)[axis]
@@ -925,7 +951,7 @@ element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> 
 	return {element_bounds(h, Axis.X, loc), element_bounds(h, Axis.Y, loc)}
 }
 @(require_results)
-element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int {
+element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
 	if el.size_set[axis] {
@@ -964,23 +990,21 @@ element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #c
 element_set_bounds :: proc {element_set_bounds_vec, element_set_bounds_axis}
 element_set_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.size_ref = v
-	el.size_set = true
+	_element_set_ref_size(el, .X, v.x)
+	_element_set_ref_size(el, .Y, v.y)
 }
 element_set_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	axis_bounds_check(axis, loc)
 	el := element_get_assert(h, loc)
-	el.size_ref[axis] = v
-	el.size_set[axis] = true
+	_element_set_ref_size(el, axis, v)
 }
 element_set_width :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.size_ref.x = v
-	el.size_set.x = true
+	_element_set_ref_size(el, .X, v)
 }
 element_set_height :: proc (h: Element_Handle, v: int, loc := #caller_location) {
 	el := element_get_assert(h, loc)
-	el.size_ref.y = v
-	el.size_set.y = true
+	_element_set_ref_size(el, .Y, v)
 }
 
 // element_set_inner_bounds sets the element's inner bounds (area for children). The outer bounds
@@ -990,15 +1014,14 @@ element_set_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #calle
 	element_set_inner_bounds_axis(h, .X, v.x, loc)
 	element_set_inner_bounds_axis(h, .Y, v.y, loc)
 }
-element_set_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+element_set_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) #no_bounds_check {
+	axis_bounds_check(axis, loc)
 	el := element_get_assert(h, loc)
-	// TODO: handle prev frame data
-	el.size_ref[axis] = v +
-	                    lt(el.margin)[axis] +
-	                    rb(el.margin)[axis] +
-	                    lt(el.padding)[axis] +
-	                    rb(el.padding)[axis]
-	el.size_set[axis] = true
+	_element_set_ref_size(el, axis, v +
+	                                lt(el.margin)[axis] +
+	                                rb(el.margin)[axis] +
+	                                lt(el.padding)[axis] +
+	                                rb(el.padding)[axis])
 }
 
 // element_expand_inner_bounds expands the element's inner bounds to at least the given value.
@@ -1008,15 +1031,13 @@ element_expand_inner_bounds_vec :: proc (h: Element_Handle, v: Vec2i, loc := #ca
 	element_expand_inner_bounds_axis(h, .Y, v.y, loc)
 }
 element_expand_inner_bounds_axis :: proc (h: Element_Handle, axis: Axis, v: int, loc := #caller_location) {
+	axis_bounds_check(axis, loc)
 	el := element_get_assert(h, loc)
-	// TODO: handle prev frame data
-	el.size_ref[axis] = max(el.size_ref[axis],
-	                        v +
-	                        lt(el.margin)[axis] +
-	                        rb(el.margin)[axis] +
-	                        lt(el.padding)[axis] +
-	                        rb(el.padding)[axis])
-	el.size_set[axis] = true
+	_element_set_ref_size(el, axis, max(el.size_ref[axis], v +
+	                                    lt(el.margin)[axis] +
+	                                    rb(el.margin)[axis] +
+	                                    lt(el.padding)[axis] +
+	                                    rb(el.padding)[axis]))
 }
 
 
