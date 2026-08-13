@@ -23,7 +23,7 @@ _assets_nine_slice_to_insets :: #force_inline proc "contextless" (rect, nine_sli
 		l = nine_slice.x,
 		t = nine_slice.y,
 		r = rect.w - nine_slice.x - nine_slice.w,
-		b = rect.h - nine_slice.y - nine_slice.y,
+		b = rect.h - nine_slice.y - nine_slice.h,
 	}
 }
 
@@ -68,48 +68,30 @@ nine_slice :: proc (
 	#any_int id: u64 = 0,
 	loc := #caller_location,
 ) {
+	if tex == nil do return
 
-	Nine_Slice :: struct {
-		tex:    ^Texture,
-		src:    Rect,
-		insets: Insets,
-		tint:   Color,
-	}
-	s := element_push(Nine_Slice, id, loc)
-	s^ = {tex, {}, insets, tint}
-	s.src = src.? or_else {0, tex.size if tex != nil else {}}
-	defer element_pop()
+	l, t, r, b := **insets
+	s          := src.? or_else {0, tex.size}
+	sw, sh     := **s.size
 
-	size_fill()
-	position_absolute()
+	if sh == 0 || sh == 0 do return
 
-	effect(proc () {
-		using s := element_state(Nine_Slice)
-
-		box        := element_box_size()
-		l, t, r, b := **insets
-		sw, sh     := **src.size
-
-		if box.x <= 0 || box.y <= 0 || sw == 0 || sh == 0 || tex == nil do return
-
-		draw_slice :: proc (dst, src: Rect) {
-			s := element_state(Nine_Slice)
-			draw_tex(to_placement(dst), {{s.src.pos + src.pos, src.size}, s.tex, s.tint})
-		}
-
+	if insets != {} {
 		// Corners
-		draw_slice({{0, 0},                 {l, t}},         {{0, 0},                  {l, t}})
-		draw_slice({{box.x - r, 0},         {r, t}},         {{sw - r, 0},             {r, t}})
-		draw_slice({{0, box.y - b},         {l, b}},         {{0, sh - b},             {l, b}})
-		draw_slice({{box.x - r, box.y - b}, {r, b}},         {{sw - r, sh - b},        {r, b}})
+		draw_tex({size={l, t}, pos={  0,   0}, origin={  0,   0}}, {{s.pos + {   0,    0}, {l, t}}, tex, tint})
+		draw_tex({size={r, t}, pos={1.0,   0}, origin={1.0,   0}}, {{s.pos + {sw-r,    0}, {r, t}}, tex, tint})
+		draw_tex({size={l, b}, pos={  0, 1.0}, origin={  0, 1.0}}, {{s.pos + {   0, sh-b}, {l, b}}, tex, tint})
+		draw_tex({size={r, b}, pos={1.0, 1.0}, origin={1.0, 1.0}}, {{s.pos + {sw-r, sh-b}, {r, b}}, tex, tint})
+
 		// Edges
-		draw_slice({{l, 0},         {box.x - l - r, t}},     {{l, 0},         {sw - l - r, t}})
-		draw_slice({{l, box.y - b}, {box.x - l - r, b}},     {{l, sh - b},    {sw - l - r, b}})
-		draw_slice({{0, t},         {l, box.y - t - b}},     {{0, t},         {l, sh - t - b}})
-		draw_slice({{box.x - r, t}, {r, box.y - t - b}},     {{sw - r, t},    {r, sh - t - b}})
-		// Center
-		draw_slice({{l, t}, {box.x - l - r, box.y - t - b}}, {{l, t}, {sw - l - r, sh - t - b}})
-	})
+		draw_tex({margin={l,0,r,0}, size={1.0, t}, pos={0,   0}, origin={0,   0}}, {{s.pos + {l,    0}, {sw-l-r, t}}, tex, tint})
+		draw_tex({margin={l,0,r,0}, size={1.0, b}, pos={0, 1.0}, origin={0, 1.0}}, {{s.pos + {l, sh-b}, {sw-l-r, b}}, tex, tint})
+		draw_tex({margin={0,t,0,b}, size={l, 1.0}, pos={0,   0}, origin={0,   0}}, {{s.pos + {0,    t}, {l, sh-t-b}}, tex, tint})
+		draw_tex({margin={0,t,0,b}, size={r, 1.0}, pos={1.0, 0}, origin={1.0, 0}}, {{s.pos + {sw-r, t}, {r, sh-t-b}}, tex, tint})
+	}
+
+	// Center
+	draw_tex({margin=insets, size=FILL}, {{s.pos + {l, t}, {sw - l - r, sh - t - b}}, tex, tint})
 }
 background_color :: proc (color: Color, h: Element_Handle = {}) {
 	draw_color({size=FILL}, color, h)
