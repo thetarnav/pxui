@@ -65,8 +65,7 @@ nine_slice :: proc (
 	src:    Maybe(Rect) = nil,
 	insets: Insets,
 	tint:   Color = WHITE,
-	#any_int id: u64 = 0,
-	loc := #caller_location,
+	h:      Element_Handle = {}
 ) {
 	if tex == nil do return
 
@@ -78,20 +77,20 @@ nine_slice :: proc (
 
 	if insets != {} {
 		// Corners
-		draw_tex({size={l, t}, pos={  0,   0}, origin={  0,   0}}, {{s.pos + {   0,    0}, {l, t}}, tex, tint})
-		draw_tex({size={r, t}, pos={1.0,   0}, origin={1.0,   0}}, {{s.pos + {sw-r,    0}, {r, t}}, tex, tint})
-		draw_tex({size={l, b}, pos={  0, 1.0}, origin={  0, 1.0}}, {{s.pos + {   0, sh-b}, {l, b}}, tex, tint})
-		draw_tex({size={r, b}, pos={1.0, 1.0}, origin={1.0, 1.0}}, {{s.pos + {sw-r, sh-b}, {r, b}}, tex, tint})
+		draw_tex({size={l, t}, pos={  0,   0}, origin={  0,   0}}, {{s.pos + {   0,    0}, {l, t}}, tex, tint}, h)
+		draw_tex({size={r, t}, pos={1.0,   0}, origin={1.0,   0}}, {{s.pos + {sw-r,    0}, {r, t}}, tex, tint}, h)
+		draw_tex({size={l, b}, pos={  0, 1.0}, origin={  0, 1.0}}, {{s.pos + {   0, sh-b}, {l, b}}, tex, tint}, h)
+		draw_tex({size={r, b}, pos={1.0, 1.0}, origin={1.0, 1.0}}, {{s.pos + {sw-r, sh-b}, {r, b}}, tex, tint}, h)
 
 		// Edges
-		draw_tex({margin={l,0,r,0}, size={1.0, t}, pos={0,   0}, origin={0,   0}}, {{s.pos + {l,    0}, {sw-l-r, t}}, tex, tint})
-		draw_tex({margin={l,0,r,0}, size={1.0, b}, pos={0, 1.0}, origin={0, 1.0}}, {{s.pos + {l, sh-b}, {sw-l-r, b}}, tex, tint})
-		draw_tex({margin={0,t,0,b}, size={l, 1.0}, pos={0,   0}, origin={0,   0}}, {{s.pos + {0,    t}, {l, sh-t-b}}, tex, tint})
-		draw_tex({margin={0,t,0,b}, size={r, 1.0}, pos={1.0, 0}, origin={1.0, 0}}, {{s.pos + {sw-r, t}, {r, sh-t-b}}, tex, tint})
+		draw_tex({margin={l,0,r,0}, size={1.0, t}, pos={0,   0}, origin={0,   0}}, {{s.pos + {l,    0}, {sw-l-r, t}}, tex, tint}, h)
+		draw_tex({margin={l,0,r,0}, size={1.0, b}, pos={0, 1.0}, origin={0, 1.0}}, {{s.pos + {l, sh-b}, {sw-l-r, b}}, tex, tint}, h)
+		draw_tex({margin={0,t,0,b}, size={l, 1.0}, pos={0,   0}, origin={0,   0}}, {{s.pos + {0,    t}, {l, sh-t-b}}, tex, tint}, h)
+		draw_tex({margin={0,t,0,b}, size={r, 1.0}, pos={1.0, 0}, origin={1.0, 0}}, {{s.pos + {sw-r, t}, {r, sh-t-b}}, tex, tint}, h)
 	}
 
 	// Center
-	draw_tex({margin=insets, size=FILL}, {{s.pos + {l, t}, {sw-l-r, sh-t-b}}, tex, tint})
+	draw_tex({margin=insets, size=FILL}, {{s.pos + {l, t}, {sw-l-r, sh-t-b}}, tex, tint}, h)
 }
 background_color :: proc (color: Color, h: Element_Handle = {}) {
 	draw_color({size=FILL}, color, h)
