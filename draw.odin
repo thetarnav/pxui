@@ -119,11 +119,12 @@ get_draw_commands :: proc (allocator := context.allocator) -> []Draw_Command {
 		for req in draw_get(req_id) {
 			defer req_id = req.next
 
+			src := (req.var.(Draw_Texture) or_else {}).src
+
 			dst: Rect
-			dst.size = size_vec_to_pixel(req.size, box_size)
+			dst.size = _placement_ref_to_box_size(req, _placement_calc_ref_size(req, box_size, src.size))
 			dst.pos  = el.pos_screen.? +
-			           -size_vec_to_pixel(req.origin, dst.size) +
-			           size_vec_to_pixel(req.pos, box_size)
+			           _placement_calc_rel_pos(req, box_size, dst.size)
 
 			switch v in req.var {
 			case Draw_Texture:

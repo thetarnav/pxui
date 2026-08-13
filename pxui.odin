@@ -605,34 +605,7 @@ _element_size_is_bottom_up :: proc (el: ^Element, axis: Axis) -> bool #no_bounds
 }
 
 _element_set_ref_size :: proc (el: ^Element, axis: Axis, ref: int) #no_bounds_check {
-
-	size, minimum, maximum: int
-
-	switch v in el.size[axis] {
-	case f32:     size = int(f32(ref) * v)
-	case int:     size = v
-	case nil:     size = ref
-	case Content: size = ref
-	case Fill:    size = ref
-	}
-
-	switch v in el.min[axis] {
-	case f32:     minimum = int(f32(ref) * v)
-	case int:     minimum = v
-	case nil:     minimum = size
-	case Content: minimum = ref
-	case Fill:    minimum = ref
-	}
-
-	switch v in el.max[axis] {
-	case f32:     maximum = int(f32(ref) * v)
-	case int:     maximum = v
-	case nil:     maximum = size
-	case Content: maximum = ref
-	case Fill:    maximum = ref
-	}
-
-	el.size_ref[axis] = clamp(size, minimum, maximum)
+	el.size_ref[axis] = _placement_calc_ref_size(el, axis, ref, ref)
 	el.size_set[axis] = true
 }
 
@@ -664,8 +637,8 @@ update_screen_rect_and_mouse :: proc () {
 		               	: element_inner_bounds(parent)
 
 		el.pos_rel = el.pos_ref +
-		             -size_vec_to_pixel(el.origin, element_box_size(el)) +
-		             size_vec_to_pixel(el.pos, parent_size)
+		             _placement_calc_rel_pos(el, parent_size, element_box_size(el)) +
+		             -lt(el.margin) // ignore margin for now as we are animating pos_rel
 
 		_animate_pos(el)
 
@@ -877,6 +850,57 @@ element_find_child_assert :: proc ($T: typeid, h: Element_Handle = {}, loc := #c
 }
 
 
+_placement_calc_ref_size :: proc {_placement_calc_ref_size_axis, _placement_calc_ref_size_vec}
+_placement_calc_ref_size_vec :: proc (place: Placement, parent, content: Vec2i) -> Vec2i #no_bounds_check {
+	return {_placement_calc_ref_size_axis(place, .X, parent.x, content.x),
+	        _placement_calc_ref_size_axis(place, .Y, parent.y, content.y)}
+}
+_placement_calc_ref_size_axis :: proc (place: Placement, axis: Axis, parent, content: int) -> int #no_bounds_check {
+
+	size, minimum, maximum: int
+
+	switch v in place.size[axis] {
+	case f32:     size = int(f32(parent) * v)
+	case int:     size = v
+	case nil:     size = content
+	case Content: size = content
+	case Fill:    size = parent
+	}
+
+	switch v in place.min[axis] {
+	case f32:     minimum = int(f32(parent) * v)
+	case int:     minimum = v
+	case nil:     minimum = size
+	case Content: minimum = content
+	case Fill:    minimum = parent
+	}
+
+	switch v in place.max[axis] {
+	case f32:     maximum = int(f32(parent) * v)
+	case int:     maximum = v
+	case nil:     maximum = size
+	case Content: maximum = content
+	case Fill:    maximum = parent
+	}
+
+	return clamp(size, minimum, maximum)
+}
+
+_placement_ref_to_box_size :: proc {_placement_ref_to_box_size_axis, _placement_ref_to_box_size_vec}
+_placement_ref_to_box_size_vec :: proc (place: Placement, size: Vec2i) -> Vec2i #no_bounds_check {
+	return {_placement_ref_to_box_size_axis(place, .X, size.x),
+	        _placement_ref_to_box_size_axis(place, .Y, size.y)}
+}
+_placement_ref_to_box_size_axis :: proc (place: Placement, axis: Axis, size: int) -> int #no_bounds_check {
+	return size - lt(place.margin)[axis] - rb(place.margin)[axis]
+}
+
+_placement_calc_rel_pos :: proc (place: Placement, parent, size: Vec2i) -> Vec2i #no_bounds_check {
+	return -size_vec_to_pixel(place.origin, size) +
+	       size_vec_to_pixel(place.pos, parent) +
+	       lt(place.margin)
+}
+
 element_set_pos :: proc {element_set_pos_vec, element_set_pos_axis}
 element_set_pos_vec :: proc (h: Element_Handle, v: Vec2i, loc := #caller_location) {
 	el := element_get_assert(h, loc)
@@ -937,9 +961,9 @@ element_box_size_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #calle
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
 	if el.size_set[axis] {
-		return el.size_ref[axis] - lt(el.margin)[axis] - rb(el.margin)[axis]
+		return _placement_ref_to_box_size(el, axis, el.size_ref[axis])
 	} else {
-		return el.last_frame.size_ref[axis] - lt(el.last_frame.margin)[axis] - rb(el.last_frame.margin)[axis]
+		return _placement_ref_to_box_size(el.last_frame, axis, el.last_frame.size_ref[axis])
 	}
 }
 
@@ -954,11 +978,7 @@ element_bounds_vec :: proc (h: Element_Handle = {}, loc := #caller_location) -> 
 element_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #caller_location) -> int #no_bounds_check {
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
-	if el.size_set[axis] {
-		return el.size_ref[axis]
-	} else {
-		return el.last_frame.size_ref[axis]
-	}
+	return el.size_ref[axis] if el.size_set[axis] else el.last_frame.size_ref[axis]
 }
 
 // element_inner_bounds returns the size of the reference plane (inner area) available to children.
@@ -973,15 +993,11 @@ element_inner_bounds_axis :: proc (h: Element_Handle = {}, axis: Axis, loc := #c
 	axis_bounds_check(axis, loc)
 	el := element_get_or_curr(h, loc)
 	if el.size_set[axis] {
-		return el.size_ref[axis] -
-		       lt(el.margin)[axis] -
-		       rb(el.margin)[axis] -
+		return _placement_ref_to_box_size(el, axis, el.size_ref[axis]) -
 		       lt(el.padding)[axis] -
 		       rb(el.padding)[axis]
 	} else {
-		return el.last_frame.size_ref[axis] -
-		       lt(el.last_frame.margin)[axis] -
-		       rb(el.last_frame.margin)[axis] -
+		return _placement_ref_to_box_size(el.last_frame, axis, el.last_frame.size_ref[axis]) -
 		       lt(el.last_frame.padding)[axis] -
 		       rb(el.last_frame.padding)[axis]
 	}
