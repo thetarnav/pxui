@@ -36,7 +36,7 @@ Sizing_2D :: [2]Sizing
 @rodata CONTENT := Content{}
 
 Placement :: struct {
-	pos, size, origin: Sizing_2D,
+	pos, size, min, max, origin: Sizing_2D,
 }
 
 Axis :: enum {H=0, V=1,
@@ -1128,6 +1128,57 @@ width_percent,  height_percent  :: size_w_percent, size_h_percent
 width_fill,     height_fill     :: size_w_fill,    size_h_fill
 w,              h               :: size_w,         size_h
 w_fill,         h_fill          :: size_w_fill,    size_h_fill
+
+min_size_set          :: proc (v: Sizing_2D,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min = v}
+min_size_px           :: proc (v: Vec2i,              h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min = {v.x, v.y}}
+min_size_percent      :: proc (v: Vec2f,              h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min = {v.x, v.y}}
+min_size_hv           :: proc (x, y: Sizing,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min = {x, y}}
+min_size_w            :: proc (x: Sizing,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.x = x}
+min_size_w_px         :: proc (x: int,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.x = x}
+min_size_w_percent    :: proc (x: f32,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.x = x}
+min_size_h            :: proc (y: Sizing,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.y = y}
+min_size_h_px         :: proc (y: int,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.y = y}
+min_size_h_percent    :: proc (y: f32,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min.y = y}
+min_size_axis         :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min[axis] = v}
+min_size_axis_px      :: proc (axis: Axis, v: int,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min[axis] = v}
+min_size_axis_percent :: proc (axis: Axis, v: f32,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).min[axis] = v}
+min_size              :: proc {min_size_set, min_size_hv}
+min_size_x,         min_size_y          :: min_size_w,         min_size_h
+min_size_x_px,      min_size_y_px       :: min_size_w_px,      min_size_h_px
+min_size_x_percent, min_size_y_percent  :: min_size_w_percent, min_size_h_percent
+min_width,          min_height          :: min_size_w,         min_size_h
+min_width_px,       min_height_px       :: min_size_w_px,      min_size_h_px
+min_width_percent,  min_height_percent  :: min_size_w_percent, min_size_h_percent
+min_w,              min_h               :: min_size_w,         min_size_h
+
+max_size_set          :: proc (v: Sizing_2D,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max = v}
+max_size_px           :: proc (v: Vec2i,              h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max = {v.x, v.y}}
+max_size_percent      :: proc (v: Vec2f,              h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max = {v.x, v.y}}
+max_size_fill         :: proc (                       h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max = FILL}
+max_size_hv           :: proc (x, y: Sizing,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max = {x, y}}
+max_size_w            :: proc (x: Sizing,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.x = x}
+max_size_w_px         :: proc (x: int,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.x = x}
+max_size_w_percent    :: proc (x: f32,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.x = x}
+max_size_w_fill       :: proc (                       h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.x = FILL}
+max_size_h            :: proc (y: Sizing,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.y = y}
+max_size_h_px         :: proc (y: int,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.y = y}
+max_size_h_percent    :: proc (y: f32,                h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.y = y}
+max_size_h_fill       :: proc (                       h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max.y = FILL}
+max_size_axis         :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max[axis] = v}
+max_size_axis_px      :: proc (axis: Axis, v: int,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max[axis] = v}
+max_size_axis_percent :: proc (axis: Axis, v: f32,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max[axis] = v}
+max_size_axis_fill    :: proc (axis: Axis,            h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).max[axis] = FILL}
+max_size              :: proc {max_size_set, max_size_hv}
+max_size_x,         max_size_y          :: max_size_w,         max_size_h
+max_size_x_px,      max_size_y_px       :: max_size_w_px,      max_size_h_px
+max_size_x_percent, max_size_y_percent  :: max_size_w_percent, max_size_h_percent
+max_size_x_fill,    max_size_y_fill     :: max_size_w_fill,    max_size_h_fill
+max_width,          max_height          :: max_size_w,         max_size_h
+max_width_px,       max_height_px       :: max_size_w_px,      max_size_h_px
+max_width_percent,  max_height_percent  :: max_size_w_percent, max_size_h_percent
+max_width_fill,     max_height_fill     :: max_size_w_fill,    max_size_h_fill
+max_w,              max_h               :: max_size_w,         max_size_h
+max_w_fill,         max_h_fill          :: max_size_w_fill,    max_size_h_fill
 
 origin_set  :: proc (v: Sizing_2D,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).origin = v}
 origin_axis :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).origin[axis] = v}
