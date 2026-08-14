@@ -83,58 +83,71 @@ _paragraph_layout :: proc () {
 	if mw <= 0 do return
 
 	lh := line_height()
+	sw := space_width()
 
-	cursor:     int
+	offset_top: int
 	line_start: int
-	word_end:   int
+	line_width: int
 	word_start: int
+	word_end:   int
 	state: enum {Word, Space, Newline}
 
 	for ch, i in str {
 		switch ch {
 		case ' ', '\n':
 			if state == .Word {
-				if measure_text(default_font, str[line_start:i]).x > mw {
-					draw_text(str[line_start:word_end], color, origin={0, cursor})
-					cursor += lh
+
+				word_width := measure_text(default_font, str[word_start:i]).x
+				line_width += word_width
+				if line_width > mw {
+					draw_text(str[line_start:word_end], color, origin={0, offset_top})
+					offset_top += lh
 					line_start = word_start
+					line_width = word_width
 				}
 
 				word_end = i
 				state = .Space
 			}
 
-			if ch == '\n' {
+			switch ch {
+			case '\n':
 				if state < .Newline {
 					state = .Newline
-					draw_text(str[line_start:word_end], color, origin={0, cursor})
+					draw_text(str[line_start:word_end], color, origin={0, offset_top})
 				}
-				cursor += lh
+				offset_top += lh
+			case ' ':
+				line_width += sw
 			}
 		case:
-			if state == .Newline {
-				state = .Space
+			#partial switch state {
+			case .Newline:
 				line_start = i
-			}
-			if state >= .Space {
-				state = .Word
+				word_start = i
+				line_width = 0
+			case .Space:
 				word_start = i
 			}
+			state = .Word
 		}
 	}
 
-	rest := word_end if state >= .Space else len(str)
-	if measure_text(default_font, str[line_start:rest]).x > mw {
-		draw_text(str[line_start:word_end], color, origin={0, cursor})
-		cursor += lh
-		line_start = word_start
+	if state == .Word {
+		line_width += measure_text(default_font, str[word_start:len(str)]).x
+		if line_width > mw {
+			draw_text(str[line_start:word_end], color, origin={0, offset_top})
+			offset_top += lh
+			line_start = word_start
+		}
+		word_end = len(str)
 	}
-	if line_start < rest {
-		draw_text(str[line_start:rest], color, origin={0, cursor} )
-		cursor += lh
+	if line_start < word_end {
+		draw_text(str[line_start:word_end], color, origin={0, offset_top} )
+		offset_top += lh
 	}
 
-	element_set_height(el, cursor)
+	element_set_height(el, offset_top)
 }
 
 draw_text :: proc (str: string, color: Color, origin: Vec2i = {0, 0}, cursor: ^Vec2i = nil) -> Vec2i {
