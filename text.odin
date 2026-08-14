@@ -88,13 +88,12 @@ _paragraph_layout :: proc () {
 	line_start: int
 	word_end:   int
 	word_start: int
-	in_space:   bool = true
-	in_newline: bool = true
+	state: enum {Word, Space, Newline}
 
 	for ch, i in str {
 		switch ch {
 		case ' ', '\n':
-			if !in_space {
+			if state == .Word {
 				if measure_text(default_font, str[line_start:i]).x > mw {
 					draw_text(str[line_start:word_end], color, origin={0, cursor})
 					cursor += lh
@@ -102,29 +101,34 @@ _paragraph_layout :: proc () {
 				}
 
 				word_end = i
-				in_space = true
+				state = .Space
 			}
 
 			if ch == '\n' {
-				if !in_newline {
-					in_newline = true
+				if state < .Newline {
+					state = .Newline
 					draw_text(str[line_start:word_end], color, origin={0, cursor})
 				}
 				cursor += lh
 			}
 		case:
-			if in_newline {
-				in_newline = false
+			if state == .Newline {
+				state = .Space
 				line_start = i
 			}
-			if in_space {
+			if state >= .Space {
+				state = .Word
 				word_start = i
-				in_space   = false
 			}
 		}
 	}
 
-	rest := word_end if in_space else len(str)
+	rest := word_end if state >= .Space else len(str)
+	if measure_text(default_font, str[line_start:rest]).x > mw {
+		draw_text(str[line_start:word_end], color, origin={0, cursor})
+		cursor += lh
+		line_start = word_start
+	}
 	if line_start < rest {
 		draw_text(str[line_start:rest], color, origin={0, cursor} )
 		cursor += lh
