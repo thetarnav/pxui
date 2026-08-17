@@ -64,16 +64,6 @@ paragraph :: proc (str: string, color: Color = 255, loc := #caller_location) {
 	layout(.Y, _paragraph_layout, deps={.X})
 }
 
-measure_text :: proc (font: Font, text: string) -> Vec2i {
-	return Vec2i(bmfont.measure_text(font, text))
-}
-line_height :: proc() -> int {
-	return measure_text(default_font, "M").y
-}
-space_width :: proc() -> int {
-	return measure_text(default_font, " ").x
-}
-
 @private
 _paragraph_layout :: proc () {
 	el := element_curr()
@@ -82,8 +72,8 @@ _paragraph_layout :: proc () {
 	mw := element_inner_bounds(el, Axis.X)
 	if mw <= 0 do return
 
-	lh := line_height()
-	sw := space_width()
+	lh := bmfont.line_height(default_font)
+	sw := bmfont.space_width(default_font)
 
 	offset_top: int
 	line_start: int
@@ -97,7 +87,7 @@ _paragraph_layout :: proc () {
 		case ' ', '\n':
 			if state == .Word {
 
-				word_width := measure_text(default_font, str[word_start:i]).x
+				word_width := bmfont.measure_text(default_font, str[word_start:i]).x
 				line_width += word_width
 				if line_width > mw {
 					draw_text(str[line_start:word_end], color, origin={0, offset_top})
@@ -134,7 +124,7 @@ _paragraph_layout :: proc () {
 	}
 
 	if state == .Word {
-		line_width += measure_text(default_font, str[word_start:len(str)]).x
+		line_width += bmfont.measure_text(default_font, str[word_start:len(str)]).x
 		if line_width > mw {
 			draw_text(str[line_start:word_end], color, origin={0, offset_top})
 			offset_top += lh
@@ -156,19 +146,15 @@ draw_text :: proc (str: string, color: Color, origin: Vec2i = {0, 0}, cursor: ^V
 	data := Data{color}
 	context.user_ptr = &data
 
-	cursorf := Vec2f(cursor^) if cursor != nil else {}
-	bounds := bmfont.draw_text(str, default_font, cb, origin=Vec2f(origin), cursor=&cursorf)
-	if cursor != nil do cursor^ = Vec2i(cursorf)
+	bounds := bmfont.draw_text(str, default_font, cb, origin=origin, cursor=cursor)
 
 	return Vec2i(bounds.size)
 
-	cb :: proc (srcf, dstf: bmfont.Rect) {
+	cb :: proc (src, dst: bmfont.Rect) {
 		using data := cast(^Data)context.user_ptr
 
-		src, dst := rect(Rectf(srcf)), rect(Rectf(dstf))
-
-		draw_tex(to_placement(dst), {
-			src   = src,
+		draw_tex(to_placement(Rect(dst)), {
+			src   = Rect(src),
 			tint  = color,
 			tex   = (^Texture)(&default_font_atlas),
 		})
