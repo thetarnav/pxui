@@ -113,7 +113,7 @@ step :: proc () -> bool {
 				mouse_pressed  = k2.mouse_button_went_down(.Left),
 				mouse_released = k2.mouse_button_went_up(.Left),
 				mouse_held     = k2.mouse_button_is_held(.Left),
-				wheel_delta    = {k2.get_mouse_wheel_delta_horizontal(), k2.get_mouse_wheel_delta()} * 10,
+				wheel_delta    = {k2.get_mouse_wheel_delta_horizontal(), k2.get_mouse_wheel_delta()} * 20,
 				time           = int(k2.get_time() * 1000),
 			},
 		) or_return
