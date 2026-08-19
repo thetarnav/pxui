@@ -1,5 +1,6 @@
 package example
 
+import "core:container/handle_map"
 import px ".."
 
 page_one :: proc (
@@ -46,7 +47,7 @@ page_one :: proc (
 	{
 		px.rect_cut(.H, gap=3)
 		px.width(1.0)
-		px.background_color(COLOR_DARK_GRAY)
+		px.background_color(COLOR_LIGHT_BROWN)
 		px.padding(4)
 		px.margin(4)
 		px.opacity(0.5)
@@ -60,13 +61,26 @@ page_one :: proc (
 			px.panel()
 			px.background_color(COLOR_LIGHT_YELLOW)
 			px.size_fill()
+
+			// Subtrees are evaluated after upper layout is solved
+			px.subtree(proc () {
+				size := px.element_box_size()
+
+				px.panel()
+				px.center()
+				px.textf("%ix%i %s", **size, px.is_init() ? "I" : "A", color=COLOR_BROWN)
+			})
 		}
 
 		{
 			px.panel()
 			px.background_color(COLOR_LIGHT_PURPLE)
-			px.width(20)
 			px.height_fill()
+			px.padding_h(4)
+
+			px.panel()
+			px.center()
+			px.textf("%i", handle_map.len(px.ctx.elements), color=COLOR_BROWN)
 		}
 
 		{

@@ -12,7 +12,7 @@ Rect  :: px.Rectf
 RGBA  :: px.RGBA
 Color :: px.Color
 
-COLOR_TEXT          :: RGBA{210, 180, 160, 255}
+COLOR_TEXT          :: COLOR_BROWN
 COLOR_WHITE         :: RGBA{255, 255, 255, 255}
 COLOR_BLACK         :: RGBA{  0,   0,   0, 255}
 COLOR_BROWN         :: RGBA{139,  90,  43, 255}

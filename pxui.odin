@@ -104,6 +104,7 @@ Element_Frame_Input :: struct {
 	layout:       [2]struct {cb: proc (), deps: Axis_Set},
 	effect:       proc (),
 	cleanup:      proc (),
+	subtree:      proc (),
 
 	anims_exit:   [Animation_Property]Animation_Exit_Req,
 
@@ -127,6 +128,9 @@ Element_Frame_Derived :: struct {
 
 	size_ref:       Vec2i,   // bounds of the element (outer size, including margin) — the "space" this element occupies in the parent (pixels)
 	size_set:       [2]bool,
+
+	solved:         [2]bool,
+	prevent_destroy: bool,
 
 	pos_screen:     Maybe(Vec2i),   // pos of the element's box (excluding margin) on screen/world (calculated in frame_end after layout solve, available for draw commands)
 
@@ -314,24 +318,20 @@ _element_attach_after :: proc (el: ^Element, handle: Element_Handle) {
 }
 
 @private
-_element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = false) {
-
-	el, is_el := element_get(h)
-	if !is_el do return
-
-	prevent_destroy := prevent_destroy
+_element_check_destroy :: proc (el: ^Element) {
 
 	if !el._found {
 
 		// Prevent destroy if there are exit animations running
 		// - but only if the tree above is still present
+		prevent_destroy: bool
 		if parent, has_parent := element_get(el.parent); has_parent && parent._found {
+			prevent_destroy |= parent.prevent_destroy
 			prevent_destroy |= _element_has_exit_animations(el)
-		} else {
-			prevent_destroy = false
 		}
 
 		if prevent_destroy {
+			el.prevent_destroy = true
 			_element_copy_last_frame_data(el)
 			_element_attach_after(el, el.last_frame.prev)
 			flag(.Non_Interactable, el)
@@ -342,11 +342,13 @@ _element_visit_end_frame :: proc (h: Element_Handle, prevent_destroy: bool = fal
 		}
 	}
 
-	// Visit children
-	child_id := el.last_frame.child_first
-	for child in element_get(child_id) {
-		_element_visit_end_frame(child, prevent_destroy)
-		child_id = child.last_frame.next
+	// Visit children up to another subtree
+	if el.subtree == nil {
+		child_id := el.last_frame.child_first
+		for child in element_get(child_id) {
+			_element_check_destroy(child)
+			child_id = child.last_frame.next
+		}
 	}
 }
 
@@ -487,12 +489,18 @@ frame_end :: proc () {
 
 	assert(ctx.element_curr == ctx.element_root)
 
-	{
-		trace("Destroy/Exit Elements")
-		_element_visit_end_frame(ctx.element_root)
-	}
+	root := element_root()
 
-	_solve_layout()
+	_element_check_destroy(root)
+
+	// Root has no parent; its ref_size comes from the user-set size only.
+	// Percentages on the root resolve against 0 (i.e. zero).
+	root.size_ref   = size_vec_to_pixel(root.size, 0)
+	root.size_set   = true
+	root.pos_set    = true
+	root.pos_screen = 0
+
+	_solve_layout(root)
 
 	update_screen_rect_and_mouse()
 
@@ -506,39 +514,31 @@ frame_end :: proc () {
 	}
 }
 
-_solve_layout :: proc () #no_bounds_check {
+_solve_layout :: proc (el: ^Element) #no_bounds_check {
 
-	trace("Solve Layout")
+	visit(el, Axis.X)
+	visit(el, Axis.Y)
 
-	root := element_root()
-
-	// Root has no parent; its ref_size comes from the user-set size only.
-	// Percentages on the root resolve against 0 (i.e. zero).
-	root.size_ref   = size_vec_to_pixel(root.size, 0)
-	root.size_set   = true
-	root.pos_set    = true
-	root.pos_screen = 0
-
-	Added :: map[struct {^Element, Axis}]struct {}
-	added := make(Added, hm.len(ctx.elements)*2, context.temp_allocator)
-
-	it := hm.iterator_make(&ctx.elements)
-	for el, _ in hm.iterate(&it) {
-		visit(el, Axis.X, &added)
-		visit(el, Axis.Y, &added)
+	// Visit children
+	child_id := el.child_first
+	for child in element_get(child_id) {
+		_solve_layout(child)
+		child_id = child.next
 	}
 
-	visit :: proc (el: ^Element, axis: Axis, added: ^Added) {
+	visit :: proc (el: ^Element, axis: Axis) {
 
-		if ({el, axis}) in added do return
-		added[{el, axis}] = {}
+		assert(el._found, "Should be found at this point")
+
+		if el.solved[axis] do return
+		el.solved[axis] = true
 
 		is_top_down  := _element_size_is_top_down(el, axis)
 		is_bottom_up := _element_size_is_bottom_up(el, axis)
 
 		// Visit parent dep
 		if is_top_down {
-			visit(element_parent(el), axis, added)
+			visit(element_parent(el), axis)
 		}
 
 		// Visit children deps
@@ -546,14 +546,14 @@ _solve_layout :: proc () #no_bounds_check {
 			child_id: Element_Handle
 			for child in each_element_layout_child(el, &child_id) {
 				if !_element_size_is_top_down(child, axis) {
-					visit(child, axis, added)
+					visit(child, axis)
 				}
 			}
 		}
 
 		// Visit self—other axis
 		if el.layout[axis].cb != nil && perp(axis) in el.layout[axis].deps {
-			visit(el, perp(axis), added)
+			visit(el, perp(axis))
 		}
 
 		if !el.size_set[axis] {
@@ -582,10 +582,25 @@ _solve_layout :: proc () #no_bounds_check {
 		}
 
 		if is_bottom_up {
+			// bottom up layout can change size
 			_call_element_callback(el, el.layout[axis].cb)
 			_animate_size(el, axis)
 		} else {
 			_animate_size(el, axis)
+
+			// Handle subtree
+			if el.solved == true && el.subtree != nil {
+
+				_call_element_callback(el, el.subtree)
+
+				// Check for removed children now that new subtree structure is known
+				child_id := el.last_frame.child_first
+				for child in element_get(child_id) {
+					defer child_id = child.last_frame.next
+					_element_check_destroy(child)
+				}
+			}
+
 			_call_element_callback(el, el.layout[axis].cb)
 		}
 	}
@@ -1296,6 +1311,6 @@ layout_axis :: proc (axis: Axis, cb: proc (), deps: Axis_Set = {}, h: Element_Ha
 }
 layout :: proc {layout_axis}
 
-effect :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).effect = cb}
-
+effect  :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).effect  = cb}
+subtree :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).subtree = cb}
 cleanup :: proc (cb: proc (), h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).cleanup = cb}

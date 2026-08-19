@@ -90,7 +90,6 @@ step :: proc () -> bool {
 
 	px.trace("step()")
 
-	k2.reset_frame_allocator()
 	free_all(context.temp_allocator)
 
 	run_frame: {
