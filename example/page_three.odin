@@ -37,18 +37,19 @@ page_three :: proc () {
 		}
 
 		px.virtual_stack(
-			length=10_000, height=16, gap=4, scroll=-int(scroll), overscan=1,
+			length=1_000_000, height=16, gap=4, scroll=-int(scroll), overscan=1,
 			children=proc (first, last: int, data: rawptr) {
 
 			{px.v_stack(gap=4)
 				for idx in first..<last {
 					{px.panel(idx)
+						px.padding_h(6)
 						px.height(16)
 						px.background_color(COLOR_RED)
 
 						{px.panel()
 							px.center()
-							px.textf("Item %i", idx)
+							px.textf("Item %i.", idx+1)
 						}
 					}
 				}
