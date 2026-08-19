@@ -96,7 +96,7 @@ ui :: proc (ws: Vec2i) {
 			px.panel()
 			px.center_y()
 
-			px.textf("Tab {}", i)
+			px.textf("Tab {}", i+1)
 		}
 	}
 
@@ -145,7 +145,8 @@ ui :: proc (ws: Vec2i) {
 		}
 	}
 
-	px.scroll_content()
+	px.panel()
+	px.width_fill()
 	px.padding_l(12)
 
 	px.panel(selected_tab)
@@ -153,7 +154,8 @@ ui :: proc (ws: Vec2i) {
 
 	switch selected_tab {
 	case 0: page_one(ws)
-	case:   page_two()
+	case 1: page_two()
+	case:   page_three()
 	}
 }
 

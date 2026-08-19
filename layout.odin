@@ -329,20 +329,9 @@ scroll_area :: proc (axis: Axis = .V, #any_int id: u64 = 0, loc := #caller_locat
 	return true
 }
 
-scroll_content_begin :: proc (loc := #caller_location) {
-	element_push(Scroll_Area_Content, loc=loc)
-	container := element_parent()
-	state := element_state(Scroll_Area_Container, container, loc)
-	size_axis_fill(perp(state.axis))
-}
-scroll_content_end :: proc (loc := #caller_location) {
-	assert(typeid_of(Scroll_Area_Content) == element_curr().type, loc=loc)
-	element_pop()
-}
-@(deferred_in=scroll_content_end)
-scroll_content :: proc (loc := #caller_location) -> bool {
-	scroll_content_begin(loc)
-	return true
+scroll_value :: proc (h: Element_Handle = {}, loc := #caller_location) -> f32 {
+	s := element_state(Scroll_Area_Container, h, loc)
+	return s.scroll
 }
 
 Scroll_Area_Scrollbar       :: struct {dragging: bool, offset: int}

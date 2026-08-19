@@ -130,7 +130,8 @@ page_one :: proc (
 			}
 		}
 
-		px.scroll_content()
+		px.panel()
+		px.width_fill()
 
 		cols := 4
 		if      ws.x < 250 do cols = 3

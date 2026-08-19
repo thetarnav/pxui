@@ -1169,7 +1169,7 @@ size_axis         :: proc (axis: Axis, v: Sizing, h: Element_Handle = {}, loc :=
 size_axis_px      :: proc (axis: Axis, v: int,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).size[axis] = v}
 size_axis_percent :: proc (axis: Axis, v: f32,    h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).size[axis] = v}
 size_axis_fill    :: proc (axis: Axis,            h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).size[axis] = FILL}
-size              :: proc {size_set, size_hv}
+size              :: proc {size_set, size_hv, size_axis}
 size_x,         size_y          :: size_w,         size_h
 size_x_px,      size_y_px       :: size_w_px,      size_h_px
 size_x_percent, size_y_percent  :: size_w_percent, size_h_percent

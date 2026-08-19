@@ -3,6 +3,8 @@ package pxui
 import "base:runtime"
 import la "core:math/linalg"
 
+int_ceil :: proc (a, b: int) -> int {return (a + b - 1) / b}
+
 perp :: #force_inline proc "contextless" (a: Axis) -> Axis {return Axis((int(a) + 1) % 2)}
 axis_perp :: perp
 
