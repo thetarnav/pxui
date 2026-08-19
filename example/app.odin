@@ -173,7 +173,7 @@ button :: proc (text: string) -> (clicked: bool) {
 }
 
 @(deferred_none=px.element_pop)
-counter :: proc (color := COLOR_TEXT, id: u64 = 0, loc := #caller_location) -> ^int {
+counter :: proc (color := COLOR_TEXT, #any_int id: u64 = 0, loc := #caller_location) -> ^int {
 	Counter :: struct {count: int}
 	state := px.element_push(Counter, id, loc=loc)
 	hovered := px.is_hovered()

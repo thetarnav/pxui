@@ -18,7 +18,7 @@ Checkbox :: struct {
 	checked: bool,
 }
 
-checkbox_begin :: proc (state: ^bool = nil, id: u64 = 0, loc := #caller_location) {
+checkbox_begin :: proc (state: ^bool = nil, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(Checkbox, id, loc)
 	s.ptr = state if state != nil else &s.checked
 
@@ -26,12 +26,12 @@ checkbox_begin :: proc (state: ^bool = nil, id: u64 = 0, loc := #caller_location
 		s.ptr^ = !s.ptr^
 	}
 }
-checkbox_end :: proc (state: ^bool = nil, id: u64 = 0, loc := #caller_location) {
+checkbox_end :: proc (state: ^bool = nil, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Checkbox), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=checkbox_end)
-checkbox :: proc (state: ^bool = nil, id: u64 = 0, loc := #caller_location) -> bool {
+checkbox :: proc (state: ^bool = nil, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	checkbox_begin(state, id, loc)
 	return true
 }
@@ -54,16 +54,16 @@ Radio :: struct {
 	index: int,
 }
 
-radio_group_begin :: proc (value: ^int = nil, id: u64 = 0, loc := #caller_location) {
+radio_group_begin :: proc (value: ^int = nil, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(Radio_Group, id, loc)
 	s.ptr = value if value != nil else &s.index
 }
-radio_group_end :: proc (state: ^int = nil, id: u64 = 0, loc := #caller_location) {
+radio_group_end :: proc (state: ^int = nil, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Radio_Group), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=radio_group_end)
-radio_group :: proc (state: ^int = nil, id: u64 = 0, loc := #caller_location) -> bool {
+radio_group :: proc (state: ^int = nil, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	radio_group_begin(state, id, loc)
 	return true
 }
@@ -74,7 +74,7 @@ radio_group_selected :: proc () -> int {
 	return s.index
 }
 
-radio_begin :: proc (index: int, id: u64 = 0, loc := #caller_location) {
+radio_begin :: proc (index: int, #any_int id: u64 = 0, loc := #caller_location) {
 	element_push(Radio, id, loc)
 
 	r := element_state(Radio, loc=loc)
@@ -86,12 +86,12 @@ radio_begin :: proc (index: int, id: u64 = 0, loc := #caller_location) {
 		rg.ptr^ = index
 	}
 }
-radio_end :: proc (index: int, id: u64 = 0, loc := #caller_location) {
+radio_end :: proc (index: int, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Radio), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=radio_end)
-radio :: proc (index: int, id: u64 = 0, loc := #caller_location) -> bool {
+radio :: proc (index: int, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	radio_begin(index, id, loc)
 	return true
 }
@@ -253,17 +253,17 @@ slider_thumb :: proc (loc := #caller_location) -> bool {
 }
 
 // Optional: decrement/increment buttons (must be children of the slider).
-slider_button_begin :: proc (dir: int, id: u64 = 0, loc := #caller_location) {
+slider_button_begin :: proc (dir: int, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(Slider_Button, id, loc)
 	s.dir = dir
 }
-slider_button_end :: proc (dir: int, id: u64 = 0, loc := #caller_location) {
+slider_button_end :: proc (dir: int, #any_int id: u64 = 0, loc := #caller_location) {
 	_ = dir
 	assert(element_hash(typeid_of(Slider_Button), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=slider_button_end)
-slider_button :: proc (dir: int, id: u64 = 0, loc := #caller_location) -> bool {
+slider_button :: proc (dir: int, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	slider_button_begin(dir, id, loc)
 	return true
 }

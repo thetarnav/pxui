@@ -31,17 +31,17 @@ v_stack_update_layout :: proc () {
 	s := element_state(V_Stack, el)
 	_stack_update_layout(el, .Y, s.gap)
 }
-v_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+v_stack_begin :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(V_Stack, id, loc)
 	s.gap = gap
 	layout(.V, v_stack_update_layout)
 }
-v_stack_end :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+v_stack_end :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=v_stack_end)
-v_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+v_stack :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	v_stack_begin(gap, id, loc)
 	return true
 }
@@ -52,17 +52,17 @@ h_stack_update_layout :: proc () {
 	s  := element_state(H_Stack, el)
 	_stack_update_layout(el, .X, s.gap)
 }
-h_stack_begin :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+h_stack_begin :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(H_Stack, id, loc)
 	s.gap = gap
 	layout(.H, h_stack_update_layout)
 }
-h_stack_end :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) {
+h_stack_end :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=h_stack_end)
-h_stack :: proc (gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+h_stack :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	h_stack_begin(gap, id, loc)
 	return true
 }
@@ -118,7 +118,7 @@ flex_update_layout :: proc () {
 	if s.axis == .H do _flex_update_layout(el, .H, s.gap)
 	else            do _flex_update_layout(el, .V, s.gap)
 }
-flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
+flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(Flex, id, loc)
 	s.axis = axis
 	s.gap  = gap
@@ -129,17 +129,17 @@ flex_end :: proc () {
 	element_pop()
 }
 @(deferred_none=flex_end)
-flex :: proc (axis: Axis = .H, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+flex :: proc (axis: Axis = .H, gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	flex_begin(axis, gap, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_h :: proc (gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+flex_h :: proc (gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	flex_begin(.H, gap, id, loc)
 	return true
 }
 @(deferred_none=flex_end)
-flex_v :: proc (gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+flex_v :: proc (gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	flex_begin(.V, gap, id, loc)
 	return true
 }
@@ -194,18 +194,18 @@ rect_cut_update_layout :: proc () {
 }
 
 Rect_Cut :: struct {axis: Axis, gap: int}
-rect_cut_begin :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) {
+rect_cut_begin :: proc (axis: Axis = .H, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	s := element_push(Rect_Cut, id, loc)
 	s.axis = axis
 	s.gap  = gap
 	layout_axis(axis, rect_cut_update_layout)
 }
-rect_cut_end :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) {
+rect_cut_end :: proc (axis: Axis = .H, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Rect_Cut), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=rect_cut_end)
-rect_cut :: proc (axis: Axis = .H, gap: int = 0, id: u64 = 0, loc := #caller_location) -> bool {
+rect_cut :: proc (axis: Axis = .H, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	rect_cut_begin(axis, gap, id, loc)
 	return true
 }
@@ -258,7 +258,7 @@ _masonry_layout_perp :: proc (el: ^Element, c: int, gap: Vec2i, $AXIS: Axis) {
 }
 
 Masonry :: struct {axis: Axis, cols: int, gap: Vec2i}
-masonry_begin :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
+masonry_begin :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	bounds_check_axis(axis, loc)
 
 	s := element_push(Masonry, id, loc)
@@ -280,12 +280,12 @@ masonry_begin :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, 
 		else            do _masonry_layout_perp(el, s.cols, s.gap, .V)
 	})
 }
-masonry_end :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) {
+masonry_end :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Masonry), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=masonry_end)
-masonry :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc := #caller_location) -> bool {
+masonry :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	masonry_begin(cols, axis, gap, id, loc)
 	return true
 }
@@ -293,7 +293,7 @@ masonry :: proc (cols: int, axis: Axis = .V, gap: Vec2i = 0, id: u64 = 0, loc :=
 
 Scroll_Area_Container :: struct {axis: Axis, scroll: f32}
 Scroll_Area_Content   :: struct {}
-scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+scroll_area_begin :: proc (axis: Axis = .V, #any_int id: u64 = 0, loc := #caller_location) {
 
 	s := element_push(Scroll_Area_Container, id, loc)
 	s.axis = axis
@@ -319,12 +319,12 @@ scroll_area_begin :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location
 		element_set_pos(content, ax, int(s.scroll))
 	}, deps={axis, perp(axis)})
 }
-scroll_area_end :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) {
+scroll_area_end :: proc (axis: Axis = .V, #any_int id: u64 = 0, loc := #caller_location) {
 	assert(element_hash(typeid_of(Scroll_Area_Container), id) == element_curr().hash, loc=loc)
 	element_pop()
 }
 @(deferred_in=scroll_area_end)
-scroll_area :: proc (axis: Axis = .V, id: u64 = 0, loc := #caller_location) -> bool {
+scroll_area :: proc (axis: Axis = .V, #any_int id: u64 = 0, loc := #caller_location) -> bool {
 	scroll_area_begin(axis, id, loc)
 	return true
 }
