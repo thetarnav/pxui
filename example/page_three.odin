@@ -42,16 +42,27 @@ page_three :: proc () {
 			length=1_000_000, scroll=-int(scroll), height=16, gap=4, padding=6, overscan=1,
 			child=proc (idx: int, data: rawptr) {
 
-			{px.panel()
-				px.height_fill()
-				px.padding_h(6)
-				px.margin_h(6)
-				px.background_color(COLOR_RED)
+			s := px.element_push(struct {toggled: bool})
+			defer px.element_pop()
 
-				{px.panel()
-					px.center()
-					px.textf("Item %i.", idx+1)
-				}
+			px.height_fill()
+			px.padding_h(6)
+			px.margin_h(6)
+
+			if s.toggled {
+				px.background_color(COLOR_DARK_GREEN if px.is_hovered() else COLOR_GREEN)
+			} else {
+				px.background_color(COLOR_DARK_RED if px.is_hovered() else COLOR_RED)
+			}
+
+			if px.is_clicked() {
+				s.toggled = !s.toggled
+			}
+
+			{px.panel()
+				px.non_interactable()
+				px.center()
+				px.textf("Item %i.", idx+1)
 			}
 		})
 	}
