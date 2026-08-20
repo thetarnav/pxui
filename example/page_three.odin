@@ -18,6 +18,8 @@ page_three :: proc () {
 		scroll := px.scroll_value()
 
 		defer {px.scrollbar()
+			px.left(1.0)
+			px.origin_left(1.0)
 			px.background_color({180, 140, 100, 200})
 
 			{px.scrollbar_thumb()
@@ -37,21 +39,18 @@ page_three :: proc () {
 		}
 
 		px.virtual_stack(
-			length=1_000_000, height=16, gap=4, scroll=-int(scroll), overscan=1,
-			children=proc (first, last: int, data: rawptr) {
+			length=1_000_000, scroll=-int(scroll), height=16, gap=4, padding=6, overscan=1,
+			child=proc (idx: int, data: rawptr) {
 
-			{px.v_stack(gap=4)
-				for idx in first..<last {
-					{px.panel(idx)
-						px.padding_h(6)
-						px.height(16)
-						px.background_color(COLOR_RED)
+			{px.panel()
+				px.height_fill()
+				px.padding_h(6)
+				px.margin_h(6)
+				px.background_color(COLOR_RED)
 
-						{px.panel()
-							px.center()
-							px.textf("Item %i.", idx+1)
-						}
-					}
+				{px.panel()
+					px.center()
+					px.textf("Item %i.", idx+1)
 				}
 			}
 		})

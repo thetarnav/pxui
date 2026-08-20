@@ -1266,18 +1266,19 @@ center_h :: center_x
 center_v :: center_y
 center   :: proc {center_both, center_axis}
 
-margin_set         :: proc (v: Insets,       h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin = v}
-margin_directions  :: proc (l, t, r, b: int, h: Element_Handle = {}, loc := #caller_location) {margin(Insets{l, t, r, b}, h, loc)}
-margin_axis        :: proc (x, y: int,       h: Element_Handle = {}, loc := #caller_location) {margin(x, y, x, y, h, loc)}
-margin_vec         :: proc (v: Vec2i,        h: Element_Handle = {}, loc := #caller_location) {margin(v.x, v.y, v.x, v.y, h, loc)}
-margin_all         :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {margin(v, v, v, v, h, loc)}
-margin_t           :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.t = v}
-margin_b           :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.b = v}
-margin_l           :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.l = v}
-margin_r           :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.r = v}
-margin_h           :: proc (x: int,          h: Element_Handle = {}, loc := #caller_location) {margin_l(x, h, loc); margin_r(x, h, loc)}
-margin_v           :: proc (y: int,          h: Element_Handle = {}, loc := #caller_location) {margin_t(y, h, loc); margin_b(y, h, loc)}
-margin             :: proc {margin_set, margin_directions, margin_axis, margin_vec, margin_all}
+margin_set         :: proc (v: Insets,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin = v}
+margin_directions  :: proc (l, t, r, b: int,    h: Element_Handle = {}, loc := #caller_location) {margin(Insets{l, t, r, b}, h, loc)}
+margin_xy          :: proc (x, y: int,          h: Element_Handle = {}, loc := #caller_location) {margin(x, y, x, y, h, loc)}
+margin_axis        :: proc (axis: Axis, v: int, h: Element_Handle = {}, loc := #caller_location) {if axis == .V {margin_v(v)} else {margin_h(v)}}
+margin_vec         :: proc (v: Vec2i,           h: Element_Handle = {}, loc := #caller_location) {margin(v.x, v.y, v.x, v.y, h, loc)}
+margin_all         :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {margin(v, v, v, v, h, loc)}
+margin_t           :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.t = v}
+margin_b           :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.b = v}
+margin_l           :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.l = v}
+margin_r           :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).margin.r = v}
+margin_h           :: proc (x: int,             h: Element_Handle = {}, loc := #caller_location) {margin_l(x, h, loc); margin_r(x, h, loc)}
+margin_v           :: proc (y: int,             h: Element_Handle = {}, loc := #caller_location) {margin_t(y, h, loc); margin_b(y, h, loc)}
+margin             :: proc {margin_set, margin_directions, margin_xy, margin_axis, margin_vec, margin_all}
 margin_dirs        :: margin_directions
 margin_x, margin_y :: margin_h, margin_v
 margin_left, margin_top, margin_right, margin_bot :: margin_l, margin_t, margin_r, margin_b
@@ -1285,18 +1286,19 @@ margin_bottom      :: margin_bot
 ml, mt, mr, mb     :: margin_l, margin_t, margin_r, margin_b
 m                  :: margin
 
-padding_set          :: proc (v: Insets,       h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding = v}
-padding_directions   :: proc (l, t, r, b: int, h: Element_Handle = {}, loc := #caller_location) {padding(Insets{l, t, r, b}, h, loc)}
-padding_axis         :: proc (x, y: int,       h: Element_Handle = {}, loc := #caller_location) {padding(x, y, x, y, h, loc)}
-padding_vec          :: proc (v: Vec2i,        h: Element_Handle = {}, loc := #caller_location) {padding(v.x, v.y, v.x, v.y, h, loc)}
-padding_all          :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {padding(v, v, v, v, h, loc)}
-padding_t            :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.t = v}
-padding_b            :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.b = v}
-padding_l            :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.l = v}
-padding_r            :: proc (v: int,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.r = v}
-padding_h            :: proc (x: int,          h: Element_Handle = {}, loc := #caller_location) {padding_l(x, h, loc); padding_r(x, h, loc)}
-padding_v            :: proc (y: int,          h: Element_Handle = {}, loc := #caller_location) {padding_t(y, h, loc); padding_b(y, h, loc)}
-padding              :: proc {padding_set, padding_directions, padding_axis, padding_vec, padding_all}
+padding_set          :: proc (v: Insets,          h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding = v}
+padding_directions   :: proc (l, t, r, b: int,    h: Element_Handle = {}, loc := #caller_location) {padding(Insets{l, t, r, b}, h, loc)}
+padding_xy           :: proc (x, y: int,          h: Element_Handle = {}, loc := #caller_location) {padding(x, y, x, y, h, loc)}
+padding_axis         :: proc (axis: Axis, v: int, h: Element_Handle = {}, loc := #caller_location) {if axis == .V {padding_v(v)} else {padding_h(v)}}
+padding_vec          :: proc (v: Vec2i,           h: Element_Handle = {}, loc := #caller_location) {padding(v.x, v.y, v.x, v.y, h, loc)}
+padding_all          :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {padding(v, v, v, v, h, loc)}
+padding_t            :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.t = v}
+padding_b            :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.b = v}
+padding_l            :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.l = v}
+padding_r            :: proc (v: int,             h: Element_Handle = {}, loc := #caller_location) {element_get_or_curr(h, loc).padding.r = v}
+padding_h            :: proc (x: int,             h: Element_Handle = {}, loc := #caller_location) {padding_l(x, h, loc); padding_r(x, h, loc)}
+padding_v            :: proc (y: int,             h: Element_Handle = {}, loc := #caller_location) {padding_t(y, h, loc); padding_b(y, h, loc)}
+padding              :: proc {padding_set, padding_directions, padding_xy, padding_axis, padding_vec, padding_all}
 padding_dirs         :: padding_directions
 padding_x, padding_y :: padding_h, padding_v
 padding_left, padding_top, padding_right, padding_bot :: padding_l, padding_t, padding_r, padding_b

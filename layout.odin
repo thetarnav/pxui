@@ -25,20 +25,33 @@ _stack_update_layout :: proc (el: ^Element, $AX: Axis, gap: int = 0) {
 	element_set_inner_bounds(el, AX, cursor - gap)
 }
 
-V_Stack :: struct {gap: int}
-v_stack_update_layout :: proc () {
+Stack :: struct {axis: Axis, gap: int}
+stack_update_layout :: proc () {
 	el := element_curr()
-	s := element_state(V_Stack, el)
-	_stack_update_layout(el, .Y, s.gap)
+	s  := element_state(Stack, el)
+	if s.axis == .X do _stack_update_layout(el, .X, s.gap)
+	else            do _stack_update_layout(el, .Y, s.gap)
 }
+stack_begin :: proc (axis: Axis = .V, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
+	s := element_push(Stack, id, loc)
+	s^ = {axis, gap}
+	layout(axis, stack_update_layout)
+}
+stack_end :: proc (axis: Axis = .V, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
+	assert(element_hash(typeid_of(Stack), id) == element_curr(loc).hash, loc=loc)
+	element_pop()
+}
+@(deferred_in=stack_end)
+stack :: proc (axis: Axis = .V, gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
+	stack_begin(axis, gap, id, loc)
+	return true
+}
+
 v_stack_begin :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
-	s := element_push(V_Stack, id, loc)
-	s.gap = gap
-	layout(.V, v_stack_update_layout)
+	stack_begin(.V, gap, id, loc)
 }
 v_stack_end :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
-	assert(element_hash(typeid_of(V_Stack), id) == element_curr().hash, loc=loc)
-	element_pop()
+	stack_end(.V, gap, id, loc)
 }
 @(deferred_in=v_stack_end)
 v_stack :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
@@ -46,20 +59,11 @@ v_stack :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) ->
 	return true
 }
 
-H_Stack :: struct {gap: int}
-h_stack_update_layout :: proc () {
-	el := element_curr()
-	s  := element_state(H_Stack, el)
-	_stack_update_layout(el, .X, s.gap)
-}
 h_stack_begin :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
-	s := element_push(H_Stack, id, loc)
-	s.gap = gap
-	layout(.H, h_stack_update_layout)
+	stack_begin(.H, gap, id, loc)
 }
 h_stack_end :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) {
-	assert(element_hash(typeid_of(H_Stack), id) == element_curr().hash, loc=loc)
-	element_pop()
+	stack_end(.H, gap, id, loc)
 }
 @(deferred_in=h_stack_end)
 h_stack :: proc (gap: int = 0, #any_int id: u64 = 0, loc := #caller_location) -> bool {
@@ -340,6 +344,7 @@ scrollbar_begin :: proc (loc := #caller_location) {
 	element_push(Scroll_Area_Scrollbar, loc=loc)
 	container := element_state(Scroll_Area_Container, element_parent(), loc)
 
+	position_absolute()
 	size_axis_fill(container.axis)
 	size_axis(perp(container.axis), 10)
 
