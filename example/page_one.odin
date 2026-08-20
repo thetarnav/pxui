@@ -115,7 +115,7 @@ page_one :: proc (
 		px.background_color(COLOR_LIGHT_BROWN)
 
 		defer {
-			px.scrollbar()
+			px.scrollbar(10, 14)
 			px.background_color({180, 140, 100, 200})
 
 			px.scrollbar_thumb()

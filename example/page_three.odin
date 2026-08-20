@@ -17,7 +17,7 @@ page_three :: proc () {
 
 		scroll := px.scroll_value()
 
-		defer {px.scrollbar()
+		defer {px.scrollbar(10, 14)
 			px.left(1.0)
 			px.origin_left(1.0)
 			px.background_color({180, 140, 100, 200})

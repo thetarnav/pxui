@@ -128,7 +128,7 @@ ui :: proc (ws: Vec2i) {
 	px.scroll_area()
 
 	defer {
-		px.scrollbar()
+		px.scrollbar(10, 14)
 		px.background_color({180, 140, 100, 200})
 
 		px.scrollbar_thumb()

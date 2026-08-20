@@ -338,25 +338,33 @@ scroll_value :: proc (h: Element_Handle = {}, loc := #caller_location) -> f32 {
 	return s.scroll
 }
 
-Scroll_Area_Scrollbar       :: struct {dragging: bool, offset: int}
+Scroll_Area_Scrollbar       :: struct {dragging: bool, offset, size, min_thumb_size: int}
 Scroll_Area_Scrollbar_Thumb :: struct {}
-scrollbar_begin :: proc (loc := #caller_location) {
-	element_push(Scroll_Area_Scrollbar, loc=loc)
+scrollbar_begin :: proc (size, min_thumb_size: int, loc := #caller_location) {
+
+	s := element_push(Scroll_Area_Scrollbar, loc=loc)
+	s.size           = size
+	s.min_thumb_size = min_thumb_size
+
 	container := element_state(Scroll_Area_Container, element_parent(), loc)
 
 	position_absolute()
 	size_axis_fill(container.axis)
-	size_axis(perp(container.axis), 10)
+	size_axis(perp(container.axis), size)
 
-	get_thumb_pos_and_size :: proc (oh, ih: int, scroll: f32) -> (pos, size: int) {
+	get_thumb_pos_and_size :: proc (oh, ih: int, scroll: f32, min_thumb_size: int) -> (pos, size: int) {
 		if ih <= oh {
 			size = oh
 		} else if ih > 0 && oh > 0 {
 			pos  = int(math.ceil(f32(oh) * (1 - f32(oh)/f32(ih)) * (-scroll / (f32(ih)-f32(oh)))))
 			size = int(f32(oh) * f32(oh)/f32(ih))
-		} else {
-			size = 10
 		}
+		if size < min(min_thumb_size, oh) {
+			pos -= (min(min_thumb_size, oh)-size)/2
+			size = min(min_thumb_size, oh)
+		}
+		size = min(size, oh)
+		pos  = clamp(0, pos, oh-size)
 		return
 	}
 
@@ -365,19 +373,18 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		container := element_parent()
 		content   := element_get_assert(container.child_first)
 		thumb     := element_get_assert(scrollbar.child_first)
-		state     := element_state(Scroll_Area_Container, container)
-		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
-		ax     := state.axis
-		scroll := state.scroll
+		using s_scrollbar := element_state(Scroll_Area_Scrollbar, scrollbar)
+		using s_container := element_state(Scroll_Area_Container, container)
+		_                  = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
-		oh := element_inner_bounds(container, ax)
-		ih := element_bounds(content, ax)
+		oh := element_inner_bounds(container, axis)
+		ih := element_bounds(content, axis)
 
-		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll)
+		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll, min_thumb_size)
 
-		element_set_pos(thumb, ax, thumb_pos)
-		element_set_bounds(thumb, ax, thumb_size)
+		element_set_pos(thumb, axis, thumb_pos)
+		element_set_bounds(thumb, axis, thumb_size)
 	})
 
 	effect(proc () {
@@ -385,22 +392,20 @@ scrollbar_begin :: proc (loc := #caller_location) {
 		container := element_parent()
 		content   := element_get_assert(container.child_first)
 		thumb     := element_get_assert(scrollbar.child_first)
-		state     := element_state(Scroll_Area_Container, container)
-		_          = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
-		using scrollbar_state := element_state(Scroll_Area_Scrollbar, scrollbar)
 
-		ax     := state.axis
-		scroll := &state.scroll
+		using s_scrollbar := element_state(Scroll_Area_Scrollbar, scrollbar)
+		using s_container := element_state(Scroll_Area_Container, container)
+		_                  = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
-		oh := element_inner_bounds(container, ax)
-		ih := element_bounds(content, ax)
+		oh := element_inner_bounds(container, axis)
+		ih := element_bounds(content, axis)
 
 		scrollbar_pos := element_screen_pos(scrollbar)
-		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll^)
+		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll, min_thumb_size)
 
 		if is_press_in(thumb) {
 			dragging = true
-			offset   = ctx.mouse[ax] - scrollbar_pos[ax] - thumb_pos - thumb_size/2
+			offset   = ctx.mouse[axis] - scrollbar_pos[axis] - thumb_pos - thumb_size/2
 		} else if is_press_in(scrollbar) {
 			dragging = true
 		}
@@ -412,18 +417,18 @@ scrollbar_begin :: proc (loc := #caller_location) {
 
 		if dragging {
 			h := f32(oh-thumb_size)
-			p := f32(ctx.mouse[ax]) - f32(scrollbar_pos[ax]) - f32(oh)/2 - f32(offset)
-			scroll^ = -math.remap_clamped(p, -h/2, h/2, 0, f32(ih-oh))
+			p := f32(ctx.mouse[axis]) - f32(scrollbar_pos[axis]) - f32(oh)/2 - f32(offset)
+			scroll = -math.remap_clamped(p, -h/2, h/2, 0, f32(ih-oh))
 		}
 	})
 }
-scrollbar_end :: proc (loc := #caller_location) {
+scrollbar_end :: proc (size, min_thumb_size: int, loc := #caller_location) {
 	assert(typeid_of(Scroll_Area_Scrollbar) == element_curr().type, loc=loc)
 	element_pop()
 }
 @(deferred_in=scrollbar_end)
-scrollbar :: proc (loc := #caller_location) -> bool {
-	scrollbar_begin(loc)
+scrollbar :: proc (size, min_thumb_size: int, loc := #caller_location) -> bool {
+	scrollbar_begin(size, min_thumb_size, loc)
 	return true
 }
 
