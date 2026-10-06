@@ -281,6 +281,9 @@ element_pop :: proc () {
 	ctx.element_curr = element_parent()
 }
 
+element_begin :: element_push
+element_end   :: element_pop
+
 _element_attach_after :: proc (el: ^Element, handle: Element_Handle) {
 
 	parent := element_parent(el)
