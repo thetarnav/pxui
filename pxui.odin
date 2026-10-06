@@ -703,7 +703,7 @@ element_get :: #force_inline proc (handle: Element_Handle) -> (el: ^Element, ok:
 @(require_results)
 element_get_assert :: #force_inline proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
 	el, ok := hm.get(&ctx.elements, handle)
-	fmt.assertf(ok, "", handle, loc=loc)
+	assert(ok, loc=loc)
 	return el
 }
 @(require_results)
@@ -856,11 +856,9 @@ element_find_child :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_l
 }
 element_find_child_assert :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (child: ^Element, state: ^T) {
 	ok: bool
-	child, state, ok = element_find_child(T)
-	when !ODIN_DISABLE_ASSERT do if !ok {
-		fmt.panicf("%s requires a direct child of %w but not found",
-		           element_display(h, context.temp_allocator, loc), typeid_of(T), loc=loc)
-	}
+	child, state, ok = element_find_child(T, h, loc)
+	fmt.assertf(ok, "%s requires a direct child of %w but not found",
+	            element_display(h, context.temp_allocator, loc), typeid_of(T), loc=loc)
 	return
 }
 
