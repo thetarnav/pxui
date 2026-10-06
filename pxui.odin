@@ -639,6 +639,9 @@ update_screen_rect_and_mouse :: proc () {
 
 	trace("Screen/Interation update")
 
+	ctx.element_wheel = {}
+	ctx.element_hover = {}
+
 	root := element_root()
 
 	// Iterate in reverse order as
