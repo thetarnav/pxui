@@ -12,13 +12,13 @@ import hm "core:container/handle_map"
 @private
 Source_Code_Location :: runtime.Source_Code_Location
 
-Vec2i    :: [2]int
-Vec2f    :: [2]f32
-RGBA     :: [4]u8
-Color    :: RGBA
-Rect     :: struct {using pos: Vec2i, size: Vec2i}
-Rectf    :: struct {using pos: Vec2f, size: Vec2f}
-Insets   :: struct {l, t, r, b: int}
+Vec2i  :: [2]int
+Vec2f  :: [2]f32
+RGBA   :: [4]u8
+Color  :: RGBA
+Rect   :: struct {using pos: Vec2i, size: Vec2i}
+Rectf  :: struct {using pos: Vec2f, size: Vec2f}
+Insets :: struct {l, t, r, b: int}
 
 WHITE :: Color{255, 255, 255, 255}
 
