@@ -6,7 +6,6 @@ import "core:io"
 import "core:strings"
 import "base:runtime"
 import "core:mem"
-import "core:fmt"
 import hm "core:container/handle_map"
 
 @private
@@ -724,7 +723,7 @@ element_hash :: proc (T: typeid, user_id: u64 = 0) -> u64 {
 	return hash_combine(type_id, user_id) if user_id > 0 else type_id
 }
 
-element_display_write  :: proc (buf: []byte, i: ^int, h: Element_Handle = {}, loc := #caller_location) -> bool {
+element_display_write  :: proc (i: ^int, buf: []byte, h: Element_Handle = {}, loc := #caller_location) -> bool {
 	el := element_get_or_curr(h, loc=loc)
 
 	_ = runtime.write_rune(i, buf, '<') or_return
@@ -748,13 +747,13 @@ element_display_write  :: proc (buf: []byte, i: ^int, h: Element_Handle = {}, lo
 element_display_writer  :: proc (w: io.Writer, h: Element_Handle = {}, n_written: ^int = nil, loc := #caller_location) -> (n: int, err: io.Error) {
 	buf: [1024]byte
 	i: int
-	element_display_write(buf[:], &i, h, loc=loc)
+	element_display_write(&i, buf[:], h, loc=loc)
 	return io.write_full(w, buf[:i])
 }
 element_display_builder  :: proc (sb: ^strings.Builder, h: Element_Handle = {}, loc := #caller_location) -> int {
 	buf: [1024]byte
 	i: int
-	element_display_write(buf[:], &i, h, loc=loc)
+	element_display_write(&i, buf[:], h, loc=loc)
 	return strings.write_bytes(sb, buf[:i], loc=loc)
 }
 @(require_results)
@@ -863,8 +862,25 @@ element_find_child :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_l
 element_find_child_assert :: proc ($T: typeid, h: Element_Handle = {}, loc := #caller_location) -> (child: ^Element, state: ^T) {
 	ok: bool
 	child, state, ok = element_find_child(T, h, loc)
-	fmt.assertf(ok, "%s requires a direct child of %w but not found",
-	            element_display(h, context.temp_allocator, loc), typeid_of(T), loc=loc)
+
+	if !ok {
+		@(cold)
+		internal :: proc (T: typeid, h: Element_Handle, loc: runtime.Source_Code_Location) {
+			p := context.assertion_failure_proc
+			if p == nil {
+				p = runtime.default_assertion_failure_proc
+			}
+			buf: [1024]byte
+			i: int
+			element_display_write(&i, buf[:], h, loc)
+			_ = runtime.write_string(&i, buf[:], " requires a direct child of <")
+			_ = runtime.write_typeid(&i, buf[:], T)
+			_ = runtime.write_string(&i, buf[:], "> but not found")
+			p("runtime assertion", string(buf[:i]), loc)
+		}
+		internal(typeid_of(T), h, loc)
+	}
+
 	return
 }
 
