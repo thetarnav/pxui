@@ -359,9 +359,9 @@ _element_check_destroy :: proc (el: ^Element) {
 _element_destroy :: proc (el: ^Element) {
 
 	if el._found {
-		_call_element_callback(el, el.cleanup)
+		call_element_callback(el, el.cleanup)
 	} else {
-		_call_element_callback(el, el.last_frame.cleanup)
+		call_element_callback(el, el.last_frame.cleanup)
 	}
 
 	// Free data
@@ -512,7 +512,7 @@ frame_end :: proc () {
 
 		it := hm.iterator_make(&ctx.elements)
 		for el, _ in hm.iterate(&it) {
-			_call_element_callback(el, el.effect)
+			call_element_callback(el, el.effect)
 		}
 	}
 }
@@ -586,13 +586,13 @@ _solve_layout :: proc (el: ^Element) #no_bounds_check {
 
 		if is_bottom_up {
 			// bottom up layout can change size
-			_call_element_callback(el, el.layout[axis].cb)
+			call_element_callback(el, el.layout[axis].cb)
 			_animate_size(el, axis)
 			_element_handle_subtree(el)
 		} else {
 			_animate_size(el, axis)
 			_element_handle_subtree(el)
-			_call_element_callback(el, el.layout[axis].cb)
+			call_element_callback(el, el.layout[axis].cb)
 		}
 	}
 }
@@ -600,7 +600,7 @@ _solve_layout :: proc (el: ^Element) #no_bounds_check {
 _element_handle_subtree :: proc (el: ^Element) {
 	if el.solved == true && el.subtree != {} {
 
-		_call_element_callback(el, el.subtree)
+		call_element_callback(el, el.subtree)
 
 		// Check for removed children now that new subtree structure is known
 		child_id := el.last_frame.child_first
@@ -629,10 +629,11 @@ _element_set_ref_size :: proc (el: ^Element, axis: Axis, ref: int) #no_bounds_ch
 	el.size_set[axis] = true
 }
 
-_call_element_callback :: proc (el: ^Element, cb: proc ()) {
+call_element_callback :: proc (el: Element_Handle, cb: proc (), loc := #caller_location) {
 	if cb == nil do return
 	prev_el := ctx.element_curr
-	ctx.element_curr = el.handle
+	ctx.element_curr = el
+	element_get_assert(el, loc)
 	cb()
 	ctx.element_curr = prev_el
 }
@@ -708,7 +709,6 @@ element_root :: proc (loc := #caller_location) -> ^Element {
 element_get :: #force_inline proc (handle: Element_Handle) -> (el: ^Element, ok: bool) #optional_ok {
 	return hm.get(&ctx.elements, handle)
 }
-@(require_results)
 element_get_assert :: #force_inline proc (handle: Element_Handle, loc := #caller_location) -> ^Element {
 	el, ok := hm.get(&ctx.elements, handle)
 	assert(ok, loc=loc)
