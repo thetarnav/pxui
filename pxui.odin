@@ -1,10 +1,11 @@
 package pxui
 
+import "base:runtime"
+
 import "core:slice"
 import "core:os"
 import "core:io"
 import "core:strings"
-import "base:runtime"
 import "core:mem"
 import hm "core:container/handle_map"
 
@@ -587,23 +588,25 @@ _solve_layout :: proc (el: ^Element) #no_bounds_check {
 			// bottom up layout can change size
 			_call_element_callback(el, el.layout[axis].cb)
 			_animate_size(el, axis)
+			_element_handle_subtree(el)
 		} else {
 			_animate_size(el, axis)
-
-			// Handle subtree
-			if el.solved == true && el.subtree != nil {
-
-				_call_element_callback(el, el.subtree)
-
-				// Check for removed children now that new subtree structure is known
-				child_id := el.last_frame.child_first
-				for child in element_get(child_id) {
-					defer child_id = child.last_frame.next
-					_element_check_destroy(child)
-				}
-			}
-
+			_element_handle_subtree(el)
 			_call_element_callback(el, el.layout[axis].cb)
+		}
+	}
+}
+
+_element_handle_subtree :: proc (el: ^Element) {
+	if el.solved == true && el.subtree != {} {
+
+		_call_element_callback(el, el.subtree)
+
+		// Check for removed children now that new subtree structure is known
+		child_id := el.last_frame.child_first
+		for child in element_get(child_id) {
+			defer child_id = child.last_frame.next
+			_element_check_destroy(child)
 		}
 	}
 }
