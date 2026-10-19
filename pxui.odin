@@ -53,16 +53,19 @@ Texture :: struct {
 	size:   Vec2i,
 }
 
+Mouse_Button :: enum u8 {
+	Left, Right, Middle,
+}
+
 // Per frame input
 Frame_Input :: struct {
-	mouse:          Vec2i,
-	mouse_pressed:  bool,
-	mouse_released: bool,
-	mouse_held:     bool,
 
-	wheel_delta:    Vec2f,
+	mouse_pos:     Vec2i,
+	mouse_down:    bit_set[Mouse_Button], // mouse buttons that are currently down
+	mouse_changed: bit_set[Mouse_Button], // mouse buttons pressed or releaesed this frame
+	mouse_wheel:   Vec2f,
 
-	time:           int,
+	time:          int,
 }
 
 Context :: struct {
@@ -677,7 +680,7 @@ update_screen_rect_and_mouse :: proc () {
 		el.pos_screen = pos_screen
 
 		el.mouse_in = check_mouse && .Non_Interactable not_in el.flags &&
-		              rect_contains(element_screen_rect(el), ctx.mouse)
+		              rect_contains(element_screen_rect(el), ctx.mouse_pos)
 
 		if el.mouse_in {
 			ctx.element_hover = el
@@ -1103,6 +1106,34 @@ is_init :: proc (h: Element_Handle = {}, loc := #caller_location) -> bool {
 }
 
 @(require_results)
+mouse_pos :: proc () -> Vec2i {
+	return ctx.mouse_pos
+}
+
+@(require_results)
+mouse_is_down :: proc (btn: Mouse_Button = .Left) -> bool {
+	return btn in ctx.mouse_down
+}
+@(require_results)
+mouse_is_up :: proc (btn: Mouse_Button = .Left) -> bool {
+	return btn not_in ctx.mouse_down
+}
+@(require_results)
+mouse_is_pressed :: proc (btn: Mouse_Button = .Left) -> bool {
+	return btn in ctx.mouse_down && btn in ctx.mouse_changed
+}
+@(require_results)
+mouse_is_released :: proc (btn: Mouse_Button = .Left) -> bool {
+	return btn not_in ctx.mouse_down && btn in ctx.mouse_changed
+}
+is_mouse_down      :: mouse_is_down
+is_mouse_up        :: mouse_is_up
+is_mouse_pressed   :: mouse_is_pressed
+is_mouse_relseased :: mouse_is_released
+mouse_went_down    :: mouse_is_pressed
+mouse_went_up      :: mouse_is_released
+
+@(require_results)
 is_hovered :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).handle == ctx.element_hover
 }
@@ -1111,24 +1142,34 @@ is_mouse_in :: proc (h: Element_Handle = {}) -> bool {
 	return element_get_or_curr(h).last_frame.mouse_in
 }
 @(require_results)
-is_clicked :: proc (h: Element_Handle = {}) -> bool {
-	return is_hovered(h) && ctx.mouse_pressed
+is_mouse_out :: proc (h: Element_Handle = {}) -> bool {
+	return !element_get_or_curr(h).last_frame.mouse_in
 }
 @(require_results)
-is_pressed :: proc (h: Element_Handle = {}) -> bool {
-	return is_hovered(h) && ctx.mouse_pressed
+is_clicked :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && mouse_is_pressed(btn)
 }
 @(require_results)
-is_click_in :: proc (h: Element_Handle = {}) -> bool {
-	return is_mouse_in(h) && ctx.mouse_pressed
+is_pressed :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
+	return is_hovered(h) && mouse_is_pressed(btn)
 }
 @(require_results)
-is_press_in :: proc (h: Element_Handle = {}) -> bool {
-	return is_mouse_in(h) && ctx.mouse_pressed
+is_click_in :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && mouse_is_pressed(btn)
+}
+is_click_inside :: is_click_in
+@(require_results)
+is_click_out :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
+	return !is_hovered(h) && mouse_is_pressed(btn)
+}
+is_click_outside :: is_click_out
+@(require_results)
+is_press_in :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
+	return is_mouse_in(h) && mouse_is_pressed(btn)
 }
 @(require_results)
-is_released :: proc () -> bool {
-	return ctx.mouse_released
+is_released :: proc (btn: Mouse_Button = .Left) -> bool {
+	return mouse_is_released(btn) // TODO: check if it was released from clicking this element
 }
 @(require_results)
 is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
@@ -1136,21 +1177,25 @@ is_wheel_in :: proc (h: Element_Handle = {}) -> bool {
 }
 
 @(require_results)
-wheel_delta :: proc (h: Element_Handle = {}) -> Vec2f {
-	return ctx.wheel_delta if is_wheel_in(h) else {}
+wheel_delta_in :: proc (h: Element_Handle = {}) -> Vec2f {
+	return ctx.mouse_wheel if is_wheel_in(h) else {}
 }
 @(require_results)
-wheel_delta_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h)[axis]
+wheel_delta_in_axis :: proc (axis: Axis, h: Element_Handle = {}) -> f32 {
+	return wheel_delta_in(h)[axis]
 }
 @(require_results)
-wheel_delta_x :: proc (h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h).x
+wheel_delta_in_x :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta_in(h).x
 }
 @(require_results)
-wheel_delta_y :: proc (h: Element_Handle = {}) -> f32 {
-	return wheel_delta(h).y
+wheel_delta_in_y :: proc (h: Element_Handle = {}) -> f32 {
+	return wheel_delta_in(h).y
 }
+mouse_wheel_delta_in      :: wheel_delta_in
+mouse_wheel_delta_in_axis :: wheel_delta_in_axis
+mouse_wheel_delta_in_x    :: wheel_delta_in_x
+mouse_wheel_delta_in_y    :: wheel_delta_in_y
 
 
 flag :: proc (f: Element_Flag, h: Element_Handle = {}, loc := #caller_location) {

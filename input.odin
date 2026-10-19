@@ -195,13 +195,13 @@ slider_begin :: proc (
 		avail_w     := element_inner_bounds(slider, axis, loc=slider.loc)-thumb_w
 		thumb_p     := int(math.remap_clamped(s.ptr^, min, max, 0, f32(avail_w)))
 		sl_pos      := element_screen_pos(slider, axis, loc=slider.loc)
-		mouse       := ctx.mouse[axis]
+		mouse       := mouse_pos()[axis]
 
 		// Start dragging if pressed on the thumb or anywhere on the track
-		if thumb != nil && is_press_in(thumb) {
+		if thumb != nil && is_press_in(.Left, thumb) {
 			dragging = true
 			offset   = f32(mouse - sl_pos - thumb_p) - f32(thumb_w)/2
-		} else if is_press_in(slider) {
+		} else if is_press_in(.Left, slider) {
 			dragging = true
 			offset   = 0
 		}

@@ -306,7 +306,7 @@ scroll_area_begin :: proc (axis: Axis = .V, #any_int id: u64 = 0, loc := #caller
 	clip_outside()
 	flag(.Capture_Wheel)
 
-	s.scroll += wheel_delta_axis(axis)
+	s.scroll += wheel_delta_in_axis(axis)
 
 	layout_axis(axis, proc () {
 		area := element_curr()
@@ -397,16 +397,18 @@ scrollbar_begin :: proc (size, min_thumb_size: int, loc := #caller_location) {
 		using s_container := element_state(Scroll_Area_Container, container)
 		_                  = element_state(Scroll_Area_Scrollbar_Thumb, thumb)
 
+		mouse := mouse_pos()[axis]
+
 		oh := element_inner_bounds(container, axis)
 		ih := element_bounds(content, axis)
 
 		scrollbar_pos := element_screen_pos(scrollbar)
 		thumb_pos, thumb_size := get_thumb_pos_and_size(oh, ih, scroll, min_thumb_size)
 
-		if is_press_in(thumb) {
+		if is_press_in(.Left, thumb) {
 			dragging = true
-			offset   = ctx.mouse[axis] - scrollbar_pos[axis] - thumb_pos - thumb_size/2
-		} else if is_press_in(scrollbar) {
+			offset   = mouse - scrollbar_pos[axis] - thumb_pos - thumb_size/2
+		} else if is_press_in(.Left, scrollbar) {
 			dragging = true
 		}
 
@@ -417,7 +419,7 @@ scrollbar_begin :: proc (size, min_thumb_size: int, loc := #caller_location) {
 
 		if dragging {
 			h := f32(oh-thumb_size)
-			p := f32(ctx.mouse[axis]) - f32(scrollbar_pos[axis]) - f32(oh)/2 - f32(offset)
+			p := f32(mouse) - f32(scrollbar_pos[axis]) - f32(oh)/2 - f32(offset)
 			scroll = -math.remap_clamped(p, -h/2, h/2, 0, f32(ih-oh))
 		}
 	})
