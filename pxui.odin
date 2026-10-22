@@ -3,7 +3,6 @@ package pxui
 import "base:runtime"
 
 import "core:slice"
-import "core:os"
 import "core:io"
 import "core:strings"
 import "core:mem"
@@ -751,14 +750,12 @@ element_display_write  :: proc (i: ^int, buf: []byte, h: Element_Handle = {}, lo
 	return true
 }
 element_display_writer  :: proc (w: io.Writer, h: Element_Handle = {}, n_written: ^int = nil, loc := #caller_location) -> (n: int, err: io.Error) {
-	buf: [1024]byte
-	i: int
+	buf: [1024]byte; i: int
 	element_display_write(&i, buf[:], h, loc=loc)
 	return io.write_full(w, buf[:i])
 }
 element_display_builder  :: proc (sb: ^strings.Builder, h: Element_Handle = {}, loc := #caller_location) -> int {
-	buf: [1024]byte
-	i: int
+	buf: [1024]byte; i: int
 	element_display_write(&i, buf[:], h, loc=loc)
 	return strings.write_bytes(sb, buf[:i], loc=loc)
 }
@@ -770,8 +767,9 @@ element_display_string :: proc (h: Element_Handle = {}, allocator := context.all
 }
 element_display :: proc {element_display_write, element_display_writer, element_display_builder, element_display_string}
 element_print :: proc (h: Element_Handle = {}, loc := #caller_location) {
-	w := io.to_writer(os.to_writer(os.stdout))
-	element_display_writer(w, h, loc=loc)
+	buf: [1024]byte; i: int
+	element_display_write(&i, buf[:], h, loc=loc)
+	runtime.print_string(string(buf[:i]))
 }
 
 @(require_results)
