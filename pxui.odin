@@ -1160,7 +1160,7 @@ is_click_in :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool 
 is_click_inside :: is_click_in
 @(require_results)
 is_click_out :: proc (btn: Mouse_Button = .Left, h: Element_Handle = {}) -> bool {
-	return !is_hovered(h) && mouse_is_pressed(btn)
+	return is_mouse_out(h) && mouse_is_pressed(btn)
 }
 is_click_outside :: is_click_out
 @(require_results)
