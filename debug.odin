@@ -1,5 +1,6 @@
 package pxui
 
+import "base:runtime"
 import "core:io"
 import "core:os"
 import "core:strings"
@@ -67,7 +68,7 @@ debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 }
 debug_tree_layout_print :: proc () {
 	str := debug_tree_display_layout(context.temp_allocator)
-	os.write_string(os.stdout, str)
+	runtime.print_string(str)
 }
 
 Debug_Tree_Display_Proc :: proc (w: io.Writer, el: ^Element)
