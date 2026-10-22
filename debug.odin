@@ -2,7 +2,6 @@ package pxui
 
 import "base:runtime"
 import "core:io"
-import "core:os"
 import "core:strings"
 import "core:fmt"
 
@@ -97,9 +96,11 @@ debug_tree_display_write :: proc (w: io.Writer, root: Element_Handle, info: Debu
 	}
 }
 
-debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
-	w := io.to_writer(os.to_writer(os.stdout))
+debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display_Proc = nil, loc := #caller_location) {
+	sb := strings.builder_make_len_cap(0, 2000, context.temp_allocator, loc)
+	w := strings.to_writer(&sb)
 	debug_tree_display_write(w, root, info)
+	runtime.print_string(strings.to_string(sb))
 }
 
 // TODO: all strings should allocate or none—otherwise you cannot free
@@ -112,12 +113,4 @@ sizing_to_string :: proc (s: Sizing, allocator := context.allocator) -> string {
 	case f32:     return fmt.aprintf("%g", v, allocator=allocator)
 	}
 	return "?"
-}
-
-debug_tree_dump :: proc (path: string, root: Element_Handle, info: Debug_Tree_Display_Proc = nil) {
-	f, err := os.open(path, {.Write, .Create, .Trunc})
-	if err != nil do return
-	defer os.close(f)
-	w := io.to_writer(os.to_writer(f))
-	debug_tree_display_write(w, root, info)
 }
