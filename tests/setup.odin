@@ -1,5 +1,7 @@
 package tests
 
+import "base:runtime"
+
 import "core:diff"
 import "core:fmt"
 import "core:strings"
@@ -36,6 +38,7 @@ layout_tree :: proc () -> string {
 	sb := strings.builder_make(context.temp_allocator)
 	first := true
 	write_node(&sb, px.ctx.element_root, 0, true, &first)
+	strings.write_rune(&sb, '\n')
 	return strings.to_string(sb)
 
 	write_node :: proc (sb: ^strings.Builder, handle: px.Element_Handle, depth: int, is_root: bool, first: ^bool) {
@@ -43,7 +46,7 @@ layout_tree :: proc () -> string {
 		if !ok do return
 
 		if !first^ {
-			strings.write_string(sb, "\n")
+			strings.write_rune(sb, '\n')
 		}
 		first^ = false
 
@@ -51,16 +54,24 @@ layout_tree :: proc () -> string {
 			strings.write_string(sb, "  ")
 		}
 
-		name := "root"
-		if !is_root {
-			name = px.element_state(Test_Node, handle).name
+		if is_root {
+			strings.write_string(sb, "root")
+		} else if node, has_node := px.element_state_safe(Test_Node, handle); has_node {
+			strings.write_string(sb, node.name)
+		} else {
+			buf: [256]byte
+			written: int
+			if runtime.write_typeid(&written, buf[:], el.type) {
+				strings.write_bytes(sb, buf[:written])
+			} else {
+				strings.write_string(sb, "<unknown type>")
+			}
 		}
 		pos := px.element_screen_pos(handle)
 		box := px.element_box_size(handle)
 		bounds := px.element_bounds(handle)
 		strings.write_string(sb, fmt.tprintf(
-			"%s pos=(%d,%d) box=(%d,%d) bounds=(%d,%d)",
-			name,
+			" pos=(%d,%d) box=(%d,%d) bounds=(%d,%d)",
 			pos.x, pos.y,
 			box.x, box.y,
 			bounds.x, bounds.y,
@@ -75,6 +86,7 @@ layout_tree :: proc () -> string {
 }
 
 expect_layout_tree :: proc (t: ^testing.T, expected: string) {
+	expected := strings.concatenate({expected, "\n"}, context.temp_allocator)
 	actual := layout_tree()
 	if actual == expected do return
 
