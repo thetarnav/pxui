@@ -85,7 +85,7 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 	max_size := element_inner_bounds(el, AXIS)
 
 	// Position first child at the start of the reference plane.
-	element_set_pos(prev, {AXIS = 0, PERP = 0})
+	element_set_pos(prev, {0, 0})
 	cursor: Vec2i
 	cursor[PERP] = 0
 	cursor[AXIS] = element_bounds(prev, AXIS)
@@ -106,7 +106,7 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 			row_size = 0
 		}
 
-		element_set_pos(child, {AXIS = cursor[AXIS], PERP = cursor[PERP]})
+		element_set_pos(child, cursor)
 
 		cursor[AXIS] += element_bounds(child, AXIS) + gap[AXIS]
 		row_size = max(row_size, element_bounds(child, PERP))
