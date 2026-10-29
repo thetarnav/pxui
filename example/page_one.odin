@@ -90,8 +90,7 @@ page_one :: proc (
 		}
 	}
 
-	{
-		px.flex_h(gap={2, 4})
+	{px.flex_h(gap={2, 4})
 		px.width_fill()
 		px.max_width(400)
 		px.background_color(COLOR_DARK_GRAY)
@@ -106,8 +105,31 @@ page_one :: proc (
 		}
 	}
 
-	{
-		px.scroll_area()
+	{px.flex_h(gap={2, 4})
+		px.width_fill()
+		px.max_width(400)
+		px.background_color(COLOR_DARK_GRAY)
+		px.padding(4)
+		px.margin(4)
+
+		{px.panel()
+			px.size_hv(60, 30)
+			px.background_color(COLOR_LIGHT_YELLOW)
+			px.opacity(0.8)
+		}
+		{px.panel()
+			px.size_hv(100, 20)
+			px.background_color(COLOR_LIGHT_RED)
+			px.opacity(0.8)
+		}
+		{px.panel()
+			px.size_hv(80, 40)
+			px.background_color(COLOR_DARK_RED)
+			px.opacity(0.8)
+		}
+	}
+
+	{px.scroll_area()
 		px.width_fill()
 		px.height(120)
 		px.margin(4)
