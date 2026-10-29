@@ -11,30 +11,34 @@ Test_Node :: struct {
 	name: string,
 }
 
-begin_layout_test :: proc(root_size: px.Vec2i) {
+begin_layout_test :: proc (root_size: px.Vec2i) {
 	px.init(context.allocator)
 	px.frame_begin()
 	px.size_px(root_size)
 }
+@(deferred_none=px.shutdown)
+scope_layout_test :: proc (root_size: px.Vec2i) {
+	begin_layout_test(root_size)
+}
 
 @(deferred_none=test_node_end)
-test_node :: proc(name: string, id: u64) {
+test_node :: proc (name: string, id: u64) {
 	px.element_push(Test_Node, id)
 	el := px.element_curr()
 	px.element_state(Test_Node, el.handle).name = name
 }
 
-test_node_end :: proc() {
+test_node_end :: proc () {
 	px.element_pop()
 }
 
-layout_tree :: proc() -> string {
+layout_tree :: proc () -> string {
 	sb := strings.builder_make(context.temp_allocator)
 	first := true
 	write_node(&sb, px.ctx.element_root, 0, true, &first)
 	return strings.to_string(sb)
 
-	write_node :: proc(sb: ^strings.Builder, handle: px.Element_Handle, depth: int, is_root: bool, first: ^bool) {
+	write_node :: proc (sb: ^strings.Builder, handle: px.Element_Handle, depth: int, is_root: bool, first: ^bool) {
 		el, ok := px.element_get(handle)
 		if !ok do return
 
@@ -70,7 +74,7 @@ layout_tree :: proc() -> string {
 	}
 }
 
-expect_layout_tree :: proc(t: ^testing.T, expected: string) {
+expect_layout_tree :: proc (t: ^testing.T, expected: string) {
 	actual := layout_tree()
 	if actual == expected do return
 
@@ -87,4 +91,9 @@ expect_layout_tree :: proc(t: ^testing.T, expected: string) {
 		return
 	}
 	testing.expectf(t, false, "layout tree mismatch:\n%s", report)
+}
+
+frame_end_expect_layout_tree :: proc (t: ^testing.T, expected: string) {
+	px.frame_end()
+	expect_layout_tree(t, expected)
 }

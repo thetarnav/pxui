@@ -7,9 +7,8 @@ import px ".."
 // root 100x80
 // +-- anchor (25x10 box, margins expand its outer bounds to 33x20)
 @(test)
-test_fixed_size_and_relative_placement :: proc(t: ^testing.T) {
-	begin_layout_test({100, 80})
-	defer px.shutdown()
+test_fixed_size_and_relative_placement :: proc (t: ^testing.T) {
+	scope_layout_test({100, 80})
 
 	px.padding_set(px.Insets{l=2, t=3, r=2, b=3})
 	{
@@ -20,8 +19,7 @@ test_fixed_size_and_relative_placement :: proc(t: ^testing.T) {
 		px.origin_set({0.5, 0.5})
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(100,80) bounds=(100,80)
 	  anchor pos=(41,20) box=(25,10) bounds=(33,20)
 	```)
@@ -32,8 +30,8 @@ test_fixed_size_and_relative_placement :: proc(t: ^testing.T) {
 //     +-- first  (12x7)
 //     +-- second (20x9, placed after first on both axes)
 @(test)
-test_content_size_and_raw_layout_callbacks :: proc(t: ^testing.T) {
-	layout_two_children_x :: proc() {
+test_content_size_and_raw_layout_callbacks :: proc (t: ^testing.T) {
+	layout_two_children_x :: proc () {
 		parent := px.element_curr()
 		first := px.element_get_assert(parent.child_first)
 		second := px.element_get_assert(first.next)
@@ -44,7 +42,7 @@ test_content_size_and_raw_layout_callbacks :: proc(t: ^testing.T) {
 		)
 	}
 
-	layout_two_children_y :: proc() {
+	layout_two_children_y :: proc () {
 		parent := px.element_curr()
 		first := px.element_get_assert(parent.child_first)
 		second := px.element_get_assert(first.next)
@@ -55,8 +53,7 @@ test_content_size_and_raw_layout_callbacks :: proc(t: ^testing.T) {
 		)
 	}
 
-	begin_layout_test({100, 80})
-	defer px.shutdown()
+	scope_layout_test({100, 80})
 
 	{
 		test_node("content", 1)
@@ -73,8 +70,7 @@ test_content_size_and_raw_layout_callbacks :: proc(t: ^testing.T) {
 		}
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(100,80) bounds=(100,80)
 	  content pos=(0,0) box=(32,16) bounds=(32,16)
 	    first pos=(0,0) box=(12,7) bounds=(12,7)
@@ -86,17 +82,14 @@ test_content_size_and_raw_layout_callbacks :: proc(t: ^testing.T) {
 // +-- container (30x20, positioned at 4,5)
 //     +-- generated (Fill x 50% of parent height, positioned at 6,4)
 @(test)
-test_subtree_callback_builds_layout_child :: proc(t: ^testing.T) {
-	add_subtree_child :: proc() {
-		{
-			test_node("generated", 1)
-			px.size_hv(px.FILL, 0.5)
-			px.pos_set({6, 4})
-		}
+test_subtree_callback_builds_layout_child :: proc (t: ^testing.T) {
+	add_subtree_child :: proc () {
+		test_node("generated", 1)
+		px.size_hv(px.FILL, 0.5)
+		px.pos_set({6, 4})
 	}
 
-	begin_layout_test({100, 80})
-	defer px.shutdown()
+	scope_layout_test({100, 80})
 
 	{
 		test_node("container", 1)
@@ -105,8 +98,7 @@ test_subtree_callback_builds_layout_child :: proc(t: ^testing.T) {
 		px.subtree(add_subtree_child)
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(100,80) bounds=(100,80)
 	  container pos=(4,5) box=(30,20) bounds=(30,20)
 	    generated pos=(10,9) box=(30,10) bounds=(30,10)
@@ -118,16 +110,15 @@ test_subtree_callback_builds_layout_child :: proc(t: ^testing.T) {
 //     +-- intrinsic (26x12)
 //     +-- match-column-width (Fill x, 15px high, placed below intrinsic)
 @(test)
-test_content_width_parent_fill_height :: proc(t: ^testing.T) {
-	layout_children_vertically :: proc() {
+test_content_width_parent_fill_height :: proc (t: ^testing.T) {
+	layout_children_vertically :: proc () {
 		parent := px.element_curr()
 		first := px.element_get_assert(parent.child_first)
 		second := px.element_get_assert(first.next)
 		px.element_set_pos(second.handle, .Y, px.element_bounds(first.handle, .Y))
 	}
 
-	begin_layout_test({80, 60})
-	defer px.shutdown()
+	scope_layout_test({80, 60})
 
 	{
 		test_node("column", 1)
@@ -144,8 +135,7 @@ test_content_width_parent_fill_height :: proc(t: ^testing.T) {
 		}
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(80,60) bounds=(80,60)
 	  column pos=(0,0) box=(26,60) bounds=(26,60)
 	    intrinsic pos=(0,0) box=(26,12) bounds=(26,12)
@@ -161,23 +151,22 @@ test_content_width_parent_fill_height :: proc(t: ^testing.T) {
 //     +-- intrinsic (100x10)
 //     +-- fill-width (80x10)
 @(test)
-test_content_width_min_max_and_fill_children :: proc(t: ^testing.T) {
-	layout_vertical_children :: proc() {
+test_content_width_min_max_and_fill_children :: proc (t: ^testing.T) {
+	layout_vertical_children :: proc () {
 		list := px.element_curr()
 		first := px.element_get_assert(list.child_first)
 		second := px.element_get_assert(first.next)
 		px.element_set_pos(second.handle, .Y, px.element_bounds(first.handle, .Y))
 	}
 
-	layout_two_lists :: proc() {
+	layout_two_lists :: proc () {
 		root := px.element_curr()
 		first := px.element_get_assert(root.child_first)
 		second := px.element_get_assert(first.next)
 		px.element_set_pos(second.handle, .Y, px.element_bounds(first.handle, .Y))
 	}
 
-	begin_layout_test({100, 100})
-	defer px.shutdown()
+	scope_layout_test({100, 100})
 
 	px.layout_axis(.Y, layout_two_lists)
 	{
@@ -213,8 +202,7 @@ test_content_width_min_max_and_fill_children :: proc(t: ^testing.T) {
 		}
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(100,100) bounds=(100,100)
 	  min-list pos=(0,0) box=(60,40) bounds=(60,40)
 	    min-intrinsic pos=(0,0) box=(50,10) bounds=(50,10)
@@ -228,8 +216,8 @@ test_content_width_min_max_and_fill_children :: proc(t: ^testing.T) {
 // root 36x60
 // +-- paragraph-like node (Fill width; a cross-axis callback derives 24px height)
 @(test)
-test_content_height_depends_on_fill_width :: proc(t: ^testing.T) {
-	measure_wrapped_height :: proc() {
+test_content_height_depends_on_fill_width :: proc (t: ^testing.T) {
+	measure_wrapped_height :: proc () {
 		el := px.element_curr()
 		available_width := px.element_inner_bounds(el.handle, .X)
 		height := 12
@@ -239,8 +227,7 @@ test_content_height_depends_on_fill_width :: proc(t: ^testing.T) {
 		px.element_set_height(el.handle, height)
 	}
 
-	begin_layout_test({36, 60})
-	defer px.shutdown()
+	scope_layout_test({36, 60})
 
 	{
 		test_node("paragraph-like", 1)
@@ -248,8 +235,7 @@ test_content_height_depends_on_fill_width :: proc(t: ^testing.T) {
 		px.layout_axis(.Y, measure_wrapped_height, deps={.X})
 	}
 
-	px.frame_end()
-	expect_layout_tree(t, ```
+	frame_end_expect_layout_tree(t, ```
 	root pos=(0,0) box=(36,60) bounds=(36,60)
 	  paragraph-like pos=(0,0) box=(36,24) bounds=(36,24)
 	```)
