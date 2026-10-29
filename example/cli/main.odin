@@ -7,7 +7,6 @@
 //   mouse X Y         set the mouse position
 //   press             simulate a mouse press on the next frame
 //   release           simulate a mouse release on the next frame
-//   hold              toggle mouse-held flag
 //   wheel DX DY       simulate a wheel delta
 //   resize W H        set the window size
 //   tree              dump the element tree
@@ -19,7 +18,6 @@
 package main
 
 import "core:fmt"
-import "core:io"
 import "core:os"
 import "core:strconv"
 import "core:strings"
@@ -28,22 +26,15 @@ import px "../../"
 
 UI_W, UI_H :: 320, 200
 
-// Simulated input state.
+// Simulated input state
 State :: struct {
-	ws:              app.Vec2i,
-	mouse:           app.Vec2i,
-	pressed:         bool,
-	released:        bool,
-	held:            bool,
-	wheel:           app.Vec2,
-	pending_press:   bool,
-	pending_release: bool,
+	ws:          app.Vec2i,
+	using input: px.Frame_Input,
 }
 
 main :: proc () {
 	state := State{
-		ws    = {UI_W, UI_H},
-		mouse = {0, 0},
+		ws = {UI_W, UI_H},
 	}
 
 	// app.init returns bool. If false, initialization failed.
@@ -69,7 +60,7 @@ run_command :: proc (state: ^State, line: string) {
 	if line == "" do return
 
 	parts := strings.split(line, " ")
-	cmd := parts[0]
+	cmd  := parts[0]
 	args := parts[1:]
 
 	switch cmd {
@@ -87,25 +78,31 @@ run_command :: proc (state: ^State, line: string) {
 			fmt.println("usage: mouse X Y")
 			return
 		}
-		state.mouse.x = strconv.parse_int(args[0]) or_else 0
-		state.mouse.y = strconv.parse_int(args[1]) or_else 0
+		state.mouse_pos.x = strconv.parse_int(args[0]) or_else 0
+		state.mouse_pos.y = strconv.parse_int(args[1]) or_else 0
 	case "press":
-		state.pending_press = true
+		if .Left in state.mouse_down {
+			state.mouse_changed -= {.Left}
+		} else {
+			state.mouse_changed += {.Left}
+		}
+		state.mouse_down += {.Left}
 		fmt.println("(next frame: mouse pressed)")
 	case "release":
-		state.pending_release = true
+		if .Left in state.mouse_down {
+			state.mouse_changed += {.Left}
+		} else {
+			state.mouse_changed -= {.Left}
+		}
+		state.mouse_down -= {.Left}
 		fmt.println("(next frame: mouse released)")
-	case "hold":
-		state.held = !state.held
-		if state.held do fmt.println("mouse held: on")
-		else do fmt.println("mouse held: off")
 	case "wheel":
 		if len(args) < 2 {
 			fmt.println("usage: wheel DX DY")
 			return
 		}
-		state.wheel.x = f32(strconv.parse_int(args[0]) or_else 0)
-		state.wheel.y = f32(strconv.parse_int(args[1]) or_else 0)
+		state.mouse_wheel.x = f32(strconv.parse_int(args[0]) or_else 0)
+		state.mouse_wheel.y = f32(strconv.parse_int(args[1]) or_else 0)
 	case "resize":
 		if len(args) < 2 {
 			fmt.println("usage: resize W H")
@@ -136,25 +133,7 @@ run_command :: proc (state: ^State, line: string) {
 
 run_frames :: proc (state: ^State, n: int) {
 	for _ in 0..<n {
-		pressed  := state.pressed || state.pending_press
-		released := state.released || state.pending_release
-		held     := state.held || state.pending_press
-
-		input := px.Frame_Input {
-			mouse          = state.mouse,
-			mouse_pressed  = pressed,
-			mouse_released = released,
-			mouse_held     = held,
-			wheel_delta    = state.wheel,
-		}
-		app.frame(input, state.ws)
-
-		// Consume one-shot events.
-		state.pressed         = state.held && !state.pending_release
-		state.released        = false
-		state.pending_press   = false
-		state.pending_release = false
-		state.wheel           = {0, 0}
+		app.frame(state.input, state.ws)
 	}
 }
 
@@ -171,7 +150,6 @@ print_help :: proc () {
 	fmt.println("  mouse X Y         set the mouse position")
 	fmt.println("  press             simulate mouse press on next frame")
 	fmt.println("  release           simulate mouse release on next frame")
-	fmt.println("  hold              toggle mouse-held flag")
 	fmt.println("  wheel DX DY       set the wheel delta (consumed each frame)")
 	fmt.println("  resize W H        set the window size")
 	fmt.println("  tree              dump the element tree")
@@ -188,7 +166,7 @@ read_line :: proc () -> (string, bool) {
 	line_len := 0
 	for line_len < len(buf) {
 		n, err := os.read(os.stdin, buf[line_len:line_len+1])
-		if err != 0 || n == 0 {
+		if err != nil || n == 0 {
 			if line_len == 0 do return "", false
 			break
 		}
