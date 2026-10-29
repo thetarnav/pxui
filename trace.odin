@@ -1,135 +1,148 @@
 package pxui
 
-import "core:os"
-import "core:io"
-import "core:strings"
-import "core:fmt"
-import "base:runtime"
-import "core:time"
+@require import "core:os"
+@require import "core:io"
+@require import "core:strings"
+@require import "core:fmt"
+@require import "base:runtime"
+@require import "core:time"
 
-Trace :: struct {
-	name:            string,
-	start:           time.Tick,
-	min, max, total: time.Duration,
-	runs:            int,
-}
-_traces: map[rawptr]Trace
+ENABLE_TRACE :: #config(PXUI_ENABLE_TRACE, false)
 
-@init _init_trace :: proc "contextless" () {
-	context = runtime.default_context()
+when ENABLE_TRACE {
 
-	_traces = make(type_of(_traces))
-}
-@fini _fini_trace :: proc "contextless" () {
-	context = runtime.default_context()
-
-	fmt.println("=== TRACE ===")
-
-	_print_table_begin()
-	_print_table_add("name", "avg", "min", "max", "runs")
-	for _, trace in _traces {
-		avg := trace.total / time.Duration(trace.runs)
-		_print_table_add(trace.name, avg, trace.min, trace.max, trace.runs)
+	Trace :: struct {
+		name:            string,
+		start:           time.Tick,
+		min, max, total: time.Duration,
+		runs:            int,
 	}
-	_print_table_end()
+	_traces: map[rawptr]Trace
 
-	fmt.println()
-}
+	@init _init_trace :: proc "contextless" () {
+		context = runtime.default_context()
 
-_print_table_current: struct {
-	widths:  [dynamic]int,
-	content: [dynamic][]string,
-}
+		_traces = make(type_of(_traces))
+	}
+	@fini _fini_trace :: proc "contextless" () {
+		context = runtime.default_context()
 
-_print_table_begin :: proc (loc := #caller_location) {
-	_print_table_current.widths  = make([dynamic]int,      context.temp_allocator, loc=loc)
-	_print_table_current.content = make([dynamic][]string, context.temp_allocator, loc=loc)
-}
-_print_table_add :: proc (items: ..any) {
+		fmt.println("=== TRACE ===")
 
-	resize(&_print_table_current.widths, max(len(_print_table_current.widths), len(items)))
+		_print_table_begin()
+		_print_table_add("name", "avg", "min", "max", "runs")
+		for _, trace in _traces {
+			avg := trace.total / time.Duration(trace.runs)
+			_print_table_add(trace.name, avg, trace.min, trace.max, trace.runs)
+		}
+		_print_table_end()
 
-	row := make([dynamic]string, 0, len(items), context.temp_allocator)
-
-	for item, i in items {
-
-		str := fmt.tprint(item)
-		append(&row, str)
-
-		length: int
-		for _ in str do length += 1
-
-		_print_table_current.widths[i] = max(length, _print_table_current.widths[i])
+		fmt.println()
 	}
 
-	append(&_print_table_current.content, row[:])
-}
-_print_table_end :: proc (loc := #caller_location) {
-
-	cap := len(_print_table_current.content) // \n
-	for width in _print_table_current.widths {
-		cap += (width + 1) * len(_print_table_current.content) // str + space
+	_print_table_current: struct {
+		widths:  [dynamic]int,
+		content: [dynamic][]string,
 	}
 
-	sb := strings.builder_make_len_cap(0, cap, context.temp_allocator, loc)
-	w := strings.to_writer(&sb)
+	_print_table_begin :: proc (loc := #caller_location) {
+		_print_table_current.widths  = make([dynamic]int,      context.temp_allocator, loc=loc)
+		_print_table_current.content = make([dynamic][]string, context.temp_allocator, loc=loc)
+	}
+	_print_table_add :: proc (items: ..any) {
 
-	for row in _print_table_current.content {
-		for str, i in row {
-			io.write_string(w, str)
+		resize(&_print_table_current.widths, max(len(_print_table_current.widths), len(items)))
+
+		row := make([dynamic]string, 0, len(items), context.temp_allocator)
+
+		for item, i in items {
+
+			str := fmt.tprint(item)
+			append(&row, str)
 
 			length: int
 			for _ in str do length += 1
 
-			width := _print_table_current.widths[i]
-			if i < len(row)-1 do width += 1
-
-			for _ in 0..<width - length {
-				io.write_rune(w, ' ')
-			}
+			_print_table_current.widths[i] = max(length, _print_table_current.widths[i])
 		}
 
-		io.write_rune(w, '\n')
+		append(&_print_table_current.content, row[:])
+	}
+	_print_table_end :: proc (loc := #caller_location) {
+
+		cap := len(_print_table_current.content) // \n
+		for width in _print_table_current.widths {
+			cap += (width + 1) * len(_print_table_current.content) // str + space
+		}
+
+		sb := strings.builder_make_len_cap(0, cap, context.temp_allocator, loc)
+		w := strings.to_writer(&sb)
+
+		for row in _print_table_current.content {
+			for str, i in row {
+				io.write_string(w, str)
+
+				length: int
+				for _ in str do length += 1
+
+				width := _print_table_current.widths[i]
+				if i < len(row)-1 do width += 1
+
+				for _ in 0..<width - length {
+					io.write_rune(w, ' ')
+				}
+			}
+
+			io.write_rune(w, '\n')
+		}
+
+		os.write_string(os.stdout, strings.to_string(sb))
+
+		_print_table_current = {}
+	}
+	@(deferred_in=_print_table_end)
+	_print_table :: proc (loc := #caller_location) {
+		_print_table_begin(loc)
 	}
 
-	os.write_string(os.stdout, strings.to_string(sb))
+	trace_begin :: proc (name: string, loc := #caller_location) {
 
-	_print_table_current = {}
-}
-@(deferred_in=_print_table_end)
-_print_table :: proc (loc := #caller_location) {
-	_print_table_begin(loc)
-}
+		ptr := raw_data(name)
+		trace, in_traces := &_traces[ptr]
+		if !in_traces {
+			_traces[ptr] = {name=name}
+			trace, _ = &_traces[ptr]
+		}
 
-trace_begin :: proc (name: string, loc := #caller_location) {
+		assert(trace.start == {}, loc=loc)
 
-	ptr := raw_data(name)
-	trace, in_traces := &_traces[ptr]
-	if !in_traces {
-		_traces[ptr] = {name=name}
-		trace, _ = &_traces[ptr]
+		trace.start = time.tick_now()
+	}
+	trace_end :: proc (name: string, loc := #caller_location) {
+
+		ptr := raw_data(name)
+		trace, in_traces := &_traces[ptr]
+
+		assert(in_traces && trace.start != {}, loc=loc)
+
+		duration := time.tick_since(trace.start)
+
+		trace.total += duration
+		trace.runs  += 1
+		trace.max    = max(trace.max, duration)
+		trace.min    = min(trace.min, duration) if trace.min != time.Duration(0) else duration
+		trace.start  = {}
+	}
+	@(deferred_in=trace_end)
+	trace :: proc (name: string, loc := #caller_location) {
+		trace_begin(name, loc)
 	}
 
-	assert(trace.start == {}, loc=loc)
-
-	trace.start = time.tick_now()
-}
-trace_end :: proc (name: string, loc := #caller_location) {
-
-	ptr := raw_data(name)
-	trace, in_traces := &_traces[ptr]
-
-	assert(in_traces && trace.start != {}, loc=loc)
-
-	duration := time.tick_since(trace.start)
-
-	trace.total += duration
-	trace.runs  += 1
-	trace.max    = max(trace.max, duration)
-	trace.min    = min(trace.min, duration) if trace.min != time.Duration(0) else duration
-	trace.start  = {}
-}
-@(deferred_in=trace_end)
-trace :: proc (name: string, loc := #caller_location) {
-	trace_begin(name, loc)
+} else {
+	@(disabled=true)
+	trace_begin :: proc (name: string, loc := #caller_location) {}
+	@(disabled=true)
+	trace_end   :: proc (name: string, loc := #caller_location) {}
+	@(disabled=true)
+	trace       :: proc (name: string, loc := #caller_location) {}
 }
