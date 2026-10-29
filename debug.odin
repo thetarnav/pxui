@@ -1,9 +1,9 @@
 package pxui
 
 import "base:runtime"
+
 import "core:io"
 import "core:strings"
-import "core:fmt"
 
 debug_tree_display_layout :: proc (allocator := context.allocator) -> string {
 
@@ -103,14 +103,3 @@ debug_tree_display_print :: proc (root: Element_Handle, info: Debug_Tree_Display
 	runtime.print_string(strings.to_string(sb))
 }
 
-// TODO: all strings should allocate or none—otherwise you cannot free
-sizing_to_string :: proc (s: Sizing, allocator := context.allocator) -> string {
-	switch v in s {
-	case nil:     return "nil"
-	case Content: return "Content"
-	case Fill:    return "Fill"
-	case int:     return fmt.aprintf("%d", v, allocator=allocator)
-	case f32:     return fmt.aprintf("%g", v, allocator=allocator)
-	}
-	return "?"
-}
