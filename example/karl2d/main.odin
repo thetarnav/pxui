@@ -102,20 +102,29 @@ step :: proc () -> bool {
 		// frame(capped_dt) or_return
 		_ = capped_dt
 
-		ws := Vec2i(k2.get_screen_size() / PIXEL_SCALE)
-		mouse := Vec2i(k2.get_mouse_position() / PIXEL_SCALE)
+		ws    := k2.get_screen_size()
+		time  := k2.get_time()
+		mouse := k2.get_mouse_position()
+		wheel := Vec2{k2.get_mouse_wheel_delta_horizontal(), k2.get_mouse_wheel_delta()}
 
-		app.frame(
-			ws    = ws,
-			input = {
-				mouse          = mouse,
-				mouse_pressed  = k2.mouse_button_went_down(.Left),
-				mouse_released = k2.mouse_button_went_up(.Left),
-				mouse_held     = k2.mouse_button_is_held(.Left),
-				wheel_delta    = {k2.get_mouse_wheel_delta_horizontal(), k2.get_mouse_wheel_delta()} * 20,
-				time           = int(k2.get_time() * 1000),
-			},
-		) or_return
+		input := px.Frame_Input{
+			time        = int(time * 1000),
+			mouse_pos   = Vec2i(mouse / PIXEL_SCALE),
+			mouse_wheel = wheel * 20,
+		}
+
+		for k2_key in k2.Mouse_Button {
+			px_key := px.Mouse_Button(k2_key)
+			if k2.mouse_button_is_held(k2_key) {
+				input.mouse_down += {px_key}
+			}
+			if k2.mouse_button_went_down(k2_key) ||
+			   k2.mouse_button_went_up(k2_key) {
+				input.mouse_changed += {px_key}
+			}
+		}
+
+		app.frame(input, Vec2i(ws / PIXEL_SCALE)) or_return
 	}
 
 	render: {
