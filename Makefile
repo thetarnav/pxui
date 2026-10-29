@@ -1,6 +1,6 @@
 .PHONY: run debug run-karl2d build-debug-karl2d \
         run-cli \
-        check test test-verbose \
+        check test test-verbose test-one \
         clean
 
 
@@ -38,28 +38,28 @@ assets/atlas.png assets/atlas.odin: assets/ui.aseprite
 
 # Check the library alone.
 check:
-	odin check . -vet
+	odin check . -vet -no-entry-point
 
-# Run the unit test suite. `odin test` builds with memory tracking enabled,
-# which catches leaks across frame cycles and surface bad frees.
+# Run the unit test suite. The UI context is package-global, so keep tests
+# serial. Memory tracking catches leaks and bad frees.
 test:
-	odin test . \
+	odin test tests \
 		-out:build/test \
 		-define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true \
 		-define:ODIN_TEST_THREADS=1
 
-# Run the test suite with verbose per-test output and debug symbols.
+# Run the test suite with debug symbols and plain runner output.
 test-verbose:
-	odin test . \
+	odin test tests \
 		-out:build/test \
 		-debug \
-		-define:ODIN_TEST_VERBOSE=true \
+		-define:ODIN_TEST_FANCY=false \
 		-define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true \
 		-define:ODIN_TEST_THREADS=1
 
-# Run a single test by name:  make test-one TEST_NAME=pxui.test_rect_cut_pixels
+# Run a single test by name:  make test-one TEST_NAME=tests.test_fixed_size_and_relative_placement
 test-one:
-	odin test . \
+	odin test tests \
 		 -out:build/test \
 		 -define:ODIN_TEST_NAMES=$(TEST_NAME) \
 		 -define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true \
