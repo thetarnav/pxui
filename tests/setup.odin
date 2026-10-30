@@ -24,7 +24,7 @@ scope_layout_test :: proc (root_size: px.Vec2i) {
 }
 
 @(deferred_none=test_node_end)
-test_node :: proc (name: string, id: u64) {
+test_node :: proc (name: string, #any_int id: u64 = 0) {
 	px.element_push(Test_Node, id)
 	el := px.element_curr()
 	px.element_state(Test_Node, el.handle).name = name

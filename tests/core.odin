@@ -143,6 +143,62 @@ test_content_width_parent_fill_height :: proc (t: ^testing.T) {
 	```)
 }
 
+// root 60x60
+// +-- list (size of content)
+// |   +-- children (height 10, min_width of content and width of parent)
+// |       +-- content (height of parent, varying fixed width)
+//
+// children and list should be same size—matching the largest content el
+@test
+test_children_fill_and_grow_parent :: proc (t: ^testing.T) {
+	scope_layout_test({60, 60})
+
+	{test_node("list")
+
+		{test_node("child a")
+			px.height(10)
+			px.min_width(px.CONTENT)
+			px.width_fill()
+
+			{test_node("content")
+				px.height_fill()
+				px.width(10)
+			}
+		}
+		{test_node("child b")
+			px.height(10)
+			px.min_width(px.CONTENT)
+			px.width_fill()
+
+			{test_node("content")
+				px.height_fill()
+				px.width(20)
+			}
+		}
+		{test_node("child c")
+			px.height(10)
+			px.min_width(px.CONTENT)
+			px.width_fill()
+
+			{test_node("content")
+				px.height_fill()
+				px.width(15)
+			}
+		}
+	}
+
+	frame_end_expect_layout_tree(t, ```
+	root (0,0) (60,60)
+	  list (0,0) (20,10)
+	    child a (0,0) (20,10)
+	      content (0,0) (10,10)
+	    child b (0,0) (20,10)
+	      content (0,0) (20,10)
+	    child c (0,0) (20,10)
+	      content (0,0) (15,10)
+	```)
+}
+
 // root 100x100
 // +-- min-list (content width 50, clamped up to min 60)
 // |   +-- intrinsic (50x10)
@@ -153,15 +209,15 @@ test_content_width_parent_fill_height :: proc (t: ^testing.T) {
 @(test)
 test_content_width_min_max_and_fill_children :: proc (t: ^testing.T) {
 	layout_vertical_children :: proc () {
-		list := px.element_curr()
-		first := px.element_get_assert(list.child_first)
+		list   := px.element_curr()
+		first  := px.element_get_assert(list.child_first)
 		second := px.element_get_assert(first.next)
 		px.element_set_pos(second.handle, .Y, px.element_bounds(first.handle, .Y))
 	}
 
 	layout_two_lists :: proc () {
-		root := px.element_curr()
-		first := px.element_get_assert(root.child_first)
+		root   := px.element_curr()
+		first  := px.element_get_assert(root.child_first)
 		second := px.element_get_assert(first.next)
 		px.element_set_pos(second.handle, .Y, px.element_bounds(first.handle, .Y))
 	}

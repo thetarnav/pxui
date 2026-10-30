@@ -4,10 +4,30 @@ import px ".."
 
 page_three :: proc () {
 
-	// This el is just for state
-	px.element_push(struct {})
-	defer px.element_pop()
+	px.v_stack()
 	px.width_fill()
+
+	{px.v_stack(gap=2)
+		px.margin_left(10)
+		px.padding(2)
+		px.background_color(COLOR_DARK_GRAY)
+
+		for i in 0..<5 {
+			{px.panel(i)
+				px.height(14)
+				px.min_width(px.CONTENT)
+				px.width_fill()
+				px.padding(2)
+				px.background_color(COLOR_LIGHT_RED)
+
+				{px.panel()
+					px.height_fill()
+					px.width((i+1)*6)
+					px.background_color(COLOR_LIGHT_YELLOW)
+				}
+			}
+		}
+	}
 
 	{px.scroll_area()
 		px.width_fill()
