@@ -89,29 +89,35 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 	cursor: Vec2i
 	cursor[PERP] = 0
 	cursor[AXIS] = element_bounds(prev, AXIS) + gap[AXIS]
-	row_size := element_bounds(prev, PERP)
+	row_perp := element_bounds(prev, PERP)
+	max_row_axis := row_perp
 
 	for child in each_element_layout_child(el, &child_id) {
 		defer prev = child
+
+		child_axis := element_bounds(child, AXIS)
+		child_perp := element_bounds(child, PERP)
 
 		// Wrap to a new row if the next child doesn't fit.
 		// Leave room for the gap between this child and
 		// the next on the same row.
 		if cursor[AXIS] > 0 &&
-		   cursor[AXIS] + element_bounds(child, AXIS) + gap[AXIS] > max_size
+		   cursor[AXIS] + child_axis + gap[AXIS] > max_size
 		{
 			cursor[AXIS] = 0
-			cursor[PERP] += row_size + gap[PERP]
-			row_size = 0
+			cursor[PERP] += row_perp + gap[PERP]
+			row_perp = 0
 		}
 
 		element_set_pos(child, cursor)
 
-		cursor[AXIS] += element_bounds(child, AXIS) + gap[AXIS]
-		row_size = max(row_size, element_bounds(child, PERP))
+		max_row_axis  = max(max_row_axis, cursor[AXIS] + child_axis)
+		cursor[AXIS] += child_axis + gap[AXIS]
+		row_perp      = max(row_perp, child_perp)
 	}
 
 	element_set_inner_bounds(el, PERP, cursor[PERP] + element_bounds(prev, PERP))
+	element_set_inner_bounds(el, AXIS, max_row_axis)
 }
 
 Flex :: struct {axis: Axis, gap: Vec2i}

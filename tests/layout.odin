@@ -39,7 +39,7 @@ test_flex_component :: proc (t: ^testing.T) {
 
 	{px.flex_h(gap={2, 3})
 		px.padding(1)
-		px.size_hv(px.FILL, px.CONTENT)
+		px.max_width(px.FILL)
 		{test_node("first", 1)
 			px.size_px({10, 8})
 		}
@@ -53,7 +53,7 @@ test_flex_component :: proc (t: ^testing.T) {
 
 	frame_end_expect_layout_tree(t, ```
 	root (0,0) (30,60)
-	  Flex (0,0) (30,17)
+	  Flex (0,0) (28,17)
 	    first (1,1) (10,8)
 	    second (13,1) (14,7)
 	    third (1,12) (10,4)
