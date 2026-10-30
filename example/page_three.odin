@@ -20,10 +20,14 @@ page_three :: proc () {
 				px.padding(2)
 				px.background_color(COLOR_LIGHT_RED)
 
-				{px.panel()
-					px.height_fill()
-					px.width((i+1)*6)
-					px.background_color(COLOR_LIGHT_YELLOW)
+				if i == 2 {
+					px.text("hello there!")
+				} else {
+					{px.panel()
+						px.height_fill()
+						px.width((i+1)*6)
+						px.background_color(COLOR_LIGHT_YELLOW)
+					}
 				}
 			}
 		}
