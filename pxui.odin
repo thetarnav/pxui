@@ -636,6 +636,8 @@ _element_size_is_bottom_up :: proc (el: ^Element, axis: Axis) -> bool #no_bounds
 	return el.layout[axis].cb != nil && axis in el.layout[axis].deps // layout callback should know the size of it's children
 }
 
+// Intrinsic derived only from fixed/content sizing and padding/margin.
+// Does not include custom layout.
 _element_intrinsic_bounds :: proc(el: ^Element, axis: Axis) -> int {
 
 	content: int
