@@ -559,6 +559,11 @@ _solve_layout :: proc (el: ^Element) #no_bounds_check {
 		// Visit self—other axis
 		if el.layout[axis].cb != nil && perp(axis) in el.layout[axis].deps {
 			visit(el, perp(axis))
+
+			child_id: Element_Handle
+			for child in each_element_layout_child(el, &child_id) {
+				visit(child, perp(axis))
+			}
 		}
 
 		if !el.size_set[axis] {
@@ -578,7 +583,12 @@ _solve_layout :: proc (el: ^Element) #no_bounds_check {
 			else if is_bottom_up {
 				child_id: Element_Handle
 				for child in each_element_layout_child(el, &child_id) {
-					if _element_size_is_top_down(child, axis) do continue
+					if _element_size_is_top_down(child, axis) {
+						// A top-down child can still have an intrinsic minimum (e.g. Fill with min=Content)
+						// Include intrinsic minimum before resolving full child size.
+						element_expand_inner_bounds(el, axis, _element_intrinsic_bounds(child, axis))
+						continue
+					}
 
 					assert(child.size_set[axis])
 					element_expand_inner_bounds(el, axis, element_bounds(child, axis))
@@ -624,6 +634,39 @@ _element_size_is_bottom_up :: proc (el: ^Element, axis: Axis) -> bool #no_bounds
 	#partial switch _ in el.min[axis]  {case Content: return true}
 	#partial switch _ in el.max[axis]  {case Content: return true}
 	return el.layout[axis].cb != nil && axis in el.layout[axis].deps // layout callback should know the size of it's children
+}
+
+_element_intrinsic_bounds :: proc(el: ^Element, axis: Axis) -> int {
+
+	content: int
+	child_id: Element_Handle
+	for child in each_element_layout_child(el, &child_id) {
+		content = max(content, _element_intrinsic_bounds(child, axis))
+	}
+
+	content += lt(el.padding)[axis] + rb(el.padding)[axis] +
+	           lt(el.margin)[axis]  + rb(el.margin)[axis]
+
+	size, minimum, maximum: int
+
+	#partial switch v in el.size[axis] {
+	case int: size = v + lt(el.margin)[axis] + rb(el.margin)[axis]
+	case:     size = content
+	}
+
+	#partial switch v in el.min[axis] {
+	case int:     minimum = v
+	case Content: minimum = content
+	case:         minimum = size
+	}
+
+	#partial switch v in el.max[axis] {
+	case int:     maximum = v
+	case Content: maximum = content
+	case:         maximum = size
+	}
+
+	return clamp(size, minimum, maximum)
 }
 
 _element_set_ref_size :: proc (el: ^Element, axis: Axis, ref: int) #no_bounds_check {

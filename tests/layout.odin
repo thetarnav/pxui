@@ -31,7 +31,7 @@ test_stack_component :: proc (t: ^testing.T) {
 
 // root 30x60
 // +-- Flex (horizontal, wraps the third item to a second row)
-//     +-- first  (12x5) + second (14x7)
+//     +-- first  (10x8) + second (14x7)
 //     +-- third  (10x4)
 @(test)
 test_flex_component :: proc (t: ^testing.T) {
@@ -41,7 +41,7 @@ test_flex_component :: proc (t: ^testing.T) {
 		px.padding(1)
 		px.size_hv(px.FILL, px.CONTENT)
 		{test_node("first", 1)
-			px.size_px({10, 5})
+			px.size_px({10, 8})
 		}
 		{test_node("second", 2)
 			px.size_px({14, 7})
@@ -53,10 +53,10 @@ test_flex_component :: proc (t: ^testing.T) {
 
 	frame_end_expect_layout_tree(t, ```
 	root (0,0) (30,60)
-	  Flex (0,0) (30,12)
-	    first (1,1) (10,5)
+	  Flex (0,0) (30,17)
+	    first (1,1) (10,8)
 	    second (13,1) (14,7)
-	    third (1,11) (10,4)
+	    third (1,12) (10,4)
 	```)
 }
 

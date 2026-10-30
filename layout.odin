@@ -88,9 +88,8 @@ _flex_update_layout :: proc (el: ^Element, $AXIS: Axis, gap: Vec2i = 0) {
 	element_set_pos(prev, {0, 0})
 	cursor: Vec2i
 	cursor[PERP] = 0
-	cursor[AXIS] = element_bounds(prev, AXIS)
-
-	row_size: int
+	cursor[AXIS] = element_bounds(prev, AXIS) + gap[AXIS]
+	row_size := element_bounds(prev, PERP)
 
 	for child in each_element_layout_child(el, &child_id) {
 		defer prev = child
@@ -126,7 +125,7 @@ flex_begin :: proc (axis: Axis = .H, gap: Vec2i = 0, #any_int id: u64 = 0, loc :
 	s := element_push(Flex, id, loc)
 	s.axis = axis
 	s.gap  = gap
-	layout(perp(axis), flex_update_layout, deps={axis})
+	layout(perp(axis), flex_update_layout, deps={axis, perp(axis)})
 }
 flex_end :: proc () {
 	assert(typeid_of(Flex) == element_curr().type)
