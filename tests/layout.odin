@@ -22,10 +22,10 @@ test_stack_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(100,80) bounds=(100,80)
-	  Stack pos=(0,0) box=(20,14) bounds=(20,14)
-	    first pos=(0,0) box=(20,5) bounds=(20,5)
-	    second pos=(0,7) box=(15,7) bounds=(15,7)
+	root (0,0) (100,80)
+	  Stack (0,0) (20,14)
+	    first (0,0) (20,5)
+	    second (0,7) (15,7)
 	```)
 }
 
@@ -52,11 +52,11 @@ test_flex_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(30,60) bounds=(30,60)
-	  Flex pos=(0,0) box=(30,12) bounds=(30,12)
-	    first pos=(1,1) box=(10,5) bounds=(10,5)
-	    second pos=(13,1) box=(14,7) bounds=(14,7)
-	    third pos=(1,11) box=(10,4) bounds=(10,4)
+	root (0,0) (30,60)
+	  Flex (0,0) (30,12)
+	    first (1,1) (10,5)
+	    second (13,1) (14,7)
+	    third (1,11) (10,4)
 	```)
 }
 
@@ -83,11 +83,11 @@ test_rect_cut_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(50,30) bounds=(50,30)
-	  Rect_Cut pos=(0,0) box=(50,30) bounds=(50,30)
-	    fixed pos=(0,0) box=(10,30) bounds=(10,30)
-	    fill-a pos=(12,0) box=(18,30) bounds=(18,30)
-	    fill-b pos=(32,0) box=(18,30) bounds=(18,30)
+	root (0,0) (50,30)
+	  Rect_Cut (0,0) (50,30)
+	    fixed (0,0) (10,30)
+	    fill-a (12,0) (18,30)
+	    fill-b (32,0) (18,30)
 	```)
 }
 
@@ -118,12 +118,12 @@ test_masonry_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(50,60) bounds=(50,60)
-	  Masonry pos=(0,0) box=(50,28) bounds=(50,28)
-	    first pos=(0,0) box=(24,10) bounds=(24,10)
-	    second pos=(26,0) box=(24,15) bounds=(24,15)
-	    third pos=(0,12) box=(24,7) bounds=(24,7)
-	    fourth pos=(26,17) box=(24,11) bounds=(24,11)
+	root (0,0) (50,60)
+	  Masonry (0,0) (50,28)
+	    first (0,0) (24,10)
+	    second (26,0) (24,15)
+	    third (0,12) (24,7)
+	    fourth (26,17) (24,11)
 	```)
 }
 
@@ -141,9 +141,9 @@ test_scroll_area_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(80,40) bounds=(80,40)
-	  Scroll_Area_Container pos=(0,0) box=(80,40) bounds=(80,40)
-	    content pos=(0,0) box=(80,80) bounds=(80,80)
+	root (0,0) (80,40)
+	  Scroll_Area_Container (0,0) (80,40)
+	    content (0,0) (80,80)
 	```)
 }
 
@@ -166,11 +166,11 @@ test_scrollbar_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(80,40) bounds=(80,40)
-	  Scroll_Area_Container pos=(0,0) box=(80,40) bounds=(80,40)
-	    content pos=(0,0) box=(80,80) bounds=(80,80)
-	    Scroll_Area_Scrollbar pos=(0,0) box=(4,40) bounds=(4,40)
-	      Scroll_Area_Scrollbar_Thumb pos=(0,0) box=(4,20) bounds=(4,20)
+	root (0,0) (80,40)
+	  Scroll_Area_Container (0,0) (80,40)
+	    content (0,0) (80,80)
+	    Scroll_Area_Scrollbar (0,0) (4,40)
+	      Scroll_Area_Scrollbar_Thumb (0,0) (4,20)
 	```)
 }
 
@@ -188,8 +188,8 @@ test_scrollbar_thumb_component :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(32,16) bounds=(32,16)
-	  thumb-host pos=(0,0) box=(32,16) bounds=(32,16)
-	    Scroll_Area_Scrollbar_Thumb pos=(0,0) box=(32,16) bounds=(32,16)
+	root (0,0) (32,16)
+	  thumb-host (0,0) (32,16)
+	    Scroll_Area_Scrollbar_Thumb (0,0) (32,16)
 	```)
 }

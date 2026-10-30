@@ -67,15 +67,11 @@ layout_tree :: proc () -> string {
 				strings.write_string(sb, "<unknown type>")
 			}
 		}
-		pos := px.element_screen_pos(handle)
-		box := px.element_box_size(handle)
-		bounds := px.element_bounds(handle)
-		strings.write_string(sb, fmt.tprintf(
-			" pos=(%d,%d) box=(%d,%d) bounds=(%d,%d)",
-			pos.x, pos.y,
-			box.x, box.y,
-			bounds.x, bounds.y,
-		))
+
+		fmt.sbprintf(sb, " (%d,%d) (%d,%d)",
+			**px.element_screen_pos(handle),
+			**px.element_box_size(handle),
+		)
 
 		child_id := el.child_first
 		for child in px.element_get(child_id) {

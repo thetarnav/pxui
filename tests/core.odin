@@ -20,8 +20,8 @@ test_fixed_size_and_relative_placement :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(100,80) bounds=(100,80)
-	  anchor pos=(41,20) box=(25,10) bounds=(33,20)
+	root (0,0) (100,80)
+	  anchor (41,20) (25,10)
 	```)
 }
 
@@ -71,10 +71,10 @@ test_content_size_and_raw_layout_callbacks :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(100,80) bounds=(100,80)
-	  content pos=(0,0) box=(32,16) bounds=(32,16)
-	    first pos=(0,0) box=(12,7) bounds=(12,7)
-	    second pos=(12,7) box=(20,9) bounds=(20,9)
+	root (0,0) (100,80)
+	  content (0,0) (32,16)
+	    first (0,0) (12,7)
+	    second (12,7) (20,9)
 	```)
 }
 
@@ -99,9 +99,9 @@ test_subtree_callback_builds_layout_child :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(100,80) bounds=(100,80)
-	  container pos=(4,5) box=(30,20) bounds=(30,20)
-	    generated pos=(10,9) box=(30,10) bounds=(30,10)
+	root (0,0) (100,80)
+	  container (4,5) (30,20)
+	    generated (10,9) (30,10)
 	```)
 }
 
@@ -136,10 +136,10 @@ test_content_width_parent_fill_height :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(80,60) bounds=(80,60)
-	  column pos=(0,0) box=(26,60) bounds=(26,60)
-	    intrinsic pos=(0,0) box=(26,12) bounds=(26,12)
-	    match-column-width pos=(0,12) box=(26,15) bounds=(26,15)
+	root (0,0) (80,60)
+	  column (0,0) (26,60)
+	    intrinsic (0,0) (26,12)
+	    match-column-width (0,12) (26,15)
 	```)
 }
 
@@ -203,13 +203,13 @@ test_content_width_min_max_and_fill_children :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(100,100) bounds=(100,100)
-	  min-list pos=(0,0) box=(60,40) bounds=(60,40)
-	    min-intrinsic pos=(0,0) box=(50,10) bounds=(50,10)
-	    min-fill pos=(0,10) box=(60,10) bounds=(60,10)
-	  max-list pos=(0,40) box=(80,40) bounds=(80,40)
-	    max-intrinsic pos=(0,40) box=(100,10) bounds=(100,10)
-	    max-fill pos=(0,50) box=(80,10) bounds=(80,10)
+	root (0,0) (100,100)
+	  min-list (0,0) (60,40)
+	    min-intrinsic (0,0) (50,10)
+	    min-fill (0,10) (60,10)
+	  max-list (0,40) (80,40)
+	    max-intrinsic (0,40) (100,10)
+	    max-fill (0,50) (80,10)
 	```)
 }
 
@@ -236,7 +236,7 @@ test_content_height_depends_on_fill_width :: proc (t: ^testing.T) {
 	}
 
 	frame_end_expect_layout_tree(t, ```
-	root pos=(0,0) box=(36,60) bounds=(36,60)
-	  paragraph-like pos=(0,0) box=(36,24) bounds=(36,24)
+	root (0,0) (36,60)
+	  paragraph-like (0,0) (36,24)
 	```)
 }
