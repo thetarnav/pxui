@@ -34,7 +34,7 @@ init_panel_texture :: proc "contextless" () {
 	img, _ := png.load_from_bytes(#load(assets.TEXTURE_ATLAS_FILENAME), allocator=context.temp_allocator)
 
 	atlas_texture = {
-		pixels = slice.clone(slice.reinterpret([]RGBA, img.pixels.buf[:])),
+		pixels = slice.clone(slice.reinterpret([]RGBA, img.pixels[:])),
 		size   = {img.width, img.height}
 	}
 
